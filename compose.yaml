@@ -1,0 +1,28 @@
+services:
+  postgres:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: untitled
+      POSTGRES_USER: untitled
+      POSTGRES_PASSWORD: untitled
+    ports:
+      # Bound to localhost only — this is local development infrastructure,
+      # not something that should be reachable from the network.
+      - "127.0.0.1:5432:5432"
+    volumes:
+      # postgres:18+'s official image stores data in a version-specific
+      # subdirectory under /var/lib/postgresql itself (pg_ctlcluster-style
+      # layout) and refuses to start if the volume is mounted one level
+      # deeper at .../postgresql/data (the pre-18 convention) — see
+      # https://github.com/docker-library/postgres/pull/1259.
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U untitled -d untitled"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+volumes:
+  postgres-data:

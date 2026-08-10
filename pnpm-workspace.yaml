@@ -1,3 +1,11 @@
+allowBuilds:
+  # esbuild is a transitive dependency of drizzle-kit (used internally to
+  # run its TS config/CLI); its postinstall just fetches the platform
+  # binary. Well-known, trusted tool — safe to allow.
+  esbuild: true
 ignoredBuiltDependencies:
   - sharp
   - unrs-resolver
+minimumReleaseAgeExclude:
+  - lucide-react@1.30.0
+  - tsx@4.23.11

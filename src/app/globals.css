@@ -1,1 +1,334 @@
 @import "tailwindcss";
+
+/* next-themes toggles a `dark` class on <html>; tie Tailwind's `dark:`
+   variant to that class instead of `prefers-color-scheme`. */
+@custom-variant dark (&:is(.dark *));
+
+/* Up Next's "advance to the next episode" transition
+   (features/home/up-next-card.tsx) — a fresh mount (the card is keyed by
+   episode identity) plays this once. Deliberately a single property
+   pairing (opacity + a short horizontal settle), not a bounce or scale —
+   see CLAUDE.md, "Motion". 260ms — the same duration Library's own
+   smaller-scale echo below already settled on — reads as a real,
+   legible motion without dragging; this already follows the "mark
+   watched" checkmark bridge (watched-flash-check-pop below), so the
+   card's own entrance needs to be quick, not another long beat layered
+   on top of it (an earlier 420ms/600ms read as sluggish for something
+   directly following a click). The reduced-motion override below
+   neutralizes it automatically; no extra guard needed at the call
+   site. */
+@keyframes up-next-enter {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* The "Watched" bridge for a "mark watched, then advance" transition —
+   shared by every control that plays it: Home's Up Next
+   (features/home/up-next-mark-watched-button.tsx) and Library's
+   next-episode quick action (features/library/library-show-quick-action.tsx).
+   Marking watched revalidates immediately, so there's a brief real
+   network round trip between the click and the new episode actually
+   appearing. Rather than a bare button spinner, a scrim fades in over
+   the whole control (watched-flash-overlay-in) and a checkmark settles
+   into place with a small overshoot (watched-flash-check-pop) — the
+   pairing reads as one deliberate "mark, then jump to next" motion
+   instead of a loading state followed by an unexplained swap. Same
+   reduced-motion override applies automatically. */
+@keyframes watched-flash-overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes watched-flash-check-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Library's own smaller-scale echo of `up-next-enter` above — the
+   next-episode detail line (features/library/library-item-row.tsx) fades
+   and rises in place once it actually advances, rather than Up Next's
+   larger horizontal slide, which reads as too much motion for one line
+   of text inside a dense list row. Same trigger mechanism: the parent
+   keys the detail line by next-episode identity so this plays on every
+   genuine advance, never on an unrelated re-render. */
+@keyframes library-detail-advance {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/*
+ * Semantic tokens. Raw color values live here, and only here — components
+ * consume the semantic names (bg-background, text-muted-foreground, ...),
+ * never the raw values. See docs/design-system.md.
+ *
+ * Palette: warm neutral in light mode (not stark white), near-black warm
+ * charcoal in dark mode (not navy/purple). Pastel accent tokens are for
+ * sparing use as fills/indicators, always paired with the theme's own
+ * `foreground` token for text on top of them — never used as text color
+ * themselves.
+ *
+ * Primary is Clay — a muted, dusty terracotta (hue 45), the product's one
+ * signature accent. Deliberately low-chroma so it reads as "warm clay,"
+ * not bright orange — and its hue sits clear of both `destructive` (25,
+ * more saturated red) and `warning` (70, golden amber), so status colors
+ * stay unambiguous. Interactive states (hover/active) are distinct
+ * hand-tuned stops, not opacity tricks: light mode deepens away from the
+ * page on hover/press, dark mode lifts on hover and grounds on press —
+ * see docs/design-system.md.
+ */
+:root {
+  --background: oklch(0.98 0.008 85);
+  --foreground: oklch(0.21 0.008 85);
+
+  --surface: oklch(0.995 0.003 85);
+  --surface-subtle: oklch(0.96 0.006 85);
+  --surface-elevated: oklch(0.995 0.003 85);
+
+  --muted: oklch(0.945 0.006 85);
+  --muted-foreground: oklch(0.47 0.008 85);
+
+  --border: oklch(0.89 0.007 85);
+  --border-strong: oklch(0.8 0.008 85);
+  --input: oklch(0.89 0.007 85);
+  --ring: var(--primary);
+
+  --primary: oklch(0.46 0.075 45);
+  --primary-hover: oklch(0.42 0.075 45);
+  --primary-active: oklch(0.37 0.07 45);
+  --primary-foreground: oklch(0.98 0.006 45);
+  --primary-subtle: oklch(0.91 0.035 45);
+  --primary-border: oklch(0.72 0.06 45);
+  --secondary: oklch(0.945 0.006 85);
+  --secondary-foreground: oklch(0.21 0.008 85);
+  --accent: oklch(0.955 0.006 85);
+  --accent-foreground: oklch(0.21 0.008 85);
+
+  --destructive: oklch(0.55 0.16 25);
+  --destructive-foreground: oklch(0.97 0.01 25);
+  --success: oklch(0.58 0.09 145);
+  --warning: oklch(0.72 0.11 70);
+
+  --pastel-sage: oklch(0.9 0.045 145);
+  --pastel-lavender: oklch(0.9 0.035 300);
+  --pastel-blue: oklch(0.9 0.035 235);
+  --pastel-peach: oklch(0.9 0.05 55);
+  --pastel-rose: oklch(0.9 0.045 10);
+
+  --radius: 0.375rem;
+}
+
+.dark {
+  --background: oklch(0.16 0.006 85);
+  --foreground: oklch(0.95 0.006 85);
+
+  --surface: oklch(0.2 0.006 85);
+  --surface-subtle: oklch(0.185 0.006 85);
+  --surface-elevated: oklch(0.24 0.006 85);
+
+  --muted: oklch(0.24 0.006 85);
+  --muted-foreground: oklch(0.64 0.008 85);
+
+  --border: oklch(0.28 0.007 85);
+  --border-strong: oklch(0.36 0.008 85);
+  --input: oklch(0.28 0.007 85);
+  --ring: var(--primary);
+
+  --primary: oklch(0.66 0.08 45);
+  --primary-hover: oklch(0.71 0.08 45);
+  --primary-active: oklch(0.6 0.08 45);
+  --primary-foreground: oklch(0.15 0.02 45);
+  --primary-subtle: oklch(0.3 0.04 45);
+  --primary-border: oklch(0.44 0.06 45);
+  --secondary: oklch(0.26 0.007 85);
+  --secondary-foreground: oklch(0.95 0.006 85);
+  --accent: oklch(0.24 0.007 85);
+  --accent-foreground: oklch(0.95 0.006 85);
+
+  --destructive: oklch(0.65 0.15 25);
+  --destructive-foreground: oklch(0.16 0.01 25);
+  --success: oklch(0.68 0.09 145);
+  --warning: oklch(0.75 0.1 70);
+
+  --pastel-sage: oklch(0.32 0.045 145);
+  --pastel-lavender: oklch(0.32 0.035 300);
+  --pastel-blue: oklch(0.32 0.035 235);
+  --pastel-peach: oklch(0.32 0.05 55);
+  --pastel-rose: oklch(0.32 0.045 10);
+}
+
+@theme inline {
+  --font-sans: var(--font-geist-sans);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-surface: var(--surface);
+  --color-surface-subtle: var(--surface-subtle);
+  --color-surface-elevated: var(--surface-elevated);
+
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-active: var(--primary-active);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-subtle: var(--primary-subtle);
+  --color-primary-border: var(--primary-border);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+
+  --color-pastel-sage: var(--pastel-sage);
+  --color-pastel-lavender: var(--pastel-lavender);
+  --color-pastel-blue: var(--pastel-blue);
+  --color-pastel-peach: var(--pastel-peach);
+  --color-pastel-rose: var(--pastel-rose);
+
+  /* Small controls -> standard controls -> cards/surfaces -> large overlays.
+     Pills (rounded-full) are reserved for tags/filters/status indicators,
+     applied directly rather than through a semantic radius step. */
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 4px);
+  --radius-xl: calc(var(--radius) + 8px);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-sans);
+  }
+}
+
+/* A thin, quiet scrollbar — applied to the whole app (the page's own
+   vertical scrollbar) and, via `.scrollbar-media`, to native-scroll media
+   rows. Restyled, not hidden (hiding it entirely is the
+   brittle/inaccessible version of this: scrolling would still work, but
+   with zero indication there's more content or where you are in it).
+   Track stays barely-there; the thumb is a real, visible, darker mark
+   rather than a hairline, so it still reads at a glance without becoming
+   a piece of UI chrome in its own right. `color-mix` derives translucent
+   tones straight from the `--foreground` token instead of new hardcoded
+   colors, so both already track light/dark with nothing extra to maintain. */
+:root {
+  --scrollbar-track: color-mix(in oklch, var(--foreground) 6%, transparent);
+  --scrollbar-thumb: color-mix(in oklch, var(--foreground) 32%, transparent);
+  --scrollbar-thumb-hover: color-mix(in oklch, var(--foreground) 48%, transparent);
+}
+
+html {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+html::-webkit-scrollbar {
+  width: 10px;
+}
+html::-webkit-scrollbar-track {
+  background-color: var(--scrollbar-track);
+}
+html::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb);
+  border-radius: 9999px;
+  border: 2px solid var(--background);
+}
+html::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scrollbar-thumb-hover);
+}
+
+.scrollbar-media {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+.scrollbar-media::-webkit-scrollbar {
+  height: 6px;
+}
+.scrollbar-media::-webkit-scrollbar-track {
+  background-color: var(--scrollbar-track);
+}
+.scrollbar-media::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb);
+  border-radius: 9999px;
+}
+.scrollbar-media::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scrollbar-thumb-hover);
+}
+
+/* This block only exists to unconditionally win over component-level
+   transition/animation utilities for users who asked for reduced motion —
+   that's the standard, documented pattern for this override and it doesn't
+   work without !important, hence the narrow, deliberate lint suppressions. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    /* biome-ignore lint/complexity/noImportantStyles: see block comment above */
+    animation-duration: 0.01ms !important;
+    /* biome-ignore lint/complexity/noImportantStyles: see block comment above */
+    animation-iteration-count: 1 !important;
+    /* biome-ignore lint/complexity/noImportantStyles: see block comment above */
+    transition-duration: 0.01ms !important;
+    /* biome-ignore lint/complexity/noImportantStyles: see block comment above */
+    scroll-behavior: auto !important;
+  }
+}
+
+/* The explicit in-app "Interface motion: Reduced" preference (see
+   docs/settings.md) — same override, scoped to `data-motion="reduced"`
+   (set once on AppShell's own wrapper) rather than the OS-level media
+   query above. The OS preference above always applies regardless of this
+   attribute; this is additive, never a way to *re-enable* motion the OS
+   asked to remove — there is no "full" override rule here on purpose. */
+[data-motion="reduced"] *,
+[data-motion="reduced"] *::before,
+[data-motion="reduced"] *::after {
+  /* biome-ignore lint/complexity/noImportantStyles: see block comment above */
+  animation-duration: 0.01ms !important;
+  /* biome-ignore lint/complexity/noImportantStyles: see block comment above */
+  animation-iteration-count: 1 !important;
+  /* biome-ignore lint/complexity/noImportantStyles: see block comment above */
+  transition-duration: 0.01ms !important;
+  /* biome-ignore lint/complexity/noImportantStyles: see block comment above */
+  scroll-behavior: auto !important;
+}
