@@ -2,7 +2,7 @@
 
 import { LogOut, Settings } from "lucide-react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { IconButton } from "@/components/ui/icon-button";
 import { authClient } from "@/lib/auth-client";
 
@@ -17,13 +17,31 @@ import { authClient } from "@/lib/auth-client";
 // standalone `ThemeToggle` that used to live here was removed as dead
 // UI rather than kept as a duplicate control.
 export function AccountControl({ name, email }: { name: string; email: string }) {
-  const router = useRouter();
   const pathname = usePathname();
 
   function handleSignOut() {
-    void authClient.signOut().then(() => {
-      router.push("/sign-in");
-      router.refresh();
+    // `fetchOptions.onSuccess` (Better Auth's own documented pattern) —
+    // deliberately not a bare `.then()`, which would silently leave the
+    // button appearing to do nothing if the request ever failed. Logout
+    // always returns to the public Landing page, never back to Sign In —
+    // see docs/authentication.md, "Logout destination".
+    //
+    // A hard navigation (`window.location.href`), not `router.push` +
+    // `router.refresh()`: when the signed-in visitor is already on `/`
+    // (Home) — the single most common place to click Sign out from —
+    // `router.push("/")` targets the exact URL already loaded, so
+    // Next.js's client router can no-op the navigation and leave the
+    // stale authenticated shell on screen even though the session was
+    // genuinely cleared server-side. A full reload has no such edge
+    // case: every bit of client state is wiped and `/` is re-requested
+    // from the server fresh, which is also thematically right for a
+    // "leave the application" transition (see CLAUDE.md, "Authentication").
+    void authClient.signOut({
+      fetchOptions: {
+        onSuccess: () => {
+          window.location.href = "/";
+        },
+      },
     });
   }
 

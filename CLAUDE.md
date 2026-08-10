@@ -178,20 +178,83 @@ in the same change.
   (`getCurrentSession`/`requireSession` in `src/server/auth/session.ts`).
   Never trust a client-provided user ID (form field, query param, client
   state) as identity.
-- Route-group protection (`(app)`'s layout redirecting to `/sign-in`) is a
-  UX convenience, not authorization. Any server code that reads/writes
-  user-owned data must validate the session itself at that point — see
-  `docs/authentication.md`.
+- `/` is MEDIO's public Landing page for logged-out users; a logged-in
+  user navigating to `/` enters the authenticated Home experience without
+  visible flicker. Neither case is ever a redirect — both are decided
+  server-side in `src/app/page.tsx` before anything renders — see
+  docs/authentication.md, "`/` behavior by auth state".
+- Logged-out users may browse only explicit public/auth routes; every
+  other protected route redirects to Sign In (`src/proxy.ts`, plus
+  `requireSession()` as defense-in-depth for anything the proxy matcher
+  doesn't cover). This is a UX convenience, not authorization — any
+  server code that reads/writes user-owned data must still validate the
+  session itself at that point — see docs/authentication.md.
+- Logout always returns to `/` (the public Landing page), never to
+  `/sign-in`.
+- A safe internal return destination (`?next=`) may be preserved through
+  Sign In/Sign Up; external or protocol-relative "return" URLs are always
+  rejected (`src/lib/safe-redirect.ts`) — never trust `next` blindly.
 - Keep auth/database code server-only; never expose `BETTER_AUTH_SECRET` or
   a session token (no logging either).
 - Use Better Auth's inferred types (session, user) — don't hand-duplicate them.
 - Don't add auth plugins/providers (social login, MFA, etc.) without a real
   requirement — see `docs/authentication.md` for what's deliberately deferred.
-- Don't add dead auth UI (a link/button for a feature that doesn't exist).
-- Auth screens follow the same bespoke anti-template standard as the rest
-  of the product — no centered card, no generic SaaS auth look.
+- Don't add dead auth UI (a link/button for a feature that doesn't exist) —
+  e.g. no "Forgot password?" link until real password-reset infrastructure
+  exists.
+- Landing/auth visuals follow MEDIO's premium consumer-entertainment
+  identity and the same bespoke anti-template standard as the rest of the
+  product — no centered card, no generic SaaS auth/landing look.
+- Sign In/Sign Up use accessible native form semantics, correct
+  autofill/password-manager attributes, and polished error/pending
+  states; raw Better Auth error codes are never shown to a user (see
+  `src/lib/auth-errors.ts`).
+- Public Landing output must never contain user-private data, and must
+  never share-cache anything session-dependent.
 - Reuse `src/components/ui/` primitives before creating auth-specific ones;
   if a primitive is missing something auth needs, fix the primitive.
+
+## Landing
+
+- MEDIO's Landing page (`src/features/landing/`) explains the product
+  through bespoke product illustrations, not generic feature cards —
+  each major section shows a real MEDIO concept (exact episode tracking,
+  Watchlist/Backlog meaning, Up Next, Pick for Me, release awareness,
+  personal taste) via a purpose-built illustration component
+  (`src/features/landing/illustrations/`), never a
+  heading+paragraph+icon block.
+- Public illustrations are simplified representations of real MEDIO
+  concepts, built from plain HTML/CSS/SVG and a small centralized demo
+  dataset (`src/features/landing/demo-content.ts`) — never real user
+  data, never a live provider fetch, never a literal screenshot of the
+  authenticated app.
+- Landing copy describes concrete consumer outcomes ("MEDIO remembers
+  exactly which episode comes next") and avoids generic SaaS language
+  ("seamless," "elevate," "unlock," "revolutionize," "ultimate," "smarter
+  entertainment"). Pick for Me is never described as "AI-powered."
+- Pick for Me, exact episode tracking, meaningful Library state (Watchlist
+  vs. Backlog vs. Watching), release awareness, and personal viewing
+  insights (taste/stats) are core public product stories — Pick for Me
+  gets its own full-weight section, not an equal-sized feature card.
+- Landing may be more expressive than the authenticated product (richer
+  illustrations, larger type, more motion) but keeps MEDIO's neutral
+  chrome and content-led color — Clay stays the one accent (CTA,
+  progress, small highlights, the wordmark), never a background color or
+  every heading.
+- Never add fabricated testimonials, user counts, ratings, press logos,
+  or any other social proof.
+- Keep Landing predominantly server-rendered with narrow client
+  boundaries — only genuinely interactive pieces (the theme toggle) are
+  Client Components.
+- Mobile Landing illustrations are independently composed, never a scaled-
+  down desktop layout — see `docs/architecture.md` if a mobile-specific
+  illustration variant is ever needed.
+- Richer Landing content must not come at the cost of performance — no
+  heavy animation/chart dependency, no unnecessary client JS, prefer
+  CSS/SVG.
+- Every major public section must earn its place and communicate a
+  distinct product benefit — if two sections say the same thing, combine
+  them rather than keeping both.
 
 ## Media provider
 
@@ -724,6 +787,47 @@ in the same change.
   Diary, Calendar, and recommendation derivations without source-specific
   branches — this is a deliberate architectural test, not just a UX
   nicety.
+
+## Production
+
+- MEDIO's production application is hosted on Vercel; production
+  PostgreSQL is hosted on Neon (`aws-eu-central-1`/Frankfurt) — see
+  docs/production.md.
+- PostgreSQL major version is 18, matching local development exactly.
+- Production secrets live only in Vercel's environment configuration —
+  never in git, never in documentation, never echoed in a terminal/log
+  beyond the one-time value a provisioning CLI necessarily prints.
+- Local development keeps its existing local Postgres workflow
+  (`docker compose`, `.env.local`) — the production `DATABASE_URL` must
+  never be written to `.env.local` or any tracked file.
+- Never point development reset/seed/test commands at production.
+  `assertSafeDatabaseUrlForE2e` (`src/config/env/schema.ts`) hard-crashes
+  E2E's own server boot if `DATABASE_URL` isn't local — there is no
+  bypass flag.
+- Production DB destructive operations (Developer settings' mock-data
+  seed/full reset) require explicit safeguards and are already
+  unreachable in any deployed build (`NODE_ENV === "production"`,
+  double-gated at both the route and the mutation itself).
+- TMDB credentials are server-only, in every environment.
+- User-private data must never be shared-cached, in every environment.
+- `/design-system` and other development/debug utilities must not be
+  exposed in production (already gated by `NODE_ENV`).
+- Production deployment must pass the same quality gates as any other
+  change — `pnpm check`, `pnpm build`, at minimum.
+- Prefer managed infrastructure (Vercel + Neon); do not introduce a
+  self-hosted production server (VPS, Docker host, reverse proxy,
+  self-managed Postgres, ...) without an explicit, separate architecture
+  decision.
+- Vercel Hobby and Neon Free are intentional initial cost choices — see
+  docs/production.md, "Free tier". Do not upgrade either without explicit
+  approval.
+- Never add artificial keep-alive traffic (cron pings, scheduled health
+  checks, ...) to defeat Neon Free's scale-to-zero behavior — the
+  occasional cold-start latency is an accepted, deliberate tradeoff for
+  $0 managed infrastructure.
+- Future paid infrastructure changes (a Vercel/Neon plan upgrade, a
+  custom domain, ...) require explicit user approval before spending
+  money.
 
 ## Product principles
 

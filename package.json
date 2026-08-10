@@ -30,7 +30,8 @@
     "db:generate": "node --env-file-if-exists=.env.local node_modules/drizzle-kit/bin.cjs generate",
     "db:migrate": "node --env-file-if-exists=.env.local node_modules/drizzle-kit/bin.cjs migrate",
     "db:studio": "node --env-file-if-exists=.env.local node_modules/drizzle-kit/bin.cjs studio",
-    "auth:generate": "pnpm dlx @better-auth/cli@1.4.21 generate --config src/server/auth/cli.ts --output src/server/db/schema/auth.ts -y"
+    "auth:generate": "pnpm dlx @better-auth/cli@1.4.21 generate --config src/server/auth/cli.ts --output src/server/db/schema/auth.ts -y",
+    "deploy:vercel": "vercel deploy --prod --yes"
   },
   "dependencies": {
     "better-auth": "1.6.26",

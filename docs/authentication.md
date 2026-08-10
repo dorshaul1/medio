@@ -44,17 +44,65 @@ as a substitute for that check. The layout redirect and the data-access
 check are two different concerns that happen to both exist today; only the
 second one is actually load-bearing for security.
 
+## `/` behavior by auth state
+
+`/` is the one route that must never simply redirect: a logged-out visitor
+gets the public Landing page (`src/features/landing/landing-page.tsx`), a
+signed-in visitor gets Home — both rendered by the same
+`src/app/page.tsx`, branching on `getCurrentSession()` server-side before
+anything paints (no flash of the wrong experience either way). This is why
+Home no longer lives inside the `(app)` route group: that group's layout
+unconditionally requires a session for everything in it, which is exactly
+the "redirect a logged-out visitor away" behavior `/` must never get. Home's
+actual composition lives in `src/features/home/home-page.tsx` so `/`'s
+session branching doesn't need to know anything about Home's own internals.
+
 ## Protected routes
 
-The `(app)` route group (Home, Discover, Library, Calendar) requires a
-session — enforced once in `src/app/(app)/layout.tsx`, not duplicated per
-page. The `(auth)` route group (`/sign-in`, `/sign-up`) does the inverse:
-its layout redirects an already-authenticated visitor to `/` before
-anything renders, so there's no flash of an auth form for a signed-in user.
-Both checks are server-side, before first paint.
+Two layers, deliberately redundant:
 
-No `proxy.ts` — the two route-group layouts are sufficient, and adding one
-wouldn't change the actual security boundary above.
+1. **`src/proxy.ts`** — a fast, edge-level guard for every other primary
+   destination (Discover, Library, Movies, People, Pick, Settings, Shows,
+   Stats, Calendar — an explicit allow-list, `/` is deliberately absent).
+   Checks only whether a session cookie is *present* (`better-auth/cookies`'
+   `getSessionCookie`, no DB call, no signature verification — Better
+   Auth's own documented pattern for this) and, if not, redirects to
+   `/sign-in?next=<the original path>` before the page starts rendering at
+   all. This is a UX convenience, not the security boundary — see below.
+2. **`requireSession()`** (`src/app/(app)/layout.tsx`) — the existing
+   per-layout check for every route still inside the `(app)` group,
+   unchanged. Defense in depth: if proxy's matcher ever has a gap (a new
+   route added without updating it), this still catches it, just without
+   preserving a return path.
+
+An already-authenticated visitor hitting `/sign-in` or `/sign-up` is
+redirected away before rendering too — each page now does this itself
+(`src/app/(auth)/_lib/resolve-auth-page-next.ts`), not a shared `(auth)`
+layout, because **Next.js layouts don't receive `searchParams`, only pages
+do** — the old shared-layout approach couldn't have honored `?next=` even
+if it tried.
+
+### Return URL safety
+
+`?next=` is never trusted blindly. `src/lib/safe-redirect.ts`'s
+`isSafeReturnPath`/`safeReturnPath` reject anything that isn't a genuine
+same-origin relative path — a full external URL, a protocol-relative
+`//evil.com`, a backslash-prefixed `/\evil.com` (some browsers treat that
+as protocol-relative too), or a loop back to `/sign-in`/`/sign-up` itself.
+An invalid/missing `next` silently falls back to `/`, never a 400 and never
+a redirect to somewhere an attacker chose. Both `resolveAuthPageNext` (the
+"already authenticated" redirect) and the two forms' own post-auth
+`router.push` go through this validation before it's ever used.
+
+### Logout destination
+
+Logging out always returns to the public Landing page (`/`), never back to
+`/sign-in` — see `src/components/shell/account-control.tsx`. `authClient.
+signOut` uses Better Auth's `fetchOptions.onSuccess` callback (not a bare
+`.then()`, which would leave the button looking like it did nothing if the
+request ever failed) to navigate, then `router.refresh()` so no stale
+authenticated shell can flash before the next render picks up the cleared
+session.
 
 ## Schema & migrations
 
@@ -96,9 +144,14 @@ Locally, `pnpm dev` needs `.env.local` with real values (copy
 `src/app/(auth)/` — the auth screens, deliberately outside the application
 shell (no sidebar/nav). Composition is asymmetric, not the centered-card
 template: on `sm+` screens the form sits left in generous negative space;
-mobile centers it, since there's no room for that asymmetry there. Built
-entirely from existing `src/components/ui/` primitives (`Button`, `Input`,
-the new `PasswordInput`) — no parallel form/button system.
+mobile centers it, since there's no room for that asymmetry there.
+`AuthScreen` (`src/app/(auth)/_components/auth-screen.tsx`) carries real
+brand presence — the real MEDIO wordmark linking back to `/`, plus one
+contextual line of copy per screen — rather than a plain text label, so the
+auth flow reads as a focused extension of the public Landing page instead
+of an anonymous form. Built entirely from existing `src/components/ui/`
+primitives (`Button`, `Input`, the new `PasswordInput`) — no parallel
+form/button system.
 
 `PasswordInput` (visibility toggle) was added as a `ui/` primitive, not an
 auth-local component, since any future password field needs the same
@@ -118,11 +171,19 @@ placeholder would look accidental, not designed), no account dropdown menu
 
 ## Deferred
 
-Deliberately not implemented in this phase — each needs real infrastructure
+Deliberately not implemented — each needs real infrastructure
 (transactional email) or a concrete future requirement first:
 
+- **Password reset / "Forgot password?"** — evaluated during the public
+  Landing/auth redesign and deliberately not added. Better Auth's
+  email/password config (`src/server/auth/config.ts`) has no
+  `sendResetPassword` configured, and MEDIO has no transactional email
+  provider at all — implementing this honestly would require standing up
+  real email infrastructure first, not just adding a UI form. A dead
+  "Forgot password?" link that goes nowhere real would be worse than no
+  link, so Sign In has none. Revisit once an email provider is a real
+  requirement.
 - Email verification
-- Password reset
 - Social/OAuth login, passkeys, MFA
 - Organizations, roles/permissions, admin accounts
 - Real Settings functionality, onboarding, avatar upload

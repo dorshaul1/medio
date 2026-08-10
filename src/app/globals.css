@@ -64,6 +64,26 @@
   }
 }
 
+/* The public Landing page's hero composition
+   (features/landing/hero-composition.tsx) — three product fragments
+   settle into place with a short, staggered rise (see CLAUDE.md,
+   "Landing Page Motion"). Deliberately the same restrained "fade + short
+   rise" language as up-next-enter above, not a bounce/scale/parallax —
+   Landing may be slightly more expressive than the authenticated app,
+   but its motion vocabulary still follows the same premium, quiet
+   discipline. The reduced-motion override below neutralizes this
+   automatically. */
+@keyframes hero-fragment-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* Library's own smaller-scale echo of `up-next-enter` above — the
    next-episode detail line (features/library/library-item-row.tsx) fades
    and rises in place once it actually advances, rather than Up Next's

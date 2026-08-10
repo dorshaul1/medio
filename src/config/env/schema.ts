@@ -42,6 +42,35 @@ export function resolveBetterAuthUrl(
   return undefined;
 }
 
+// Better Auth's origin check (CSRF protection) rejects any state-
+// changing request (sign-in, sign-out, ...) whose `Origin` header
+// doesn't match `baseURL` exactly — see docs/production.md/
+// docs/authentication.md. Two real, recurring reasons that legitimate
+// same-app traffic doesn't:
+//
+// - Locally, port 3000 is frequently already taken by something else on
+//   the developer's machine; `next dev` silently binds the next free
+//   port (3001, 3002, ...) instead of failing, but `.env.local`'s
+//   `BETTER_AUTH_URL` stays fixed at `http://localhost:3000` — a real
+//   mismatch, not a misconfiguration, and one a developer has no reason
+//   to notice until a sign-in/sign-out 403s. Trusting any `localhost`
+//   port unconditionally (not just outside production) is safe: no
+//   genuine external visitor's browser ever sends `Origin:
+//   http://localhost:*` to a deployed server.
+// - On Vercel, one deployment is served behind several real hostnames at
+//   once — the canonical production alias (what `BETTER_AUTH_URL` is set
+//   to), the team/project aliases, and a unique per-deployment hash —
+//   see docs/production.md, "Multiple hostnames and trustedOrigins".
+//   Scoped to the `medio-*` prefix specifically (this app's own Vercel
+//   project alias naming) — never a bare `*.vercel.app`, which would
+//   trust every other project on the platform too. Detected via `VERCEL`
+//   (only ever set by Vercel's own build/runtime environment).
+export function computeTrustedOrigins(source: Record<string, string | undefined>): string[] {
+  const origins = ["http://localhost:*"];
+  if (source.VERCEL === "1") origins.push("https://medio-*.vercel.app");
+  return origins;
+}
+
 // A hard safety rail against E2E ever mutating a real (let alone
 // production) database — see docs/production.md, "Production database
 // safety guards". `playwright.config.ts`'s `webServer` is the only place

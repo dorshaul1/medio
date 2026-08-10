@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { assertSafeDatabaseUrlForE2e, parseServerEnv, resolveBetterAuthUrl } from "./schema";
+import {
+  assertSafeDatabaseUrlForE2e,
+  computeTrustedOrigins,
+  parseServerEnv,
+  resolveBetterAuthUrl,
+} from "./schema";
 
 const VALID_ENV = {
   DATABASE_URL: "postgresql://untitled:untitled@localhost:5432/untitled",
@@ -111,5 +116,18 @@ describe("assertSafeDatabaseUrlForE2e", () => {
         "postgresql://user:pass@ep-real-project-pooler.eu-central-1.aws.neon.tech/medio",
       ),
     ).toThrow(/non-local database/);
+  });
+});
+
+describe("computeTrustedOrigins", () => {
+  it("always trusts any localhost port, even outside Vercel", () => {
+    expect(computeTrustedOrigins({})).toEqual(["http://localhost:*"]);
+  });
+
+  it("adds this project's own Vercel aliases on Vercel, never every *.vercel.app", () => {
+    const origins = computeTrustedOrigins({ VERCEL: "1" });
+    expect(origins).toContain("http://localhost:*");
+    expect(origins).toContain("https://medio-*.vercel.app");
+    expect(origins).not.toContain("https://*.vercel.app");
   });
 });

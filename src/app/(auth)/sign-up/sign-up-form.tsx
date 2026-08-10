@@ -1,5 +1,6 @@
 "use client";
 
+import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
@@ -8,7 +9,7 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { authClient } from "@/lib/auth-client";
 import { type AuthErrorField, mapAuthError } from "@/lib/auth-errors";
 
-export function SignUpForm() {
+export function SignUpForm({ next }: { next?: string }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
@@ -34,7 +35,7 @@ export function SignUpForm() {
         return;
       }
 
-      router.push("/");
+      router.push((next ?? "/") as Route);
       router.refresh();
     });
   }
