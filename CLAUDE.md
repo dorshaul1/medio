@@ -233,19 +233,34 @@ in the same change.
   ("seamless," "elevate," "unlock," "revolutionize," "ultimate," "smarter
   entertainment"). Pick for Me is never described as "AI-powered."
 - Pick for Me, exact episode tracking, meaningful Library state (Watchlist
-  vs. Backlog vs. Watching), release awareness, and personal viewing
-  insights (taste/stats) are core public product stories — Pick for Me
-  gets its own full-weight section, not an equal-sized feature card.
+  vs. Backlog vs. Watching), and personal viewing history are core public
+  product stories. Related ideas (Up Next + release awareness; Diary +
+  Stats + Taste) are told as one combined section, not one section per
+  route/feature — group by outcome, not by internal domain boundary.
+  Pick for Me is the flagship and gets the page's largest, most visually
+  distinct moment, never an equal-sized feature card.
+- Section visual weight is deliberately unequal (Tracking and Pick for Me
+  largest; supporting ideas smaller/quieter) and layout varies
+  intentionally per section (asymmetric splits, at least one full-width
+  breakout moment) — never one repeated template
+  (eyebrow+heading+paragraph+bordered-illustration-card) applied
+  mechanically to every section.
 - Landing may be more expressive than the authenticated product (richer
   illustrations, larger type, more motion) but keeps MEDIO's neutral
   chrome and content-led color — Clay stays the one accent (CTA,
   progress, small highlights, the wordmark), never a background color or
   every heading.
+- A small illustration may be genuinely interactive (real local demo
+  state — e.g. marking a demo episode watched, switching a demo title's
+  saved state, changing Pick for Me's time context) when it demonstrates
+  the product better than a static illustration would — never real data,
+  never a network request, and the page must remain fully understandable
+  without touching anything.
 - Never add fabricated testimonials, user counts, ratings, press logos,
   or any other social proof.
 - Keep Landing predominantly server-rendered with narrow client
-  boundaries — only genuinely interactive pieces (the theme toggle) are
-  Client Components.
+  boundaries — only genuinely interactive pieces (the theme toggle, the
+  small interactive demo illustrations) are Client Components.
 - Mobile Landing illustrations are independently composed, never a scaled-
   down desktop layout — see `docs/architecture.md` if a mobile-specific
   illustration variant is ever needed.
