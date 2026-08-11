@@ -5,11 +5,16 @@ import type { MediaType } from "@/server/media/types";
 import type { LibraryRawState, LibrarySort } from "./candidates";
 import { listLibraryCandidates } from "./candidates";
 import { composeLibraryItems } from "./compose";
+import { searchLibrary } from "./search";
 import type { LibraryItem } from "./types";
 
 export type LibraryPage = {
   items: readonly LibraryItem[];
   hasMore: boolean;
+  // Only ever `true` on a search result page (see `getLibraryPage`'s
+  // `query` param and docs/library.md, "Search") — always `false`
+  // otherwise, never meaningful outside a search.
+  scanWasCapped: boolean;
 };
 
 // The Library's one reusable read — a page of the current user's personal
@@ -30,9 +35,24 @@ export async function getLibraryPage(input: {
   state?: LibraryRawState | undefined;
   sort: LibrarySort;
   count?: number | undefined;
+  // A non-empty value switches this into a Library-search read — see
+  // `searchLibrary`/docs/library.md, "Search". `sort` is ignored in that
+  // case (search results are relevance-ranked, not recency/added-ranked).
+  query?: string | undefined;
 }): Promise<LibraryPage> {
   const { user } = await requireSession();
   const limit = input.count ?? LIBRARY_PAGE_SIZE;
+
+  if (input.query) {
+    const { items, hasMore, scanWasCapped } = await searchLibrary({
+      userId: user.id,
+      query: input.query,
+      mediaType: input.mediaType,
+      state: input.state,
+      count: limit,
+    });
+    return { items, hasMore, scanWasCapped };
+  }
 
   const { candidates, hasMore } = await listLibraryCandidates({
     userId: user.id,
@@ -44,5 +64,5 @@ export async function getLibraryPage(input: {
   });
 
   const items = await composeLibraryItems(user.id, candidates);
-  return { items, hasMore };
+  return { items, hasMore, scanWasCapped: false };
 }

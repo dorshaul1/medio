@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { LibraryItem } from "./types";
-import { libraryStateGroup } from "./types";
+import { groupLibraryItems, libraryStateGroup } from "./types";
 
 const BASE = {
   mediaProviderId: 1,
@@ -9,6 +9,7 @@ const BASE = {
   year: 2020,
   personalActivityAt: new Date("2024-01-01"),
   addedAt: new Date("2024-01-01"),
+  rating: null,
 };
 
 describe("libraryStateGroup", () => {
@@ -60,5 +61,68 @@ describe("libraryStateGroup", () => {
       nextEpisode: null,
     };
     expect(libraryStateGroup(item)).toBe(expected);
+  });
+});
+
+describe("groupLibraryItems", () => {
+  function plannedMovie(id: number): LibraryItem {
+    return {
+      ...BASE,
+      mediaProviderId: id,
+      kind: "planned-movie",
+      mediaType: "movie",
+      intent: "watchlist",
+    };
+  }
+
+  function watchingShow(id: number): LibraryItem {
+    return {
+      ...BASE,
+      mediaProviderId: id,
+      kind: "tracked-show",
+      mediaType: "show",
+      explicitState: "watching",
+      derivedState: "watching",
+      airedEpisodeCount: 10,
+      watchedEpisodeCount: 5,
+      nextEpisode: null,
+    };
+  }
+
+  function droppedShow(id: number): LibraryItem {
+    return {
+      ...BASE,
+      mediaProviderId: id,
+      kind: "tracked-show",
+      mediaType: "show",
+      explicitState: "dropped",
+      derivedState: "dropped",
+      airedEpisodeCount: 10,
+      watchedEpisodeCount: 2,
+      nextEpisode: null,
+    };
+  }
+
+  it("clusters into the In progress -> Planned -> Paused -> Finished order regardless of input order", () => {
+    const items = [droppedShow(1), plannedMovie(2), watchingShow(3)];
+    const groups = groupLibraryItems(items);
+    expect(groups.map((entry) => entry.group)).toEqual(["in_progress", "planned", "paused"]);
+    expect(groups[0]?.items).toEqual([watchingShow(3)]);
+  });
+
+  it("omits empty groups rather than rendering a header with no items", () => {
+    const groups = groupLibraryItems([plannedMovie(1)]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0]?.group).toBe("planned");
+  });
+
+  it("keeps items in their original relative order within a group", () => {
+    const items = [watchingShow(1), watchingShow(2), watchingShow(3)];
+    const groups = groupLibraryItems(items);
+    expect(groups[0]?.items.map((item) => item.mediaProviderId)).toEqual([1, 2, 3]);
+  });
+
+  it("returns no groups for an empty page", () => {
+    expect(groupLibraryItems([])).toEqual([]);
   });
 });

@@ -109,6 +109,93 @@ grows a `?count=` URL param in fixed page-size increments (see
 bookmarkable value rather than client state — each request is still one
 bounded query, never the full history.
 
+The `UNION ALL` itself lives in one shared `candidatesCte` helper, reused
+by both `listLibraryCandidates` (a normal filtered/sorted page) and
+`listLibrarySearchCandidates` (search's own bounded recency scan — see
+"Search" below) — so there is exactly one definition of "what counts as a
+Library candidate," never two that could quietly drift apart.
+
+## Default grouping
+
+The default Library view (no explicit `?state=`, no active search)
+doesn't render items in raw chronological order — a Dropped show from
+last year sorting ahead of a show the user is actively watching (purely
+because SQL-level "recently active" ordering has no idea one is more
+*important* than the other) is exactly the "inactive states dominate"
+failure this avoids.
+
+`groupLibraryItems` (`server/library/types.ts`) clusters an already-
+fetched, already-recency-ordered page into a small, fixed hierarchy —
+**In progress → Planned → Paused → Finished** (`LibraryStateGroup`,
+computed per item by the existing `libraryStateGroup`) — stable within
+each group, omitting any group with no items on this page. This is pure
+display reordering, not a second query: it never changes *which* items
+are on the page, only how *this page's* items are clustered, so "Load
+more" (which re-fetches the whole accumulated `count` each time, per
+"Candidate query and pagination" above) stays consistent.
+
+This is a deliberate, honest approximation, not a promise of a fully
+priority-ordered page: because a Show's true group depends on its
+*derived* state (Caught up/Waiting/Completed), which requires provider
+hydration, grouping can only reorder items the recency-bounded SQL query
+already decided to fetch — a Watching show that hasn't been touched in
+months, evicted from the fetched page by a more recently active
+Watchlist save, won't be pulled back in just because it would outrank
+that save in the hierarchy. In practice this rarely matters (an actively
+watched show is usually also recently active); the alternative (resolving
+every candidate's derived state up front to sort correctly) is exactly
+the unbounded provider fan-out "Show derived state at Library scale"
+below forbids.
+
+Grouping is skipped entirely once a specific `state` is chosen, or a
+search is active — every visible item already shares that one state (or
+matches the query), so a second grouping pass would just repeat one
+redundant heading.
+
+## Search
+
+Library search (`server/library/search.ts`) searches only this user's own
+Library — never the global TMDB catalog (that's Discover's job) — and
+composes with the existing type/state filters rather than replacing them.
+
+Title lives in TMDB, never in Postgres (see "Provider metadata
+composition" below), so a text query can only be checked *after*
+hydrating candidates' titles. To keep this fast and bounded:
+
+1. `listLibrarySearchCandidates` fetches the user's most-recently-active
+   `LIBRARY_SEARCH_CANDIDATE_CAP` (400) candidates matching the active
+   type/state filters — identity only, no title, one cheap indexed query.
+2. Each candidate's title (+ original title) is hydrated in parallel,
+   bounded to that same cap — never per keystroke: the client-side
+   `LibrarySearch` input debounces before it ever touches the URL's
+   `?q=`, and each committed query is one bounded server request, not a
+   fetch loop tied to typing.
+3. Matches are ranked with title-starts-with above title-contains, both
+   groups keeping the scan's own recency order — then sliced to the
+   requested page size and composed into real `LibraryItem`s via the
+   normal `composeLibraryItems`.
+
+The cap is an accepted, honestly-documented scale limit, not a silent
+correctness bug: a title outside the user's most-recently-active 400
+candidates (a very old, long-untouched save in a huge Library) won't
+surface. `LibrarySearchPage.scanWasCapped` lets the Library page note this
+rather than silently implying it searched everything.
+
+A search with no matches offers an explicit, opt-in path to global
+Search (`LibrarySearchEmptyState`, "Search MEDIO for "…"" linking to
+`/discover?q=...`) — scope is never silently widened to the TMDB catalog.
+
+## Rating display
+
+Personal ratings (`server/opinions/`) are batch-hydrated onto every page
+of `LibraryItem`s via the existing `listMediaRatings()` (one bounded query
+covering the user's entire rating set — never a per-item lookup), carried
+on every kind's `rating: number | null`. The UI only ever surfaces it for
+finished media (a watched movie, a completed show) — a quiet "· 4/5" text
+suffix, not a second star control (the app's `RatingControl` already
+avoids stars specifically because a *provider* rating already uses one)
+— since anywhere else a rating is rare and would just be clutter.
+
 ## Show derived state at Library scale — an approximation
 
 Show Details computes exact progress from real per-episode air dates (one
@@ -206,9 +293,13 @@ until Home personalization is an actual phase.
 
 ## What this phase deliberately does not include
 
-Tonight, Library search, ratings, notes, collections, custom lists, richer
-planning intents (Soon/Someday/Weekend/With someone), Library-based
-recommendations, streaming-provider availability, notifications, or
-import/export. Per-season progress badges on Library's tracked-show rows
-use the Library-scale approximation above, not Show Details' exact
-progress — see "Show derived state at Library scale."
+Collections, custom lists, tags, richer planning intents (Soon/Someday/
+Weekend/With someone), Library-based recommendations, streaming-provider
+availability, notifications, or general bulk management (see CLAUDE.md,
+"Explicitly Out Of Scope" in the Library 2.0 phase). Notes, ratings, and
+import/export already exist as their own domains (`docs/opinions.md`,
+`docs/data-portability.md`) and Library search exists (see "Search"
+above) — none of those are missing, just not Library-specific inventions.
+Per-season progress badges on Library's tracked-show rows use the
+Library-scale approximation above, not Show Details' exact progress —
+see "Show derived state at Library scale."

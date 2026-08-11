@@ -47,6 +47,13 @@ export function isRawStateValidForMediaType(state: LibraryRawState, mediaType: M
   return mediaType === "movie" ? state === "watched" : state !== "watched";
 }
 
+// With no media type filter ("All"), only Watchlist/Backlog are a
+// meaningful shared vocabulary across both movies and shows — Watched/
+// Watching/On hold/Dropped are type-specific (see `isRawStateValidForMediaType`).
+export function isRawStateValidForAllMediaTypes(state: LibraryRawState): boolean {
+  return state === "watchlist" || state === "backlog";
+}
+
 export function normalizeLibrarySort(raw: string | string[] | undefined): LibrarySort {
   return firstValue(raw) === "added" ? "recently_added" : "recently_active";
 }
@@ -65,9 +72,9 @@ export function normalizeLibraryCount(raw: string | string[] | undefined): numbe
 
 // The state options relevant to the current type filter — never a
 // chaotic single toolbar mixing every possible state (see
-// docs/library.md, "State filtering"). "All" doesn't get a full raw-state
-// dropdown at all (see the Library page) since Watched/Watching aren't a
-// meaningful shared vocabulary across both media types.
+// docs/library.md, "State filtering"). "All" gets its own reduced set
+// (`ALL_MEDIA_STATE_OPTIONS`) rather than either of these, since Watched/
+// Watching aren't a meaningful shared vocabulary across both media types.
 export const MOVIE_STATE_OPTIONS: readonly { value: LibraryRawState; label: string }[] = [
   { value: "watchlist", label: "Watchlist" },
   { value: "backlog", label: "Backlog" },
@@ -81,3 +88,25 @@ export const SHOW_STATE_OPTIONS: readonly { value: LibraryRawState; label: strin
   { value: "on_hold", label: "On hold" },
   { value: "dropped", label: "Dropped" },
 ];
+
+// Shown only when no media type filter is active — a reduced option set
+// (see `isRawStateValidForAllMediaTypes`), not the full movie/show
+// vocabulary mixed together.
+export const ALL_MEDIA_STATE_OPTIONS: readonly { value: LibraryRawState; label: string }[] = [
+  { value: "watchlist", label: "Watchlist" },
+  { value: "backlog", label: "Backlog" },
+];
+
+// Library search's own `?q=` — see docs/library.md, "Search". Lower
+// minimum than Discover's global search (`MIN_SEARCH_QUERY_LENGTH`,
+// which guards against spamming TMDB for one stray keystroke): this
+// scans the user's own already-bounded personal Library, so even a
+// single character is a meaningful, cheap narrowing. Capped to a sane
+// length so a hand-edited URL can't smuggle in an absurd query.
+const MAX_QUERY_LENGTH = 100;
+
+export function normalizeLibraryQuery(raw: string | string[] | undefined): string | undefined {
+  const value = firstValue(raw)?.trim();
+  if (!value) return undefined;
+  return value.slice(0, MAX_QUERY_LENGTH);
+}

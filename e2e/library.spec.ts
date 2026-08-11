@@ -46,6 +46,17 @@ test.describe("empty Library", () => {
     await page.goto("/library");
     await expect(page.getByText("Nothing here yet.")).toBeVisible();
     await expect(page.getByRole("link", { name: "Browse Discover" })).toBeVisible();
+
+    // Search's own empty state — distinct copy from the plain empty
+    // Library above, with an explicit opt-in path to global Search.
+    // Curly quotes (`&ldquo;`/`&rdquo;`) — see LibrarySearchEmptyState.
+    await page.getByRole("searchbox", { name: "Search your Library" }).fill("batman");
+    await expect(page.getByText("Nothing in your Library matches “batman”.")).toBeVisible();
+    const discoverSearchLink = page.getByRole("link", {
+      name: "Search MEDIO for “batman”",
+    });
+    await expect(discoverSearchLink).toBeVisible();
+    await expect(discoverSearchLink).toHaveAttribute("href", "/discover?q=batman");
   });
 });
 
@@ -126,6 +137,10 @@ test.describe
 
       await page.goto("/library?type=show");
       await expect(row.getByText("Watching", { exact: true })).toBeVisible();
+      // No explicit ?state= — the default view clusters into the
+      // Continuing/Planned/Paused/Finished hierarchy, and an actively
+      // Watching show belongs in the first, most prominent group.
+      await expect(page.getByRole("heading", { name: "Continuing" })).toBeVisible();
 
       // Mark the one aired episode watched — a fully-aired, ongoing
       // ("Returning Series") show with everything watched resolves to
@@ -138,6 +153,12 @@ test.describe
 
       await page.goto("/library?type=show");
       await expect(row.getByText("Caught up", { exact: true })).toBeVisible();
+
+      // Library search finds it by a partial title match, scoped to this
+      // user's own Library — not a global TMDB search.
+      await page.getByRole("searchbox", { name: "Search your Library" }).fill("second season");
+      await expect(row).toBeVisible();
+      await page.getByRole("button", { name: "Clear search" }).click();
     });
   });
 
@@ -237,6 +258,16 @@ test.describe("filter URL state", () => {
     await page.goForward();
     await expect(page).toHaveURL(/type=show/);
   });
+
+  test("a search query survives refresh and stays visible in the search field", async ({
+    page,
+  }) => {
+    await page.goto("/library?type=movie&q=reel");
+    await expect(page.getByRole("searchbox", { name: "Search your Library" })).toHaveValue("reel");
+
+    await page.reload();
+    await expect(page.getByRole("searchbox", { name: "Search your Library" })).toHaveValue("reel");
+  });
 });
 
 test.describe("mobile viewport", () => {
@@ -247,5 +278,8 @@ test.describe("mobile viewport", () => {
     await expect(page.getByRole("heading", { level: 1, name: "Library" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Movies" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Shows" })).toBeVisible();
+    // Search is reachable without opening a menu or scrolling past a
+    // stacked sticky header + search + filter bar.
+    await expect(page.getByRole("searchbox", { name: "Search your Library" })).toBeVisible();
   });
 });

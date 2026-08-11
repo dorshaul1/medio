@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { Wordmark } from "@/components/shell/wordmark";
 
 // Deliberately not the centered-card template: on sm+ screens the form

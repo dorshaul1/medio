@@ -467,24 +467,50 @@ in the same change.
 
 - Library is an application read model composed from planning + tracking
   + provider metadata (`server/library/`); it is not a single "library
-  table" — see `docs/library.md`.
+  table" — see `docs/library.md`. It is MEDIO's complete organized
+  personal media space; Home remains the prioritized current-view
+  surface, and Library never duplicates Home's sections.
 - Watchlist and Backlog are planning intents (`server/planning/`), never
   tracking statuses. Watchlist means lightweight saved interest; Backlog
-  means stronger intent to watch.
+  means stronger intent to watch. The two must stay directly
+  interchangeable (`changePlanningIntent`) — never a remove-then-re-add
+  workflow.
 - Starting/watching planned media clears its planning state (in the same
   transaction as the tracking write) without deleting any history.
 - Derived Show states — Caught up/Waiting/Completed — must never be
   copied into Library (or any) persistence, same rule as Tracking above.
 - Library UI must expose personal context (state, progress, planning
-  intent) and must not simply reuse Discover's poster-grid cards
-  unchanged.
-- Avoid a giant all-state filter toolbar; expose only the raw, genuinely
-  stored states relevant to the current media type filter. Derived states
-  are never a pre-filter (see docs/library.md).
+  intent, personal rating) and must not simply reuse Discover's poster-
+  grid cards unchanged — personal context always takes priority over
+  generic provider metadata (popularity, genre lists, provider rating).
+- Active Show items expose the exact next aired unwatched Episode
+  (`LibraryNextEpisode`) and support the same quick-tracking actions as
+  Show Details/Home — never require opening Show Details just to mark it
+  watched.
+- Avoid a giant all-state filter toolbar or a permanent wall of state
+  tabs/chips; expose only the raw, genuinely stored states relevant to
+  the current media type filter. Derived states are never a pre-filter
+  (see docs/library.md). The default ("All states") view instead clusters
+  already-fetched items into a small, fixed In progress → Planned →
+  Paused → Finished hierarchy (`groupLibraryItems`) — inactive states
+  (Dropped/On hold) and finished history stay reachable without
+  dominating what's active.
+- Library search (`server/library/search.ts`) searches only this user's
+  own Library state — never the global TMDB catalog, and never a live
+  provider request per keystroke (bounded/capped candidate scan, debounced
+  client-side commit).
 - Library metadata hydration fetches one `ShowDetails`/`MovieDetails` per
-  visible title, never every season/episode of every visible show.
+  visible title, never every season/episode of every visible show, and
+  never a per-item query for personal state (planning/tracking/rating are
+  always batched) — this must hold at large collection sizes, not just
+  small ones.
+- Mobile Library is independently composed (a compact row, not a poster
+  grid) and may omit secondary metadata while preserving core actions —
+  never a shrunk desktop layout.
 - Private Library data must never enter a shared/public cache — it's
   always request/user scoped, same as Tracking.
+- Library and Diary have distinct roles — collection/state vs.
+  chronological viewing history — see "Diary" below.
 - Home's personalization layer (`server/home/`) reuses Library-adjacent
   lower-level pieces (`getShowEpisodeProgress`, the tracking domain)
   rather than duplicating raw DB access — but it is its own focused read

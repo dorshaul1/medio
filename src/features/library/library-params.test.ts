@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  isRawStateValidForAllMediaTypes,
   isRawStateValidForMediaType,
   normalizeLibraryCount,
   normalizeLibraryMediaType,
+  normalizeLibraryQuery,
   normalizeLibrarySort,
   normalizeLibraryState,
 } from "./library-params";
@@ -51,6 +53,19 @@ describe("isRawStateValidForMediaType", () => {
   });
 });
 
+describe("isRawStateValidForAllMediaTypes", () => {
+  it("accepts Watchlist and Backlog", () => {
+    expect(isRawStateValidForAllMediaTypes("watchlist")).toBe(true);
+    expect(isRawStateValidForAllMediaTypes("backlog")).toBe(true);
+  });
+
+  it("rejects type-specific states", () => {
+    for (const state of ["watching", "on_hold", "dropped", "watched"] as const) {
+      expect(isRawStateValidForAllMediaTypes(state)).toBe(false);
+    }
+  });
+});
+
 describe("normalizeLibrarySort", () => {
   it("maps 'added' to recently_added", () => {
     expect(normalizeLibrarySort("added")).toBe("recently_added");
@@ -81,5 +96,30 @@ describe("normalizeLibraryCount", () => {
 
   it("rejects a non-numeric value", () => {
     expect(normalizeLibraryCount("not-a-number")).toBe(24);
+  });
+});
+
+describe("normalizeLibraryQuery", () => {
+  it("trims whitespace", () => {
+    expect(normalizeLibraryQuery("  dune  ")).toBe("dune");
+  });
+
+  it("returns undefined for empty/whitespace-only input", () => {
+    expect(normalizeLibraryQuery("")).toBeUndefined();
+    expect(normalizeLibraryQuery("   ")).toBeUndefined();
+    expect(normalizeLibraryQuery(undefined)).toBeUndefined();
+  });
+
+  it("accepts a single character — a small personal Library is worth narrowing even that early", () => {
+    expect(normalizeLibraryQuery("d")).toBe("d");
+  });
+
+  it("caps an absurdly long query rather than passing it straight to the search scan", () => {
+    const huge = "a".repeat(500);
+    expect(normalizeLibraryQuery(huge)?.length).toBeLessThanOrEqual(100);
+  });
+
+  it("takes the first value of a repeated ?q= param", () => {
+    expect(normalizeLibraryQuery(["dune", "second"])).toBe("dune");
   });
 });

@@ -260,6 +260,31 @@
     @apply bg-background text-foreground;
     font-family: var(--font-sans);
   }
+
+  /* A defensive guard against the page's own horizontal scrollbar, not a
+     substitute for fixing an overflowing element — any content that's
+     genuinely too wide for a narrow (mobile) viewport (an unbroken long
+     word/URL, a fixed-width child that doesn't shrink) should still be
+     fixed at its source. This only stops that kind of one-off overflow
+     from widening the *whole page* and introducing unwanted horizontal
+     scroll/bounce on top of it. Intentional horizontal scrollers (e.g.
+     `MediaRowScroller`'s own `overflow-x-auto` rows) are unaffected —
+     they scroll within themselves regardless of what the ancestor does.
+
+     `clip`, not `hidden`: `overflow-x: hidden` on its own axis forces the
+     *other* axis's used value to `auto` too (a CSS coupling rule — an
+     element can't be "hidden" on one axis and `visible` on the other), so
+     it would silently turn `html`/`body` into their own vertical scroll
+     container instead of relying on the natural viewport scroll —
+     breaking every `position: sticky` element in the app (DesktopNav,
+     the mobile header strip, ...) whose "nearest scrolling ancestor"
+     needs to stay the real viewport. `clip` paints the same as `hidden`
+     (no horizontal scrollbar, no reachable overflow) without that
+     coupling or a new scroll container. */
+  html,
+  body {
+    overflow-x: clip;
+  }
 }
 
 /* A thin, quiet scrollbar — applied to the whole app (the page's own

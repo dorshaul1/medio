@@ -3,6 +3,7 @@ import { and, eq, inArray, ne, sql } from "drizzle-orm";
 import { db } from "@/server/db";
 import { episodeWatchEvents } from "@/server/db/schema/tracking";
 import type { MediaType } from "@/server/media/types";
+import { LIBRARY_SEARCH_CANDIDATE_CAP } from "./constants";
 
 // The Personal Library Candidate Query — see docs/library.md, "Candidate
 // query and pagination". One paginated, SQL-level UNION across the three
@@ -71,34 +72,13 @@ function toCandidate(row: CandidateRow): LibraryCandidate {
   };
 }
 
-// One paginated page of a user's personal-media candidates, newest
-// activity (or newest addition) first. `hasMore` drives "Load more"
-// without a separate COUNT query — fetches one extra row past `limit`
-// and checks for it rather than computing a full total.
-export async function listLibraryCandidates(input: {
-  userId: string;
-  mediaType?: MediaType | undefined;
-  state?: LibraryRawState | undefined;
-  sort: LibrarySort;
-  limit: number;
-  offset: number;
-}): Promise<{ candidates: readonly LibraryCandidate[]; hasMore: boolean }> {
-  const { userId, mediaType, state, sort, limit, offset } = input;
-
-  const mediaTypeFilter = mediaType ? sql`and media_type = ${mediaType}` : sql``;
-
-  let stateFilter = sql``;
-  if (state === "watchlist" || state === "backlog") {
-    stateFilter = sql`and intent = ${state}`;
-  } else if (state === "watching" || state === "on_hold" || state === "dropped") {
-    stateFilter = sql`and tracking_status = ${state}`;
-  } else if (state === "watched") {
-    stateFilter = sql`and kind = 'watched-movie'`;
-  }
-
-  const orderColumn = sort === "recently_added" ? sql`added_at` : sql`personal_activity_at`;
-
-  const result = await db.execute<CandidateRow>(sql`
+// The one paginated, SQL-level `UNION ALL` across the three source
+// tables — shared by both `listLibraryCandidates` (a normal filtered
+// page) and `listLibrarySearchCandidates` (search's bounded recency-
+// capped scan), so the two never drift into two slightly-different
+// definitions of "what counts as a Library candidate".
+function candidatesCte(userId: string) {
+  return sql`
     with candidates as (
       select
         case when media_type = 'movie' then 'planned-movie' else 'planned-show' end as kind,
@@ -141,8 +121,41 @@ export async function listLibraryCandidates(input: {
       from show_tracking_state
       where user_id = ${userId}
     )
+  `;
+}
+
+function mediaTypeFilterSql(mediaType: MediaType | undefined) {
+  return mediaType ? sql`and media_type = ${mediaType}` : sql``;
+}
+
+function stateFilterSql(state: LibraryRawState | undefined) {
+  if (state === "watchlist" || state === "backlog") return sql`and intent = ${state}`;
+  if (state === "watching" || state === "on_hold" || state === "dropped") {
+    return sql`and tracking_status = ${state}`;
+  }
+  if (state === "watched") return sql`and kind = 'watched-movie'`;
+  return sql``;
+}
+
+// One paginated page of a user's personal-media candidates, newest
+// activity (or newest addition) first. `hasMore` drives "Load more"
+// without a separate COUNT query — fetches one extra row past `limit`
+// and checks for it rather than computing a full total.
+export async function listLibraryCandidates(input: {
+  userId: string;
+  mediaType?: MediaType | undefined;
+  state?: LibraryRawState | undefined;
+  sort: LibrarySort;
+  limit: number;
+  offset: number;
+}): Promise<{ candidates: readonly LibraryCandidate[]; hasMore: boolean }> {
+  const { userId, mediaType, state, sort, limit, offset } = input;
+  const orderColumn = sort === "recently_added" ? sql`added_at` : sql`personal_activity_at`;
+
+  const result = await db.execute<CandidateRow>(sql`
+    ${candidatesCte(userId)}
     select * from candidates
-    where 1 = 1 ${mediaTypeFilter} ${stateFilter}
+    where 1 = 1 ${mediaTypeFilterSql(mediaType)} ${stateFilterSql(state)}
     order by ${orderColumn} desc
     limit ${limit + 1} offset ${offset}
   `);
@@ -152,6 +165,31 @@ export async function listLibraryCandidates(input: {
   const page = hasMore ? rows.slice(0, limit) : rows;
 
   return { candidates: page.map(toCandidate), hasMore };
+}
+
+// Search's own bounded candidate scan — see docs/library.md, "Search".
+// Title doesn't live in Postgres (see the module comment above), so a
+// text query can only be checked after provider hydration; this returns
+// the most-recently-active `LIBRARY_SEARCH_CANDIDATE_CAP` candidates
+// (matching the current type/state filters) for `search.ts` to hydrate
+// and filter — never the user's unbounded full history, and never a
+// second, differently-shaped query than the one above.
+export async function listLibrarySearchCandidates(input: {
+  userId: string;
+  mediaType?: MediaType | undefined;
+  state?: LibraryRawState | undefined;
+}): Promise<readonly LibraryCandidate[]> {
+  const { userId, mediaType, state } = input;
+
+  const result = await db.execute<CandidateRow>(sql`
+    ${candidatesCte(userId)}
+    select * from candidates
+    where 1 = 1 ${mediaTypeFilterSql(mediaType)} ${stateFilterSql(state)}
+    order by personal_activity_at desc
+    limit ${LIBRARY_SEARCH_CANDIDATE_CAP}
+  `);
+
+  return result.rows.map(toCandidate);
 }
 
 // Bulk, per-show watched-episode counts for this user — one query

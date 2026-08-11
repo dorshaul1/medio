@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { LibraryItem } from "@/server/library/types";
+import type { PlannedMovieLibraryItem } from "@/server/library/types";
 import { LibraryItemActions } from "./library-item-actions";
 
 const changePlanningIntentAction = vi.fn();
@@ -19,7 +19,13 @@ beforeEach(() => {
   removePlanningItemAction.mockReset().mockResolvedValue(undefined);
 });
 
-const WATCHLIST_ITEM: LibraryItem = {
+// Typed as the specific member, not the full `LibraryItem` union —
+// spreading a union-typed variable (`{ ...WATCHLIST_ITEM, intent:
+// "backlog" }`) resolves to a union of intersections and confuses excess-
+// property checking against members that don't have `intent` at all
+// (`watched-movie`/`tracked-show`). This member type keeps the spread
+// below unambiguous.
+const WATCHLIST_ITEM: PlannedMovieLibraryItem = {
   kind: "planned-movie",
   mediaType: "movie",
   mediaProviderId: 550,
@@ -29,7 +35,10 @@ const WATCHLIST_ITEM: LibraryItem = {
   intent: "watchlist",
   personalActivityAt: new Date(),
   addedAt: new Date(),
+  rating: null,
 };
+
+const BACKLOG_ITEM: PlannedMovieLibraryItem = { ...WATCHLIST_ITEM, intent: "backlog" };
 
 describe("LibraryItemActions", () => {
   it("offers moving a Watchlist item to Backlog", async () => {
@@ -44,7 +53,7 @@ describe("LibraryItemActions", () => {
 
   it("offers moving a Backlog item to Watchlist", async () => {
     const user = userEvent.setup();
-    render(<LibraryItemActions item={{ ...WATCHLIST_ITEM, intent: "backlog" }} />);
+    render(<LibraryItemActions item={BACKLOG_ITEM} />);
 
     await user.click(screen.getByRole("button", { name: "More actions for Fight Club" }));
     await user.click(await screen.findByRole("menuitem", { name: "Move to Watchlist" }));
@@ -64,7 +73,7 @@ describe("LibraryItemActions", () => {
 
   it("names Backlog specifically when removing a Backlog item", async () => {
     const user = userEvent.setup();
-    render(<LibraryItemActions item={{ ...WATCHLIST_ITEM, intent: "backlog" }} />);
+    render(<LibraryItemActions item={BACKLOG_ITEM} />);
 
     await user.click(screen.getByRole("button", { name: "More actions for Fight Club" }));
     expect(
@@ -86,6 +95,7 @@ describe("LibraryItemActions", () => {
           lastWatchedAt: new Date(),
           personalActivityAt: new Date(),
           addedAt: new Date(),
+          rating: null,
         }}
       />,
     );

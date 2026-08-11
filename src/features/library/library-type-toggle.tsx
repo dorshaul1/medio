@@ -17,10 +17,16 @@ export function LibraryTypeToggle({
   active,
   state,
   sort,
+  query,
 }: {
   active: MediaType | "all";
   state: string | undefined;
   sort: string | undefined;
+  // The active search text (`?q=`), if any — carried across a type
+  // switch so searching "dune" and then filtering to Movies doesn't
+  // silently drop back to browsing (see docs/library.md, "Search +
+  // filter").
+  query?: string | undefined;
 }) {
   return (
     <nav aria-label="Media type" className="flex items-center gap-5 border-b border-border">
@@ -33,8 +39,8 @@ export function LibraryTypeToggle({
         // would now silently return nothing.
         if (state && option.value !== "all") params.set("state", state);
         if (sort) params.set("sort", sort);
-        const query = params.toString();
-        const href = (query ? `/library?${query}` : "/library") as Route;
+        if (query) params.set("q", query);
+        const href = (params.size > 0 ? `/library?${params.toString()}` : "/library") as Route;
 
         return (
           <Link

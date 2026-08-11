@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import { Wordmark } from "@/components/shell/wordmark";
+import { Button } from "@/components/ui/button";
 import { LandingThemeToggle } from "@/features/landing/landing-theme-toggle";
 
 // The entire public navigation surface — see CLAUDE.md, "Public

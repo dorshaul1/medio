@@ -1,6 +1,6 @@
 import { getSessionCookie } from "better-auth/cookies";
-import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 
 // An optimistic, edge-safe route guard — checks only whether a session
 // cookie is present (no DB call, no signature verification; Better

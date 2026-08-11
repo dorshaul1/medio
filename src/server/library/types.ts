@@ -17,6 +17,14 @@ type LibraryItemBase = {
   personalActivityAt: Date;
   // Drives the "Recently added" sort.
   addedAt: Date;
+  // The user's own personal rating (1-5), batch-hydrated alongside the
+  // rest of the page — never a per-item query (see compose.ts). `null`
+  // for the common case of no rating. Carried on every kind (rating
+  // isn't state-gated in the domain — see docs/opinions.md), but only
+  // surfaced in the UI for finished media, where it's actually useful
+  // recognition context rather than clutter — see docs/library.md,
+  // "Rating display".
+  rating: number | null;
 };
 
 export type PlannedMovieLibraryItem = LibraryItemBase & {
@@ -100,4 +108,45 @@ export function libraryStateGroup(item: LibraryItem): LibraryStateGroup {
           return "finished";
       }
   }
+}
+
+// Display priority for the Library's default ("All states") view — see
+// docs/library.md, "Default grouping". Matches the product's own stated
+// hierarchy: currently active first, then planned intent, with paused/
+// inactive and finished/history states last, since they should remain
+// reachable without dominating the default view.
+const LIBRARY_STATE_GROUP_ORDER: readonly LibraryStateGroup[] = [
+  "in_progress",
+  "planned",
+  "paused",
+  "finished",
+];
+
+export type LibraryItemGroup = {
+  group: LibraryStateGroup;
+  items: readonly LibraryItem[];
+};
+
+// Clusters an already-fetched, already-recency-ordered page of items into
+// the hierarchy above — pure display reordering, not a new query. It
+// never changes *which* items are on the page (that's still the existing
+// recency-based candidate query); it only reorders *this page's* items so
+// a Dropped show from last year doesn't visually sit ahead of a show the
+// user is actively watching just because the SQL-level sort is purely
+// chronological. Stable within each group: items keep their original
+// (already-recency-sorted) relative order. Empty groups are omitted, so
+// this never renders as a wall of seven mechanical section headers.
+export function groupLibraryItems(items: readonly LibraryItem[]): readonly LibraryItemGroup[] {
+  const buckets = new Map<LibraryStateGroup, LibraryItem[]>();
+  for (const item of items) {
+    const group = libraryStateGroup(item);
+    const bucket = buckets.get(group);
+    if (bucket) bucket.push(item);
+    else buckets.set(group, [item]);
+  }
+
+  return LIBRARY_STATE_GROUP_ORDER.map((group) => ({
+    group,
+    items: buckets.get(group) ?? [],
+  })).filter((entry) => entry.items.length > 0);
 }

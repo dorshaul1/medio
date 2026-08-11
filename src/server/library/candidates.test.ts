@@ -6,7 +6,8 @@ const requireSession = vi.fn();
 vi.mock("@/server/auth/session", () => ({ requireSession: () => requireSession() }));
 
 const { createTestUser, deleteTestUser } = await import("@/server/test-support/test-db");
-const { listLibraryCandidates, getWatchedEpisodeCountsByShow } = await import("./candidates");
+const { listLibraryCandidates, listLibrarySearchCandidates, getWatchedEpisodeCountsByShow } =
+  await import("./candidates");
 const { addToWatchlist, addToBacklog } = await import("@/server/planning/planning-items");
 const { recordMovieWatch } = await import("@/server/tracking/movie-events");
 const { recordEpisodeWatch } = await import("@/server/tracking/episode-events");
@@ -143,6 +144,34 @@ describe("listLibraryCandidates", () => {
     });
     expect(candidates).toHaveLength(0);
     expect(hasMore).toBe(false);
+  });
+});
+
+describe("listLibrarySearchCandidates", () => {
+  it("returns candidates matching the type/state filters, newest activity first, uncapped by page size", async () => {
+    await addToWatchlist("movie", FIGHT_CLUB);
+    await addToBacklog("movie", DARK_KNIGHT);
+    await addToWatchlist("show", WINTERS_WATCH);
+
+    const candidates = await listLibrarySearchCandidates({ userId, mediaType: "movie" });
+
+    expect(candidates).toHaveLength(2);
+    expect(candidates.every((candidate) => candidate.mediaType === "movie")).toBe(true);
+  });
+
+  it("applies the same raw-state filter listLibraryCandidates does", async () => {
+    await addToWatchlist("movie", FIGHT_CLUB);
+    await addToBacklog("movie", DARK_KNIGHT);
+
+    const candidates = await listLibrarySearchCandidates({ userId, state: "backlog" });
+
+    expect(candidates).toHaveLength(1);
+    expect(candidates[0]?.mediaProviderId).toBe(DARK_KNIGHT);
+  });
+
+  it("returns an empty list for a user with nothing in their Library", async () => {
+    const candidates = await listLibrarySearchCandidates({ userId });
+    expect(candidates).toHaveLength(0);
   });
 });
 
