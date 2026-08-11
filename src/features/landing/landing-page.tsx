@@ -3,19 +3,24 @@ import { Button } from "@/components/ui/button";
 import { HeroIllustration } from "@/features/landing/illustrations/hero-illustration";
 import { HistoryIllustration } from "@/features/landing/illustrations/history-illustration";
 import { LibraryIllustration } from "@/features/landing/illustrations/library-illustration";
+import { MobileInstallIllustration } from "@/features/landing/illustrations/mobile-install-illustration";
 import { PickForMeIllustration } from "@/features/landing/illustrations/pick-for-me-illustration";
 import { TrackingIllustration } from "@/features/landing/illustrations/tracking-illustration";
 import { WhatsNextIllustration } from "@/features/landing/illustrations/whats-next-illustration";
 import { LandingFooter } from "@/features/landing/landing-footer";
+import { MobileInstallAction } from "@/features/landing/mobile-install-action";
 import { PublicNav } from "@/features/landing/public-nav";
 
 // MEDIO's public front door — see docs/authentication.md, "`/` behavior
 // by auth state": rendered only for a logged-out visitor (app/page.tsx
-// branches before this ever mounts). Six deliberately unequal moments,
-// not a uniform feature grid (see CLAUDE.md, "Landing") — Tracking and
-// Pick for Me carry the most visual weight (MEDIO's foundation and its
-// flagship differentiator); "What's next" is a deliberately smaller,
-// quieter supporting beat. Two small illustrations
+// branches before this ever mounts). Deliberately unequal moments, not a
+// uniform feature grid (see CLAUDE.md, "Landing") — Tracking and Pick
+// for Me carry the most visual weight (MEDIO's foundation and its
+// flagship differentiator); "What's next" and the mobile-install moment
+// are deliberately smaller, quieter supporting beats — the mobile app
+// experience is a premium convenience layer, never presented as a core
+// product story on the same footing as Tracking/Pick for Me (see
+// docs/pwa.md, "Landing placement"). Two small illustrations
 // (TrackingIllustration, LibraryIllustration, PickForMeIllustration) are
 // genuinely interactive demo state — the rest are static — but the page
 // reads and works completely without touching anything.
@@ -142,6 +147,36 @@ export function LandingPage() {
             </div>
             <div className="flex justify-center lg:flex-1 lg:justify-end">
               <HistoryIllustration />
+            </div>
+          </div>
+        </section>
+
+        {/* Mobile install — a quiet, later-story convenience layer, not
+            a core product pitch (see CLAUDE.md, "PWA"). The paragraph
+            reads completely as plain product information on desktop; on
+            mobile, `MobileInstallAction` additionally offers a real,
+            contextual action beneath it — never a second competing CTA
+            next to "Get started" (see docs/pwa.md, "Landing — no
+            install CTA in Hero"). */}
+        <section className="px-6 py-16 sm:px-10 sm:py-20">
+          <div className="mx-auto flex max-w-4xl flex-col items-center gap-10 sm:flex-row-reverse sm:gap-16">
+            <div className="max-w-xs text-center sm:flex-1 sm:text-left">
+              <p className="text-xs font-medium tracking-wide text-primary uppercase">
+                On your phone
+              </p>
+              <h2 className="mt-2 text-2xl font-medium tracking-tight text-balance">
+                MEDIO, one tap away.
+              </h2>
+              <p className="mt-2 text-sm text-muted-foreground text-balance">
+                Add MEDIO to your phone&rsquo;s Home Screen and open it like an app — no browser
+                bar, just your library, one tap away.
+              </p>
+              <div className="mt-4 flex justify-center sm:justify-start">
+                <MobileInstallAction />
+              </div>
+            </div>
+            <div className="flex justify-center sm:flex-1 sm:justify-start">
+              <MobileInstallIllustration />
             </div>
           </div>
         </section>

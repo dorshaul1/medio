@@ -2,6 +2,7 @@ import "server-only";
 import { eq, sql } from "drizzle-orm";
 import { db } from "@/server/db";
 import { showTrackingState } from "@/server/db/schema/tracking";
+import type { StatsRangeBounds } from "./range";
 import type { TasteOverview } from "./types";
 
 // Every query in this file is pure SQL aggregation, explicitly scoped by
@@ -18,35 +19,41 @@ type ViewingVolumeRow = {
   unique_episodes_watched: number;
   episode_watch_event_count: number;
   unique_shows_watched: number;
-  watched_this_year_count: number;
 };
+
+// A `bounds`-aware `and watched_at >= start and watched_at < end`
+// fragment — `null` bounds (all time) adds no filter at all, exactly
+// `server/diary/events.ts`'s own `period` filter convention.
+function rangeFilter(bounds: StatsRangeBounds) {
+  return bounds ? sql`and watched_at >= ${bounds.start} and watched_at < ${bounds.end}` : sql``;
+}
 
 // One round trip, five independent scalar subqueries — each already
 // covered by an existing index (`(user_id, movie_provider_id)` /
 // `(user_id, episode_provider_id)` / `(user_id, watched_at)` — see
 // schema/tracking.ts). A show counts toward `uniqueShowsWatched` only
 // once it has at least one *regular* (non-Special) episode watched — see
-// docs/stats.md, "Show eligibility for taste".
-export async function getViewingVolume(userId: string): Promise<TasteOverview> {
+// docs/stats.md, "Show eligibility for taste". `bounds` scopes every
+// count to one selected date range (see docs/stats.md, "Date ranges");
+// `null` (all time) is the same query this always ran before ranges
+// existed.
+export async function getViewingVolume(
+  userId: string,
+  bounds: StatsRangeBounds,
+): Promise<TasteOverview> {
+  const filter = rangeFilter(bounds);
   const result = await db.execute<ViewingVolumeRow>(sql`
     select
       (select count(distinct movie_provider_id)::int from movie_watch_events
-        where user_id = ${userId}) as unique_movies_watched,
+        where user_id = ${userId} ${filter}) as unique_movies_watched,
       (select count(*)::int from movie_watch_events
-        where user_id = ${userId}) as movie_watch_event_count,
+        where user_id = ${userId} ${filter}) as movie_watch_event_count,
       (select count(distinct episode_provider_id)::int from episode_watch_events
-        where user_id = ${userId}) as unique_episodes_watched,
+        where user_id = ${userId} ${filter}) as unique_episodes_watched,
       (select count(*)::int from episode_watch_events
-        where user_id = ${userId}) as episode_watch_event_count,
+        where user_id = ${userId} ${filter}) as episode_watch_event_count,
       (select count(distinct show_provider_id)::int from episode_watch_events
-        where user_id = ${userId} and season_number > 0) as unique_shows_watched,
-      (
-        (select count(*)::int from movie_watch_events
-          where user_id = ${userId} and watched_at >= date_trunc('year', now()))
-        +
-        (select count(*)::int from episode_watch_events
-          where user_id = ${userId} and watched_at >= date_trunc('year', now()))
-      ) as watched_this_year_count
+        where user_id = ${userId} and season_number > 0 ${filter}) as unique_shows_watched
   `);
 
   const row = result.rows[0];
@@ -58,7 +65,6 @@ export async function getViewingVolume(userId: string): Promise<TasteOverview> {
     uniqueEpisodesWatched: row.unique_episodes_watched,
     episodeWatchEventCount: row.episode_watch_event_count,
     uniqueShowsWatched: row.unique_shows_watched,
-    watchedThisYearCount: row.watched_this_year_count,
   };
 }
 
@@ -67,7 +73,11 @@ export type TrackingStateCounts = { watching: number; onHold: number; dropped: n
 // Explicit Show Tracking State counts only — never a derived Caught
 // up/Waiting/Completed count, which would require per-show provider
 // hydration this domain avoids at Taste's scale (see docs/stats.md,
-// "Completion behavior").
+// "Completion behavior"). Deliberately never range-scoped: tracking
+// state describes a show's *current* status, not a dated event, so it
+// reflects "right now" regardless of the selected Stats range — the same
+// reasoning current ratings are never treated as historical (see
+// docs/stats.md, "Date ranges and current-state sections").
 export async function getTrackingStateCounts(userId: string): Promise<TrackingStateCounts> {
   const rows = await db
     .select({ status: showTrackingState.status, count: sql<number>`count(*)::int` })
@@ -85,26 +95,68 @@ export async function getTrackingStateCounts(userId: string): Promise<TrackingSt
 }
 
 // Every viewing event's `watched_at`, movies and episodes combined,
-// bounded to the trailing `months` window — the one place this domain
-// fetches raw timestamps rather than a SQL aggregate, needed because the
-// viewing timeline buckets by calendar month (a grouping cheaply
-// expressible in SQL) but a future weekday/time-of-day view would need
-// real per-event instants. Bounding to a recent window (rather than the
-// user's entire lifetime) keeps the row count reasonable regardless of
-// total history size — see docs/stats.md, "Viewing timeline".
-export async function getRecentViewingTimestamps(
+// bounded to one explicit `[start, end)` range — the one place this
+// domain fetches raw timestamps rather than a SQL aggregate, needed
+// because the viewing-rhythm chart buckets by calendar month/day (a
+// grouping cheaply expressible in SQL, but the bucketing itself lives in
+// `timeline.ts` so it stays one pure, testable function). A range is
+// always required (never the user's unbounded lifetime) so row count
+// stays reasonable regardless of total history size — see docs/stats.md,
+// "Viewing timeline".
+export async function getViewingTimestampsInRange(
   userId: string,
-  months: number,
+  bounds: { start: Date; end: Date },
 ): Promise<readonly Date[]> {
   const result = await db.execute<{ watched_at: string }>(sql`
     select watched_at from movie_watch_events
-    where user_id = ${userId}
-      and watched_at >= date_trunc('month', now()) - make_interval(months => ${months - 1})
+    where user_id = ${userId} and watched_at >= ${bounds.start} and watched_at < ${bounds.end}
     union all
     select watched_at from episode_watch_events
-    where user_id = ${userId}
-      and watched_at >= date_trunc('month', now()) - make_interval(months => ${months - 1})
+    where user_id = ${userId} and watched_at >= ${bounds.start} and watched_at < ${bounds.end}
   `);
 
   return result.rows.map((row) => new Date(row.watched_at));
+}
+
+type ActiveYearRow = { year: number };
+
+// Distinct real calendar years (UTC) the user has any watch history in —
+// powers the range control's year chips (see docs/stats.md, "Historical
+// years"). Bounded by the number of distinct active years, never by
+// event count. Same UTC-bucketing basis as every other range boundary in
+// this domain.
+export async function getActiveStatsYears(userId: string): Promise<readonly number[]> {
+  const result = await db.execute<ActiveYearRow>(sql`
+    select distinct extract(year from watched_at)::int as year
+    from (
+      select watched_at from movie_watch_events where user_id = ${userId}
+      union all
+      select watched_at from episode_watch_events where user_id = ${userId}
+    ) events
+    order by year desc
+  `);
+
+  return result.rows.map((row) => row.year);
+}
+
+type YearlyActivityRow = { year: number; event_count: number };
+
+// One grouped SQL aggregate — the All time viewing-rhythm chart's data
+// source (`computeYearlyActivity`, `timeline.ts`). Never a raw per-event
+// timestamp pull across the user's entire lifetime; bounded by the
+// number of distinct active years, same as `getActiveStatsYears`.
+export async function getYearlyActivityCounts(
+  userId: string,
+): Promise<readonly { year: number; eventCount: number }[]> {
+  const result = await db.execute<YearlyActivityRow>(sql`
+    select extract(year from watched_at)::int as year, count(*)::int as event_count
+    from (
+      select watched_at from movie_watch_events where user_id = ${userId}
+      union all
+      select watched_at from episode_watch_events where user_id = ${userId}
+    ) events
+    group by year
+  `);
+
+  return result.rows.map((row) => ({ year: row.year, eventCount: row.event_count }));
 }

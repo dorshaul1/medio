@@ -1,7 +1,13 @@
 "use server";
 
 import { getDiaryPage } from "@/server/diary/queries";
-import type { DiaryCursor, DiaryFilter, DiaryPage, DiarySort } from "@/server/diary/types";
+import type {
+  DiaryCursor,
+  DiaryFilter,
+  DiaryPage,
+  DiaryPeriod,
+  DiarySort,
+} from "@/server/diary/types";
 
 // Diary's "Load more" — a read, not a mutation, so unlike every other
 // action in this directory it needs no `revalidatePath`. `getDiaryPage`
@@ -19,6 +25,12 @@ export async function loadMoreDiaryEntriesAction(input: {
   filter: DiaryFilter;
   sort: DiarySort;
   cursor: DiaryCursor;
+  period: DiaryPeriod;
 }): Promise<DiaryPage> {
-  return getDiaryPage({ filter: input.filter, sort: input.sort, cursor: input.cursor });
+  return getDiaryPage({
+    filter: input.filter,
+    sort: input.sort,
+    cursor: input.cursor,
+    period: input.period,
+  });
 }

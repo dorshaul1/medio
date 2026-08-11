@@ -98,3 +98,11 @@ export const STATS_TIMELINE_MONTHS = 12;
 // enough to exceed the hydration bound naturally lowers coverage and
 // loses the estimate — an honest outcome, not a special case.
 export const MIN_RUNTIME_COVERAGE_RATIO = 0.6;
+
+// --- Comparison ----------------------------------------------------------
+
+// A Movie/Show-vs-TV balance shift needs to move by at least this many
+// percentage points before it's worth a comparison sentence — see
+// docs/stats.md, "Comparison": a 1-point wobble in a small sample isn't a
+// real behavioral shift worth calling out.
+export const MIN_MOVIE_VS_SHOW_SHIFT_POINTS = 10;

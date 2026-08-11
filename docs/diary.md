@@ -40,20 +40,92 @@ duplicates, or reorders same-`watchedAt` events across pages (see
 
 ### Pagination architecture
 
-The page's `?type=`/`?sort=` filters are real URL state (stable,
-bookmarkable, back/forward-safe) — pagination position is deliberately
-**not**. `DiaryTimeline` (`features/diary/diary-timeline.tsx`) is a
-narrow Client Component that holds the currently-loaded entries in local
-state, seeded from the server's first page; "Load more" calls
-`loadMoreDiaryEntriesAction` (`features/diary/diary-actions.ts`), a thin
-Server Action wrapping `getDiaryPage`, and appends the result. This keeps
-data fetching/hydration/authorization entirely server-side while still
-allowing progressive client append — one of the architectures
-`CLAUDE.md`'s Diary rules explicitly sanction. `DiaryTimeline` resyncs to
-the server's fresh first page whenever an Edit/Delete action revalidates
-the route (see "Edit/Delete UX" below) — this collapses any loaded "Load
-more" pages back to page one, which is correct (never stale/duplicate
-data) even though it loses scroll depth.
+The page's `?type=`/`?sort=`/`?month=` are all real URL state (stable,
+bookmarkable, back/forward-safe) — pagination position *within* the
+requested month is deliberately **not**. `DiaryTimeline`
+(`features/diary/diary-timeline.tsx`) is a narrow Client Component that
+holds the currently-loaded entries in local state, seeded from the
+server's first page; "Load more" calls `loadMoreDiaryEntriesAction`
+(`features/diary/diary-actions.ts`), a thin Server Action wrapping
+`getDiaryPage`, and appends the result. This keeps data fetching/
+hydration/authorization entirely server-side while still allowing
+progressive client append — one of the architectures `CLAUDE.md`'s Diary
+rules explicitly sanction. `DiaryTimeline` resyncs to the server's fresh
+first page whenever an Edit/Delete action revalidates the route (see
+"Edit/Delete UX" below) — this collapses any loaded "Load more" pages
+back to page one, which is correct (never stale/duplicate data) even
+though it loses scroll depth.
+
+## Month-scoped querying
+
+Diary 2.0's default browsing mode is one real calendar month at a time —
+`?month=YYYY-MM` (`features/diary/diary-params.ts`'s
+`normalizeDiaryPeriod`, falling back to the current month), with
+prev/next chevrons, a "Today" return control, and a compact month/year
+picker (`DiaryMonthNav` — `features/diary/diary-month-nav.tsx`), styled
+after Calendar's own month-view header nav
+(`CalendarMonthView`/`app/(app)/calendar/page.tsx`) for one consistent
+date-navigation language across the app. `listDiaryEvents`'s optional
+`period` filter (`server/diary/events.ts`) bounds the SQL query itself to
+that month — the page fetches the requested period directly rather than
+paging through everything before it, so a large history stays cheap to
+browse regardless of total size. `period` is applied only in the final
+`where`, never inside the `movie_events`/`episode_events` CTEs, so it
+never affects `ordinal` (still computed over each partition's entire
+history — see "Rewatch ordinal" above).
+
+### Month navigation and timezone
+
+A month boundary is interpreted as a **UTC calendar month** at the query
+level — `Date.UTC(year, month - 1, 1)` to `Date.UTC(year, month, 1)` —
+the same documented simplification `server/stats/timeline.ts`'s
+`computeMonthlyActivity` already uses for monthly bucketing, and for the
+same reason: a real per-viewer-timezone month boundary can't be computed
+server-side without knowing the viewer's timezone, and the resulting slop
+(at most a few hours, only ever near a month's first/last day) is an
+acceptable, explicitly accepted tradeoff at month granularity — see
+CLAUDE.md, "Calendar and analytics month boundaries." `DiaryMonthNav`'s
+own "is this the current month"/picker-highlighting logic uses the same
+UTC basis, not a post-mount local-timezone reconciliation, since none of
+it claims the real-time-of-day precision `groupDiaryEntries`'s per-entry
+"Today"/"Yesterday" labels do — those still switch to the browser's real
+local day post-mount, exactly as before this phase (see "Date grouping
+and timezone correctness" below), completely independent of the coarser
+month-scope decision above it.
+
+### Month/year activity
+
+`getDiaryActivityCalendar` (`server/diary/events.ts`, wrapped by
+`server/diary/queries.ts`) is one small aggregate query — grouped by real
+`(year, month)` buckets that actually have at least one event, bounded by
+the number of distinct months the user has ever watched something in,
+never by event count. One query result serves three UI needs at once
+(see the Diary page, `app/(app)/library/diary/page.tsx`): which years the
+picker offers at all (years appear only when real history exists —
+`activeYears.length > 1` before showing year chips), which months within
+a year get visually distinguished as having real activity, and the
+current month's own "N movies · N episodes" overview line
+(`formatDiaryMonthSummary` — `features/diary/diary-month-summary.ts`,
+which returns `null` for a sparse month rather than rendering "0 movies ·
+0 episodes"). A tiny day-by-day activity strip was considered and
+deliberately **not** built this phase — the month picker and per-day
+group headings already cover month/day navigation; a decorative strip on
+top didn't clear "genuinely useful, not built for decoration."
+
+### Empty vs. sparse
+
+Three distinct states, not one generic empty message:
+
+- **No history at all** (`getDiaryActivityCalendar` returns nothing) — a
+  brand-new account. Month navigation isn't rendered at all (there's
+  nothing to browse), and the empty state offers an Explore CTA.
+- **A sparse month** (real history exists elsewhere, but the requested
+  month has none) — "Nothing watched in {Month Year}." with no CTA; month
+  navigation stays fully visible and operable around it, since the point
+  is to keep browsing, not to redirect elsewhere.
+- **A filtered-empty month** (the month has real events, just none
+  matching the current `?type=` filter) — "Nothing here yet." naming the
+  month, distinct copy from the sparse case above.
 
 ## Rewatch ordinal
 
@@ -120,6 +192,53 @@ in this app already follows:
   watched, so surfacing the still/title here is never a spoiler (compare
   Home's Up Next, which deliberately withholds the next *unwatched*
   episode's identity — see docs/home.md).
+
+## Viewing session grouping
+
+Two or more Episode entries of the **same show**, on the **same day**
+(after date grouping above has already decided which day), watched no
+more than `DIARY_SESSION_MAX_GAP_MINUTES` (`server/diary/constants.ts`,
+currently 180) apart, collapse into one binge session row instead of N
+separate rows — `groupDiarySessions`
+(`features/diary/diary-session-grouping.ts`), a pure function run per
+date group, never across days. Deliberately conservative:
+
+- A movie, an `UnavailableDiaryEntry`, a different show, or too large a
+  gap all end the current session immediately — nothing is ever guessed
+  past. A "session" of exactly one qualifying episode collapses back to a
+  plain single row; grouping only matters once there's genuinely more
+  than one episode to compress.
+- Presentation-only — a session never reorders, merges, or drops the
+  underlying `EpisodeWatchEvent`s. Expanding one (`DiaryEpisodeSession` —
+  `features/diary/diary-episode-session.tsx`) reveals the exact same
+  `DiaryEpisodeEntry` rows a non-grouped day would render, each with its
+  own real link and its own independent Edit/Delete menu — a rewatch
+  mixed into a session keeps its own ordinal label untouched.
+- Displayed chronologically (oldest episode first) within the session
+  regardless of the page's own overall sort direction — a binge reads as
+  a narrative ("E4, then E5, then E6"), independent of newest/oldest sort.
+- The collapsed row's summary label (`sessionEpisodeLabel`) is
+  `"S{n} E{a}-E{b}"` for a same-season contiguous ascending run,
+  `"S{n} E{a}, E{c}, ..."` for a same-season non-contiguous run, or a
+  plain episode count once a session spans more than one season — never a
+  guessed range that isn't really there.
+- **Session interaction boundaries**: the whole collapsed row is a
+  disclosure toggle (`aria-expanded`), never a navigation link — there's
+  no one canonical episode a session-level click could mean. Navigating
+  to a specific episode's Show/Season context only ever happens from an
+  *expanded* individual row's own real link, keeping identity-click and
+  correction-menu boundaries exactly as unambiguous as a non-grouped day
+  (see CLAUDE.md, "UX & Interaction").
+- Especially valuable on mobile, where repeating full-size episode rows
+  for a long binge would otherwise dominate the screen — collapsed by
+  default everywhere, not just below a breakpoint.
+
+A **Rewatches-only filter** was considered and deliberately **not**
+added this phase — rewatch context is already visible inline via the
+ordinal label on every entry/session, and Diary intentionally stays
+light on filtering (see "Filtering and sorting" below); a dedicated
+filter didn't clear the "sufficient actual value" bar the original phase
+scope set for it.
 
 ## Provider hydration
 
@@ -194,14 +313,17 @@ a stale persisted copy that needs separate updating.
 
 ## Filtering and sorting
 
-`?type=movies|tv` and `?sort=oldest` are real URL state
-(`features/diary/diary-params.ts`), same convention as Library's own
-`?type=`/`?state=`/`?sort=`. "TV" (not "Episodes") is the filter label —
-this application already uses "TV"/"Shows" as its product vocabulary for
-episode-driven content elsewhere (Discover's Movies/Shows mode).
-Diary deliberately does **not** offer a Watching/Completed/Watchlist-style
-state filter — those describe media state, not history event types (see
-CLAUDE.md).
+`?type=movies|tv`, `?sort=oldest`, and `?month=YYYY-MM` are all real URL
+state (`features/diary/diary-params.ts`), same convention as Library's
+own `?type=`/`?state=`/`?sort=`. "TV" (not "Episodes") is the filter
+label — this application already uses "TV"/"Shows" as its product
+vocabulary for episode-driven content elsewhere (Discover's Movies/Shows
+mode). Switching the type filter or sort always carries the currently
+viewed `?month=` forward (`DiaryFilterToggle`/the page's own sort
+options) — it never silently jumps back to the current month. Diary
+deliberately does **not** offer a Watching/Completed/Watchlist-style
+state filter (those describe media state, not history event types) or a
+free-text search (Library already covers title lookup) — see CLAUDE.md.
 
 ## Privacy / caching
 
@@ -232,8 +354,13 @@ stays the active left-rail/bottom-bar item while on `/library/diary`.
 
 ## What this phase deliberately does not include
 
-Diary search, calendar visualization, total-watch statistics/hours
-watched/streaks, a taste profile, Year in Review, per-episode/per-movie
-ratings or notes, social activity, import/export, or a manual "add a past
-viewing by searching for a title" flow (every Diary event still comes
-from the same tracking commands Movie/Show/Season Details already use).
+Diary search, a day-by-day calendar-grid visualization (the month/year
+picker and per-day group headings already cover date navigation — see
+"Month/year activity" above), a Rewatches-only filter (see "Viewing
+session grouping" above), total-watch statistics/hours watched/streaks, a
+taste profile, Year in Review, per-episode/per-movie ratings or notes,
+social activity, notifications, comments, friends, a public Diary,
+manual text journal entries, calendar sync, import/export, or a manual
+"add a past viewing by searching for a title" flow (every Diary event
+still comes from the same tracking commands Movie/Show/Season Details
+already use).

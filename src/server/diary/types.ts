@@ -19,6 +19,31 @@ export type DiaryFilter = "all" | "movies" | "tv";
 
 export type DiarySort = "newest" | "oldest";
 
+// The one calendar month a Diary page is scoped to — `month` is 1-12.
+// Interpreted as a UTC calendar month at the query boundary (see
+// `server/diary/events.ts`'s `listDiaryEvents` and docs/diary.md, "Month
+// navigation and timezone") — the same documented simplification
+// `server/stats/timeline.ts`'s `computeMonthlyActivity` already uses for
+// monthly bucketing, for the same reason: a real per-viewer-timezone
+// month boundary can't be computed on the server without knowing the
+// viewer's timezone, and a few hours of slop at a month edge is an
+// acceptable, explicitly-documented tradeoff at this granularity. Within
+// the loaded month, individual day grouping still uses the browser's
+// real local timezone post-mount, exactly as before this phase.
+export type DiaryPeriod = { year: number; month: number };
+
+// One (year, month) bucket's real activity — used to build the compact
+// month/year picker (which months actually have history) and the
+// monthly overview line ("8 movies · 24 episodes"). Sourced from one
+// combined aggregate query (`getDiaryActivityCalendar`), never derived
+// from a full per-event fetch.
+export type DiaryMonthActivity = {
+  year: number;
+  month: number;
+  movieCount: number;
+  episodeCount: number;
+};
+
 // A stable pagination boundary — the exact tuple the keyset query orders
 // and compares by. Never a raw offset/page number — see docs/diary.md,
 // "Pagination".

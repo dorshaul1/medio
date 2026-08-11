@@ -4,7 +4,8 @@
 // this application (see docs/calendar.md, "No Week starts on setting"),
 // so this uses the same fixed `en-US`-convention default the rest of
 // this app's date formatting already assumes.
-import { type DateParts, parseDateOnly } from "./date";
+import { parseMonthParam as parseGenericMonthParam } from "@/lib/month";
+import type { DateParts } from "./date";
 
 export type MonthDayCell = {
   // ISO `YYYY-MM-DD`.
@@ -66,12 +67,9 @@ export function formatMonthDateOnly(year: number, month: number, day: number): s
 
 // A defensive re-export so callers building `todayDateOnly` don't need a
 // second date-parsing import for the same shape this module already
-// depends on.
+// depends on — delegates to the generic `?month=YYYY-MM` parser
+// (`@/lib/month`), also used by Diary's own month navigation (see
+// docs/diary.md, "Month navigation and timezone").
 export function parseMonthParam(raw: string): { year: number; month: number } | null {
-  const match = /^(\d{4})-(\d{2})$/.exec(raw);
-  if (!match) return null;
-  const [, yearStr, monthStr] = match;
-  const parts = parseDateOnly(`${yearStr}-${monthStr}-01`);
-  if (parts.month < 1 || parts.month > 12) return null;
-  return { year: parts.year, month: parts.month };
+  return parseGenericMonthParam(raw);
 }

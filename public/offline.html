@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>You're offline — MEDIO</title>
+    <!--
+      The Service Worker's one offline fallback (see docs/pwa.md,
+      "Offline experience") — precached on install, so it's reliably
+      available even with zero network. Deliberately plain, self-
+      contained HTML/CSS: no build pipeline, no external font/script
+      requests (which would themselves fail offline), just a restrained
+      approximation of MEDIO's real light/dark palette (see
+      src/app/globals.css) using `prefers-color-scheme` directly, since
+      next-themes' own script can't run here.
+    -->
+    <style>
+      :root {
+        color-scheme: light dark;
+        --background: #faf6f0;
+        --foreground: #302b26;
+        --muted-foreground: #757067;
+        --primary: #8b5e45;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --background: #1c1917;
+          --foreground: #f2efe9;
+          --muted-foreground: #a39c92;
+          --primary: #c99373;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100dvh;
+        padding: 1.5rem;
+        padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+        padding-top: max(1.5rem, env(safe-area-inset-top));
+        background: var(--background);
+        color: var(--foreground);
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        text-align: center;
+      }
+      main {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.75rem;
+        max-width: 24rem;
+      }
+      .mark {
+        display: flex;
+        align-items: flex-end;
+        gap: 6px;
+        height: 28px;
+        margin-bottom: 0.5rem;
+      }
+      .mark span {
+        display: block;
+        width: 8px;
+        background: var(--primary);
+        border-radius: 3px;
+      }
+      h1 {
+        margin: 0;
+        font-size: 1.375rem;
+        font-weight: 500;
+        letter-spacing: -0.01em;
+      }
+      p {
+        margin: 0;
+        color: var(--muted-foreground);
+        font-size: 0.9375rem;
+        line-height: 1.5;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="mark" aria-hidden="true">
+        <span style="height: 42%"></span>
+        <span style="height: 68%"></span>
+        <span style="height: 100%"></span>
+      </div>
+      <h1>You&rsquo;re offline</h1>
+      <p>Reconnect to continue using MEDIO.</p>
+    </main>
+  </body>
+</html>

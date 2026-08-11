@@ -14,7 +14,10 @@ import { LandingThemeToggle } from "@/features/landing/landing-theme-toggle";
 // ever reading as a heavy glassmorphism bar.
 export function PublicNav() {
   return (
-    <header className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-border/60 bg-background/85 px-6 py-5 backdrop-blur-sm sm:px-10">
+    <header
+      className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-border/60 bg-background/85 px-6 py-5 backdrop-blur-sm sm:px-10"
+      style={{ paddingTop: "max(1.25rem, env(safe-area-inset-top))" }}
+    >
       <Link href="/" aria-label="MEDIO home">
         <Wordmark />
       </Link>

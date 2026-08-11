@@ -10,7 +10,7 @@ vi.mock("@/server/auth/session", () => ({ requireSession: () => requireSession()
 const { createTestUser, deleteTestUser } = await import("@/server/test-support/test-db");
 const { recordMovieWatch, updateMovieWatchedAt } = await import("@/server/tracking/movie-events");
 const { recordEpisodeWatch } = await import("@/server/tracking/episode-events");
-const { listDiaryEvents } = await import("./events");
+const { getDiaryActivityCalendar, listDiaryEvents } = await import("./events");
 
 import type { DiaryEvent } from "./types";
 
@@ -346,5 +346,142 @@ describe("listDiaryEvents", () => {
       expect(byEpisode.get("63057:2026-01-15T00:00:00.000Z")).toBe(1);
       expect(byEpisode.get("63056:2026-02-01T00:00:00.000Z")).toBe(2);
     });
+  });
+
+  describe("month-scoped querying (period)", () => {
+    it("only returns events within the requested UTC calendar month", async () => {
+      await recordMovieWatch({
+        movieProviderId: FIGHT_CLUB,
+        watchedAt: new Date(Date.UTC(2026, 6, 31, 23, 0)), // July 31
+      });
+      await recordMovieWatch({
+        movieProviderId: INCEPTION,
+        watchedAt: new Date(Date.UTC(2026, 7, 15, 12, 0)), // August 15
+      });
+      await recordEpisodeWatch({
+        showProviderId: WINTERS_WATCH,
+        seasonNumber: 1,
+        episodeNumber: 1,
+        episodeProviderId: 63056,
+        watchedAt: new Date(Date.UTC(2026, 8, 1, 0, 0)), // September 1
+      });
+
+      const { events } = await listDiaryEvents({
+        userId,
+        filter: "all",
+        sort: "newest",
+        cursor: null,
+        limit: 10,
+        period: { year: 2026, month: 8 },
+      });
+
+      expect(events).toHaveLength(1);
+      expect(events[0]?.eventType === "movie" && events[0].movieProviderId).toBe(INCEPTION);
+    });
+
+    it("keeps a rewatch's ordinal reflecting the entire history, not just the requested month", async () => {
+      await recordMovieWatch({
+        movieProviderId: FIGHT_CLUB,
+        watchedAt: new Date(Date.UTC(2026, 0, 1)),
+      });
+      await recordMovieWatch({
+        movieProviderId: FIGHT_CLUB,
+        watchedAt: new Date(Date.UTC(2026, 7, 10)), // August — the requested month
+      });
+
+      const { events } = await listDiaryEvents({
+        userId,
+        filter: "all",
+        sort: "newest",
+        cursor: null,
+        limit: 10,
+        period: { year: 2026, month: 8 },
+      });
+
+      expect(events).toHaveLength(1);
+      expect(events[0]?.ordinal).toBe(2);
+    });
+
+    it("still pages correctly within a bounded month", async () => {
+      const watchedAt = (day: number) => new Date(Date.UTC(2026, 7, day, 12, 0));
+      await recordMovieWatch({ movieProviderId: FIGHT_CLUB, watchedAt: watchedAt(1) });
+      await recordMovieWatch({ movieProviderId: INCEPTION, watchedAt: watchedAt(2) });
+      await recordMovieWatch({ movieProviderId: FIGHT_CLUB, watchedAt: watchedAt(3) });
+      // Outside the requested month — must never appear in any page.
+      await recordMovieWatch({
+        movieProviderId: FIGHT_CLUB,
+        watchedAt: new Date(Date.UTC(2026, 8, 1)),
+      });
+
+      const page1 = await listDiaryEvents({
+        userId,
+        filter: "all",
+        sort: "oldest",
+        cursor: null,
+        limit: 2,
+        period: { year: 2026, month: 8 },
+      });
+      expect(page1.events).toHaveLength(2);
+      expect(page1.hasMore).toBe(true);
+
+      const last = page1.events[page1.events.length - 1];
+      if (!last) throw new Error("expected an event");
+      const page2 = await listDiaryEvents({
+        userId,
+        filter: "all",
+        sort: "oldest",
+        cursor: { watchedAt: last.watchedAt, eventType: last.eventType, id: last.id },
+        limit: 2,
+        period: { year: 2026, month: 8 },
+      });
+      expect(page2.events).toHaveLength(1);
+      expect(page2.hasMore).toBe(false);
+    });
+  });
+});
+
+describe("getDiaryActivityCalendar", () => {
+  it("aggregates real movie/episode counts per (year, month) bucket", async () => {
+    await recordMovieWatch({
+      movieProviderId: FIGHT_CLUB,
+      watchedAt: new Date(Date.UTC(2026, 7, 5)),
+    });
+    await recordMovieWatch({
+      movieProviderId: INCEPTION,
+      watchedAt: new Date(Date.UTC(2026, 7, 20)),
+    });
+    await recordEpisodeWatch({
+      showProviderId: WINTERS_WATCH,
+      seasonNumber: 1,
+      episodeNumber: 1,
+      episodeProviderId: 63056,
+      watchedAt: new Date(Date.UTC(2026, 7, 10)),
+    });
+    await recordEpisodeWatch({
+      showProviderId: WINTERS_WATCH,
+      seasonNumber: 1,
+      episodeNumber: 2,
+      episodeProviderId: 63057,
+      watchedAt: new Date(Date.UTC(2025, 0, 1)),
+    });
+
+    const calendar = await getDiaryActivityCalendar(userId);
+
+    const august2026 = calendar.find((bucket) => bucket.year === 2026 && bucket.month === 8);
+    expect(august2026).toEqual({ year: 2026, month: 8, movieCount: 2, episodeCount: 1 });
+
+    const january2025 = calendar.find((bucket) => bucket.year === 2025 && bucket.month === 1);
+    expect(january2025).toEqual({ year: 2025, month: 1, movieCount: 0, episodeCount: 1 });
+  });
+
+  it("never returns another user's activity", async () => {
+    await recordMovieWatch({ movieProviderId: FIGHT_CLUB });
+    const calendar = await getDiaryActivityCalendar(otherUserId);
+    expect(calendar).toEqual([]);
+  });
+
+  it("returns an empty list for a user with no history", async () => {
+    const calendar = await getDiaryActivityCalendar(userId);
+    expect(calendar).toEqual([]);
   });
 });

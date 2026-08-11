@@ -1,7 +1,12 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import type { DiaryCursor, DiaryEntry, MovieDiaryEntry } from "@/server/diary/types";
+import type {
+  DiaryCursor,
+  DiaryEntry,
+  EpisodeDiaryEntry,
+  MovieDiaryEntry,
+} from "@/server/diary/types";
 import { DiaryTimeline } from "./diary-timeline";
 
 const loadMoreDiaryEntriesAction = vi.fn();
@@ -36,6 +41,24 @@ function movieEntry(overrides: Partial<MovieDiaryEntry> = {}): MovieDiaryEntry {
   };
 }
 
+function episodeEntry(overrides: Partial<EpisodeDiaryEntry> = {}): EpisodeDiaryEntry {
+  return {
+    kind: "episode",
+    id: "episode-event-1",
+    watchedAt: new Date(2024, 0, 5, 20, 0),
+    ordinal: 1,
+    showProviderId: 1404,
+    seasonNumber: 2,
+    episodeNumber: 1,
+    episodeProviderId: 9000,
+    showTitle: "Eighth Watch",
+    episodeTitle: "Episode",
+    showPoster: null,
+    episodeStill: null,
+    ...overrides,
+  };
+}
+
 describe("DiaryTimeline", () => {
   it("groups entries under date headings", () => {
     // The current year, so the group label omits it (see
@@ -53,6 +76,7 @@ describe("DiaryTimeline", () => {
         initialHasMore={false}
         filter="all"
         sort="newest"
+        period={{ year: 2024, month: 1 }}
       />,
     );
 
@@ -70,6 +94,7 @@ describe("DiaryTimeline", () => {
         initialHasMore={false}
         filter="all"
         sort="newest"
+        period={{ year: 2024, month: 1 }}
       />,
     );
 
@@ -98,6 +123,7 @@ describe("DiaryTimeline", () => {
         initialHasMore={true}
         filter="all"
         sort="newest"
+        period={{ year: 2024, month: 1 }}
       />,
     );
 
@@ -107,6 +133,7 @@ describe("DiaryTimeline", () => {
       filter: "all",
       sort: "newest",
       cursor,
+      period: { year: 2024, month: 1 },
     });
     expect(await screen.findByText("The Prestige")).toBeInTheDocument();
     // hasMore became false — the button is gone.
@@ -133,6 +160,7 @@ describe("DiaryTimeline", () => {
         initialHasMore={true}
         filter="all"
         sort="newest"
+        period={{ year: 2024, month: 1 }}
       />,
     );
 
@@ -156,6 +184,7 @@ describe("DiaryTimeline", () => {
         initialHasMore={false}
         filter="all"
         sort="newest"
+        period={{ year: 2024, month: 1 }}
       />,
     );
     expect(screen.getByText("Fight Club")).toBeInTheDocument();
@@ -168,10 +197,35 @@ describe("DiaryTimeline", () => {
         initialHasMore={false}
         filter="all"
         sort="newest"
+        period={{ year: 2024, month: 1 }}
       />,
     );
 
     expect(screen.queryByText("Fight Club")).not.toBeInTheDocument();
     expect(screen.getByText("Inception")).toBeInTheDocument();
+  });
+
+  it("compresses a same-day binge into one collapsed session row", () => {
+    const entries: DiaryEntry[] = [
+      episodeEntry({ id: "e1", episodeNumber: 1, watchedAt: new Date(2024, 0, 5, 20, 0) }),
+      episodeEntry({ id: "e2", episodeNumber: 2, watchedAt: new Date(2024, 0, 5, 20, 30) }),
+      episodeEntry({ id: "e3", episodeNumber: 3, watchedAt: new Date(2024, 0, 5, 21, 0) }),
+    ];
+
+    render(
+      <DiaryTimeline
+        initialEntries={entries}
+        initialCursor={null}
+        initialHasMore={false}
+        filter="all"
+        sort="newest"
+        period={{ year: 2024, month: 1 }}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: /Eighth Watch/ })).toBeInTheDocument();
+    expect(screen.getByText("S2 E1-E3 · 3 episodes")).toBeInTheDocument();
+    // Not rendered as three separate list rows.
+    expect(screen.queryAllByRole("button", { name: /More actions/ })).toHaveLength(0);
   });
 });

@@ -9,6 +9,7 @@ import { IconButton } from "@/components/ui/icon-button";
 import { CalendarEmptyState } from "@/features/calendar/calendar-empty-state";
 import { CalendarEventGroup } from "@/features/calendar/calendar-event-group";
 import { CalendarMonthDayCell } from "@/features/calendar/calendar-month-day-cell";
+import { addMonths } from "@/lib/month";
 import { formatReleaseDate, todayParts } from "@/server/calendar/date";
 import { groupReleaseEvents, releaseEventGroupKey } from "@/server/calendar/group";
 import { buildMonthGrid, formatMonthDateOnly } from "@/server/calendar/month-grid";
@@ -30,11 +31,6 @@ function monthHref(year: number, month: number, filter: CalendarFilter): Route {
   });
   if (filter !== "all") params.set("type", filter);
   return `/calendar?${params.toString()}` as Route;
-}
-
-function addMonths(year: number, month: number, delta: number): { year: number; month: number } {
-  const zeroBased = year * 12 + (month - 1) + delta;
-  return { year: Math.floor(zeroBased / 12), month: (((zeroBased % 12) + 12) % 12) + 1 };
 }
 
 // Calendar's secondary, compact spatial view — a quiet month grid, never
@@ -90,8 +86,8 @@ export function CalendarMonthView({
   const selectedEvents = eventsByDate.get(selectedDate) ?? [];
   const selectedGroups = rankReleaseGroups(groupReleaseEvents(selectedEvents));
 
-  const previous = addMonths(year, month, -1);
-  const next = addMonths(year, month, 1);
+  const previous = addMonths({ year, month }, -1);
+  const next = addMonths({ year, month }, 1);
 
   return (
     <div className="flex flex-col gap-6">

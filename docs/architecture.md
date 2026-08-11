@@ -117,16 +117,22 @@
     URL state — see `docs/library.md`).
   - **`features/diary/`** — `/library/diary`'s own composition:
     `DiaryTimeline` (the one Client Component — local-timezone date
-    grouping and "Load more" pagination, seeded from the server's first
-    page), `DiaryEntryRow`/`DiaryMovieEntry`/`DiaryEpisodeEntry` (a
-    discriminated switch over `DiaryEntry["kind"]`, same reasoning as
-    `LibraryItemRow`), `DiaryEntryMenu` (the shared Edit watch date/Delete
-    contextual menu, dispatching to the exact same tracking Server Actions
-    `features/movies/`/`features/shows/` already expose — no parallel
-    mutation path), `DiaryFilterToggle` (URL-driven All/Movies/TV filter),
-    `diary-date-grouping.ts` (the pure grouping function `DiaryTimeline`
-    calls), `diary-ordinal.ts` (rewatch ordinal → English label), and
-    `diary-params.ts` (`?type=`/`?sort=` URL state — see `docs/diary.md`).
+    grouping, per-day session grouping, and "Load more" pagination within
+    the requested month, seeded from the server's first page),
+    `DiaryEntryRow`/`DiaryMovieEntry`/`DiaryEpisodeEntry` (a discriminated
+    switch over `DiaryEntry["kind"]`, same reasoning as `LibraryItemRow`),
+    `DiaryEpisodeSession` (a collapsed same-day binge session, expanding
+    to the same `DiaryEpisodeEntry` rows), `DiaryEntryMenu` (the shared
+    Edit watch date/Delete contextual menu, dispatching to the exact same
+    tracking Server Actions `features/movies/`/`features/shows/` already
+    expose — no parallel mutation path), `DiaryFilterToggle` (URL-driven
+    All/Movies/TV filter, month-preserving), `DiaryMonthNav` (prev/next/
+    Today + the compact month/year picker), `diary-date-grouping.ts` (the
+    pure day-grouping function), `diary-session-grouping.ts` (the pure
+    binge-session grouping function), `diary-month-summary.ts` (the
+    monthly overview line), `diary-ordinal.ts` (rewatch ordinal → English
+    label), and `diary-params.ts` (`?type=`/`?sort=`/`?month=` URL state —
+    see `docs/diary.md`).
   - **`features/people/`** — `/people/[id]`'s own composition:
     `PersonHeader`/`PersonProfileImage` (the quiet editorial identity
     block — no Movie/Show Details hero reused, see `docs/media-provider.md`),
@@ -141,14 +147,17 @@
     (`CastMemberTile`/`PersonLink`/`person-route.ts`) live in
     `features/media/` instead, since Movie/Show Details are their real
     callers — see that entry below.
-  - **`features/stats/`** — `/stats`'s own composition: `StatsHero` (the
-    opening headline + count line), `StatsTimeline` (the 12-month viewing-
-    rhythm chart), and the `taste-*` files (`TasteGenreSection`,
-    `TastePeopleSection`/`TastePersonTile`, `TasteRewatchSection`/
-    `TasteTitleCard`, `TastePatternsSection`, `TasteRatingsSection`) —
-    Stats' Taste (genre/people) section specifically, kept as their own
-    vocabulary since they represent a distinct analytical concept within
-    the broader page. See `docs/stats.md`.
+  - **`features/stats/`** — `/stats`'s own composition: `StatsRangeControl`
+    (the compact `?range=`/`?compare=` chip row), `StatsHero` (the opening
+    headline + count line), `StatsComparisonSection` (Compare's plain-
+    language facts), `StatsTimeline` (the range-granularity-aware viewing-
+    rhythm chart, with a "busiest month → Diary" link), and the `taste-*`
+    files (`TasteGenreSection`, `TastePeopleSection`/`TastePersonTile`,
+    `TasteRewatchSection`/`TasteTitleCard`, `TastePatternsSection`,
+    `TasteRatingsSection`) — Stats' Taste (genre/people) section
+    specifically, kept as their own vocabulary since they represent a
+    distinct analytical concept within the broader page. See
+    `docs/stats.md`.
   - **`features/settings/`** — `/settings`'s own composition:
     `SettingsNav` (the category rail), `SettingRow`/
     `SettingsCategoryHeader` (the shared open layout), `VisualChoice`/
@@ -214,12 +223,17 @@
 - **`server/diary/`** — the Watch Diary's read model, composing
   `movie_watch_events`/`episode_watch_events` (never a Diary table of its
   own) with TMDB metadata: `types.ts` (the discriminated `DiaryEntry`
-  union), `events.ts` (`listDiaryEvents` — the one cross-type `UNION ALL`
-  keyset-paginated query, with rewatch ordinal via a SQL window function),
+  union, plus `DiaryPeriod`/`DiaryMonthActivity`), `events.ts`
+  (`listDiaryEvents` — the one cross-type `UNION ALL` keyset-paginated
+  query, optionally bounded to one UTC calendar month via `period`, with
+  rewatch ordinal always computed over each partition's entire history
+  via a SQL window function; `getDiaryActivityCalendar` — one aggregate
+  query powering the month/year picker and the monthly overview line),
   `hydrate.ts` (bounded, deduplicated provider hydration — one fetch per
   distinct movie/show/season, never per event), `queries.ts`
-  (`getDiaryPage` — the one reusable read, owns the session boundary), and
-  `constants.ts` (`DIARY_PAGE_SIZE`). See `docs/diary.md`.
+  (`getDiaryPage`/`getDiaryActivityCalendar` — the reusable reads, own the
+  session boundary), and `constants.ts` (`DIARY_PAGE_SIZE`,
+  `DIARY_SESSION_MAX_GAP_MINUTES`). See `docs/diary.md`.
 - **`server/shows/`** — the one show-scoped provider+tracking composition
   shared across features: `show-episode-progress.ts`'s
   `getShowEpisodeProgress` fetches every regular season's episodes for a
@@ -237,16 +251,20 @@
   bounded set via `server/shows/`, then classifies). See `docs/home.md`.
 - **`server/stats/`** — personal Stats/Taste read model: `types.ts` (the
   `StatsProfile` projection and its `Taste`-prefixed input/insight
-  shapes), `constants.ts` (every sample-size/hydration-bound threshold),
-  `aggregates.ts`/`candidates.ts` (pure SQL aggregation over watch
-  history — never a per-event fetch), `hydration-selection.ts` (the pure
-  bounded-candidate-selection logic), `hydrate.ts` (bounded, deduplicated
-  provider hydration), and one pure, testable module per insight
-  category (`genres.ts`, `people.ts`, `rewatch.ts`, `completion.ts`,
-  `movie-vs-show.ts`, `rating-summary.ts`, `timeline.ts`,
-  `viewing-time.ts`, `headline.ts`), composed by `compose.ts`
-  (`getStatsProfile` — the one reusable read, owns the session boundary).
-  See `docs/stats.md`.
+  shapes, plus `StatsComparison`/`ActivityBucket`/`ViewingRhythm`),
+  `constants.ts` (every sample-size/hydration-bound threshold),
+  `range.ts` (`StatsRange`, half-open UTC bounds resolution, `?range=`
+  URL parsing — reuses Diary's own month-scoping conventions),
+  `aggregates.ts`/`candidates.ts` (pure, optionally range-bounded SQL
+  aggregation over watch history — never a per-event fetch),
+  `hydration-selection.ts` (the pure bounded-candidate-selection logic),
+  `hydrate.ts` (bounded, deduplicated provider hydration), one pure,
+  testable module per insight category (`genres.ts`, `people.ts`,
+  `rewatch.ts`, `completion.ts`, `movie-vs-show.ts`, `rating-summary.ts`,
+  `timeline.ts`, `viewing-time.ts`, `headline.ts`, `compare.ts` — the
+  Compare-facts derivation), composed by `compose.ts` (`getStatsProfile`/
+  `getStatsComparison`/`getStatsActiveYears` — the reusable reads, own
+  the session boundary). See `docs/stats.md`.
 - **`server/calendar/`** — Calendar's Personal Release Intelligence read
   model, composed at request time from Tracking/Planning identity + TMDB
   metadata (never a `calendar_events` table): `types.ts` (the

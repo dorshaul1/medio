@@ -1,7 +1,8 @@
 import type { Route } from "next";
 import Link from "next/link";
+import { formatMonthParam } from "@/lib/month";
 import { cn } from "@/lib/utils";
-import type { DiaryFilter } from "@/server/diary/types";
+import type { DiaryFilter, DiaryPeriod } from "@/server/diary/types";
 
 // "TV" (not "Episodes") for episode viewing events — the same
 // product-facing vocabulary this application already uses elsewhere
@@ -17,19 +18,23 @@ const OPTIONS: readonly { value: DiaryFilter; label: string }[] = [
 export function DiaryFilterToggle({
   active,
   sort,
+  period,
 }: {
   active: DiaryFilter;
   sort: string | undefined;
+  // Carried through so switching the type filter never silently jumps
+  // away from whatever month the user is currently looking at (see
+  // docs/diary.md, "Month-scoped querying").
+  period: DiaryPeriod;
 }) {
   return (
     <nav aria-label="History type" className="flex items-center gap-5 border-b border-border">
       {OPTIONS.map((option) => {
         const isActive = option.value === active;
-        const params = new URLSearchParams();
+        const params = new URLSearchParams({ month: formatMonthParam(period) });
         if (option.value !== "all") params.set("type", option.value);
         if (sort) params.set("sort", sort);
-        const query = params.toString();
-        const href = (query ? `/library/diary?${query}` : "/library/diary") as Route;
+        const href = `/library/diary?${params.toString()}` as Route;
 
         return (
           <Link

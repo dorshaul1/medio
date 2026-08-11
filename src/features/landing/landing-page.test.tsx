@@ -1,10 +1,27 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LandingPage } from "./landing-page";
 
 vi.mock("next-themes", () => ({
   useTheme: () => ({ resolvedTheme: "light", setTheme: vi.fn() }),
 }));
+
+// `InstallProvider` lives in the root layout, not `LandingPage` itself
+// (see docs/pwa.md, "Shared install domain") — mocked here the same way
+// `install-app-setting.test.tsx` mocks it, defaulting to desktop
+// ("not-promoted") so most tests never need to think about it, with
+// individual tests below overriding it to exercise the mobile states.
+const useInstall = vi.fn().mockReturnValue({
+  state: { kind: "not-promoted" },
+  promptInstall: vi.fn(),
+});
+vi.mock("@/features/install/install-provider", () => ({
+  useInstall: () => useInstall(),
+}));
+
+beforeEach(() => {
+  useInstall.mockReturnValue({ state: { kind: "not-promoted" }, promptInstall: vi.fn() });
+});
 
 describe("LandingPage", () => {
   it("shows the MEDIO brand and a clear one-sentence value proposition, with exactly one H1", () => {
@@ -110,5 +127,38 @@ describe("LandingPage", () => {
     expect(screen.getByText("You're one episode from finishing it.")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Movie night" }));
     expect(screen.getByText("A two-hour movie that fits tonight.")).toBeInTheDocument();
+  });
+
+  describe("mobile install story", () => {
+    it("always tells the Home Screen story, even on desktop where there's no install action", () => {
+      render(<LandingPage />);
+      expect(screen.getByRole("heading", { name: /MEDIO, one tap away/ })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Install MEDIO" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Add to Home Screen" })).not.toBeInTheDocument();
+    });
+
+    it("offers a real Install MEDIO action once the mobile install domain says it's available", () => {
+      useInstall.mockReturnValue({ state: { kind: "direct" }, promptInstall: vi.fn() });
+      render(<LandingPage />);
+      expect(screen.getByRole("button", { name: "Install MEDIO" })).toBeInTheDocument();
+    });
+
+    it("offers Add to Home Screen instructions on iOS Safari instead of a direct prompt", () => {
+      useInstall.mockReturnValue({ state: { kind: "manual" }, promptInstall: vi.fn() });
+      render(<LandingPage />);
+      expect(screen.getByRole("button", { name: "Add to Home Screen" })).toBeInTheDocument();
+    });
+
+    it("never shows an install action once already installed", () => {
+      useInstall.mockReturnValue({ state: { kind: "installed" }, promptInstall: vi.fn() });
+      render(<LandingPage />);
+      expect(screen.queryByRole("button", { name: "Install MEDIO" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Add to Home Screen" })).not.toBeInTheDocument();
+    });
+
+    it("never shows a generic app-store-marketing CTA like Download", () => {
+      render(<LandingPage />);
+      expect(screen.queryByText(/download/i)).not.toBeInTheDocument();
+    });
   });
 });

@@ -37,7 +37,13 @@ export function AppShell({
       <div className="flex min-h-dvh" data-density={density} data-motion={motion}>
         <DesktopNav user={user} />
 
-        <div className="flex min-w-0 flex-1 flex-col pb-16 md:pb-0">
+        {/* Reserves exactly MobileNav's own real height (its base height
+            plus whatever bottom safe-area inset the device adds — a
+            fixed `pb-16` would under-reserve on a device with a tall
+            Home Indicator, letting the last bit of page content sit
+            partly behind the nav bar), never a hardcoded device-specific
+            pixel value. */}
+        <div className="flex min-w-0 flex-1 flex-col pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
           {/* Mobile has no sidebar to hold secondary controls, so the brand
               mark, Search, and account control get a minimal header strip
               instead. Sticky (not just fixed-at-top-of-page) so it stays
@@ -47,7 +53,10 @@ export function AppShell({
               MobileNav's own bottom bar), not a translucent/blurred one,
               since content should be fully hidden behind it, never showing
               through. */}
-          <div className="sticky top-0 z-10 flex items-center justify-between gap-1 border-b border-border bg-background px-4 py-3 md:hidden">
+          <div
+            className="sticky top-0 z-10 flex items-center justify-between gap-1 border-b border-border bg-background px-4 py-3 md:hidden"
+            style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top))" }}
+          >
             <Wordmark className="shrink-0 text-xl" />
             <div className="flex shrink-0 items-center gap-1">
               <GlobalSearchIconTrigger />

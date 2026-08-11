@@ -2,18 +2,28 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
-import type { DiaryCursor, DiaryEntry, DiaryFilter, DiarySort } from "@/server/diary/types";
+import type {
+  DiaryCursor,
+  DiaryEntry,
+  DiaryFilter,
+  DiaryPeriod,
+  DiarySort,
+} from "@/server/diary/types";
 import { loadMoreDiaryEntriesAction } from "./diary-actions";
 import { groupDiaryEntries } from "./diary-date-grouping";
 import { DiaryEntryRow } from "./diary-entry-row";
+import { DiaryEpisodeSession } from "./diary-episode-session";
+import { groupDiarySessions } from "./diary-session-grouping";
 
 // Diary's client-side timeline layer — deliberately narrow: local-
-// timezone date grouping (see docs/diary.md, "Date grouping") and "Load
-// more" pagination are the only two things that genuinely need the
-// browser here. Data fetching/hydration/authorization stay entirely
-// server-side (`server/diary/queries.ts`, called from the page and from
-// `loadMoreDiaryEntriesAction`) — this component only ever receives
-// already-hydrated `DiaryEntry`s, never queries anything itself.
+// timezone date grouping (see docs/diary.md, "Date grouping"),
+// presentation-only session grouping (`groupDiarySessions`), and "Load
+// more" pagination *within* the current month are the only things that
+// genuinely need the browser here. Data fetching/hydration/authorization
+// stay entirely server-side (`server/diary/queries.ts`, called from the
+// page and from `loadMoreDiaryEntriesAction`) — this component only ever
+// receives an already-hydrated, already-month-scoped page of
+// `DiaryEntry`s, never queries anything itself.
 //
 // The page keys this component by `${filter}:${sort}` (see
 // `app/(app)/library/diary/page.tsx`) — the same "remount on identity
@@ -27,12 +37,18 @@ export function DiaryTimeline({
   initialHasMore,
   filter,
   sort,
+  period,
 }: {
   initialEntries: readonly DiaryEntry[];
   initialCursor: DiaryCursor | null;
   initialHasMore: boolean;
   filter: DiaryFilter;
   sort: DiarySort;
+  // The one month this page is scoped to — forwarded to "Load more" so a
+  // very active month's later pages stay bounded to it too (see
+  // docs/diary.md, "Month-scoped querying"), never silently falling back
+  // to paging across the user's entire history.
+  period: DiaryPeriod;
 }) {
   const [entries, setEntries] = useState(initialEntries);
   const [cursor, setCursor] = useState(initialCursor);
@@ -72,7 +88,7 @@ export function DiaryTimeline({
   function loadMore() {
     if (!cursor) return;
     startTransition(async () => {
-      const page = await loadMoreDiaryEntriesAction({ filter, sort, cursor });
+      const page = await loadMoreDiaryEntriesAction({ filter, sort, cursor, period });
       setEntries((previous) => [...previous, ...page.entries]);
       setCursor(page.nextCursor);
       setHasMore(page.hasMore);
@@ -88,21 +104,35 @@ export function DiaryTimeline({
 
   return (
     <div className="flex flex-col gap-6">
-      {groups.map((group) => (
-        <section key={group.key} aria-labelledby={`diary-date-${group.key}`}>
-          <h2
-            id={`diary-date-${group.key}`}
-            className="mb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase"
-          >
-            {group.label}
-          </h2>
-          <ul className="flex flex-col divide-y divide-border">
-            {group.entries.map((entry) => (
-              <DiaryEntryRow key={entry.id} entry={entry} />
-            ))}
-          </ul>
-        </section>
-      ))}
+      {groups.map((group) => {
+        // Session grouping (`groupDiarySessions`) runs per date group,
+        // never across days — a "session" is a same-day binge sitting
+        // (see docs/diary.md, "Viewing session grouping"), and applying
+        // it after date grouping (not before) keeps the two concerns
+        // independent: date grouping owns *which day* an entry displays
+        // under, session grouping only ever compresses presentation
+        // *within* a day that's already been decided.
+        const rowGroups = groupDiarySessions(group.entries);
+        return (
+          <section key={group.key} aria-labelledby={`diary-date-${group.key}`}>
+            <h2
+              id={`diary-date-${group.key}`}
+              className="mb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase"
+            >
+              {group.label}
+            </h2>
+            <ul className="flex flex-col divide-y divide-border">
+              {rowGroups.map((rowGroup) =>
+                rowGroup.kind === "single" ? (
+                  <DiaryEntryRow key={rowGroup.entry.id} entry={rowGroup.entry} />
+                ) : (
+                  <DiaryEpisodeSession key={rowGroup.key} entries={rowGroup.entries} />
+                ),
+              )}
+            </ul>
+          </section>
+        );
+      })}
 
       {hasMore ? (
         <Button

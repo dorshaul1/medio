@@ -576,37 +576,48 @@ in the same change.
 
 ## Diary
 
-- Diary (`/library/diary`) is a read model over `MovieWatchEvent` +
-  `EpisodeWatchEvent` (`server/diary/`) — never create a Diary
-  persistence table or duplicate/copy tracking events into one.
-- Rewatches remain separate, independent events in the chronological
-  history — never collapse them into a "watched N times" summary row
-  inside the timeline itself (that summary belongs on Movie/Show
-  Details).
-- Cross-type Diary pagination (Movie + Episode events, two separate
-  tables) must be globally stable — one keyset/cursor query
-  (`(watched_at, event_type, id)`), never fetch-N-of-each-then-
-  concatenate, which can't paginate correctly across two independently-
-  ordered sources.
-- Never calculate a rewatch's ordinal from only the currently loaded
-  page — compute it via a SQL window function over the media's entire
-  history, before pagination is applied.
+- Diary (`/library/diary`) is a chronological view of canonical
+  `MovieWatchEvent`/`EpisodeWatchEvent`s (`server/diary/`) — never a
+  separate source of truth, never a Diary persistence table. Library =
+  what belongs to my personal media world (planning + state); Diary =
+  what did I actually watch, and when; Stats = analysis of the same
+  events — dependency direction is always Watch Events → Diary and Watch
+  Events → Stats, never Diary → Stats.
+- Imported and native watch events render identically, by their real
+  original `watchedAt` — no permanent "Imported" badge in the timeline.
+- Rewatches remain separate, independent events — never collapsed into a
+  "watched N times" summary row (that belongs on Movie/Show Details).
+  Same-day same-show Episode session grouping is presentation-only: it
+  must never collapse rewatches into each other, hide an ordinal, or
+  lose access to any individual event's own Edit/Delete once expanded.
+- Current title-level ratings/reactions are never presented as
+  historical per-event data (no fabricated "you rated this 5/5 on
+  {date}") — this app has no historical rating-event data. Notes are not
+  Diary entries and never render in the timeline.
+- Cross-type Diary pagination (Movie + Episode events) must be globally
+  stable — one keyset/cursor query (`(watched_at, event_type, id)`),
+  never fetch-N-of-each-then-concatenate.
+- A rewatch's ordinal is always a SQL window function over the media's
+  *entire* history — never recomputed from just the loaded page or a
+  month-range filter applied to the same query.
 - Editing a Diary event may only change `watchedAt`, never the
-  underlying movie/show/season/episode identity.
-- Deleting a Diary event always targets one exact viewing event (by id,
-  ownership-scoped) — never every event for that media.
-- Diary mutations (edit/delete) can change derived tracking state (watch
-  count, Show progress, Home's Up Next/Continue Watching/Finish Soon
-  membership) — never maintain a stale copy; let it recompute from the
-  event rows.
-- Diary's date grouping must respect the *browser's* local timezone, not
-  the server's — group by UTC before the component has mounted (so
-  server and client agree, no hydration mismatch) and switch to real
-  local time after mount.
-- Diary's provider metadata hydration must be deduplicated and bounded to
-  the current page — one fetch per distinct movie/show, and one fetch per
-  distinct show+season pair, reused across every visible episode in that
-  season, never one request per event.
+  underlying movie/show/season/episode identity. Deleting always targets
+  one exact event (id, ownership-scoped) — never every event for that
+  media.
+- Diary mutations (edit/delete) recompute all dependent state (watch
+  count, Show progress, Home's Up Next/Continue Watching/Finish Soon)
+  naturally from the event rows — no Diary-specific manual sync.
+- A large history requires bounded date-range querying — Diary defaults
+  to one real month at a time, never paging through everything before
+  the requested period — and batched, deduplicated provider hydration
+  (one fetch per distinct movie/show, one per show+season pair), never
+  one request per event.
+- Date navigation uses two intentionally different, established
+  timezone bases: a month *query* boundary is UTC (same documented
+  simplification as Stats' own monthly bucketing); per-entry "Today"/
+  "Yesterday" *grouping* switches to the browser's real local timezone
+  once mounted (UTC before mount, so server/client agree). Don't unify
+  them into one basis.
 - Diary is private, per-request data — reads must derive the user from
   the session and must never enter a shared/public cache.
 - Diary should read as a personal media diary — chronological, artwork-
@@ -615,34 +626,69 @@ in the same change.
 
 ## Stats
 
-- Stats is derived from user-owned history/opinion + normalized provider
+- Stats is MEDIO's personal analytics/insight surface and must remain
+  editorial rather than a BI dashboard — see docs/stats.md. It is
+  derived from user-owned history/opinion + normalized provider
   metadata; do not persist favorite genres/people, viewing-time totals,
-  or any other analytical output as source of truth — see docs/stats.md.
-- Stats analytics must distinguish title-level preference (Genre/People)
-  from viewing-event volume; Episode count must never inflate a Show's
-  title-level genre/People weight — a Show counts once, like a Movie.
+  computed ranges/comparisons, or any other analytical output as source
+  of truth.
+- Unique-title counts and viewing-event counts are distinct and must
+  never be conflated — a Movie watched four times is one unique Movie
+  and four viewing events, three of them rewatches. Episode count must
+  never inflate a Show's title-level genre/People weight (a Show counts
+  once, like a Movie), and Movie-vs-TV comparisons must use comparable
+  units — never compare a unique Movie count directly against a raw
+  Episode count as if they were equivalent shares.
+- Genre/People "most watched" (exposure) and "highest rated"
+  (preference) are different questions — never collapse them into one
+  list, and prefer surfacing a real contrast between the two when one
+  exists over showing either alone.
 - Personal ratings count once per title regardless of rewatches.
-  Rewatches are a separate behavioral signal.
+  Rewatches are a separate behavioral signal. Current title-level
+  ratings must never be presented as historical rating events — a
+  date-range insight includes a title because it was *watched* in that
+  range, but its rating is always the title's current one.
 - Do not declare favorite genres/actors/directors from tiny samples; use
   the explicit minimum-data thresholds in `server/stats/constants.ts`.
+  A watch-time estimate may only render once measured runtime coverage
+  clears its documented threshold — never invent a default runtime, and
+  never show false precision.
 - Public provider popularity must never substitute for personal taste.
 - Every visible personal insight must be directly supported by its
   calculation — no embellished interpretation, no AI-generated taste
-  personality copy.
+  personality copy, no note-text analysis (private notes are never
+  Stats input).
 - Provider hydration for Stats stays bounded (recency + always-rated-
   titles selection, see docs/stats.md) regardless of total lifetime
   history size; never one provider request per historical title/episode.
-- A viewing-time estimate may only render once measured runtime coverage
-  clears its documented threshold — never shown as false precision.
+- Date ranges reuse Diary 2.0's own half-open `[start, end)` UTC
+  boundary semantics (`server/stats/range.ts`) — never a second,
+  independent timezone interpretation. Range-scoped queries stay bounded
+  SQL aggregation, never an unbounded raw-event pull for "All time."
+- Show completion/TV Journey needs a defensible denominator (exclude
+  Caught Up/Waiting/On Hold/never-started shows from a naive ratio) —
+  omit the metric entirely rather than show a misleading percentage.
+- Comparison is opt-in and single-period by default; only show a
+  comparison fact where the two periods are genuinely, meaningfully
+  different, phrased in plain language — never a red/green up/down
+  judgment (watching more or less isn't inherently good or bad).
+- Sparse users see fewer, real insights, never filler placeholders — a
+  section omits itself entirely rather than rendering with too little
+  evidence to be meaningful.
 - Prefer a small number of useful insights over dashboard-style metric
-  overload; Stats UI stays editorial/media-first, never analytics-
+  overload; every visualization must answer a real question a screen
+  reader can also get as text — remove a chart that exists only for
+  decoration. Stats UI stays editorial/media-first, never analytics-
   dashboard-like (no KPI cards, no rainbow chart palettes, no gamification).
+- Mobile Stats may simplify or replace a visualization entirely when
+  that improves comprehension — never just a shrunk desktop chart.
 - Stats (`/stats`) is a top-level primary destination, not part of
   Library — `LibrarySectionNav` covers Library/Diary only.
-- Private Stats results must never enter shared/public caches.
-- Analytics helpers should stay reusable for a future Year in Review
-  where naturally appropriate (e.g. accepting a date range), without
-  building that UI now.
+- Private Stats results (including any computed comparison) must never
+  enter shared/public caches.
+- Pick for Me may share Stats' pure ranking helpers, but must never
+  depend on a live Stats UI projection or its selected date range —
+  Pick always reasons over the user's entire history.
 
 ## Calendar
 
@@ -914,6 +960,71 @@ in the same change.
   Diary, Calendar, and recommendation derivations without source-specific
   branches — this is a deliberate architectural test, not just a UX
   nicety.
+
+## PWA
+
+- MEDIO is technically a cross-platform, standards-based PWA — never
+  degrade the manifest/Service Worker or block browser/OS-native
+  desktop installation — but its **custom install promotion** is
+  intentionally mobile-focused; nothing in the product may require
+  installation or Service Worker support to work. See docs/pwa.md.
+- Installability (can the platform install MEDIO) and install
+  promotion (should MEDIO show its own installation UI right now) are
+  separate concepts and must stay separate in code — see
+  `InstallPromotionState`/`deriveInstallPromotionState`
+  (`src/features/install/install-policy.ts`).
+- Mobile Landing and mobile Settings are the canonical MEDIO install-
+  promotion surfaces. Desktop Landing may communicate MEDIO's mobile
+  Home Screen/app experience but must never show a MEDIO-owned desktop
+  Install CTA, and desktop Settings must never render an install row —
+  unless a future explicit product decision changes this.
+- Installed MEDIO uses standalone behavior through the centralized
+  install domain (`src/features/install/`) — never a forked/duplicated
+  product UI for standalone vs. browser mode, and never a second,
+  independent `beforeinstallprompt` listener per page.
+- Installation must always be initiated by explicit user action — never
+  automatically on page load, after Sign Up, or after Login. Already-
+  installed users must never see a redundant installation control.
+- Platform-specific manual-install instructions (iOS Safari's "Add to
+  Home Screen") must reflect current real platform behavior, shared by
+  every surface that shows them — never duplicated/redefined per page.
+- Account creation remains more important than installation in
+  Landing's hierarchy — "Get started" is the one primary CTA; an
+  install action never competes with it in the Hero.
+- Never use PWA implementation terminology (PWA, Service Worker,
+  manifest, standalone mode) in normal consumer-facing UI copy.
+- Service Worker caching must never expose or persist private,
+  per-user responses across accounts. Personalized surfaces (Home,
+  Library, Diary, Stats, Settings, Pick for Me, any API/RSC/auth
+  response) are never cached — only two narrow, genuinely public/
+  immutable categories are (hashed static build assets, this app's own
+  static icon/manifest routes), plus one static offline fallback page.
+  Navigations are always network-first, never served stale.
+- Full offline mutations/background sync are out of scope unless a
+  dedicated sync architecture is explicitly introduced later. Offline
+  UI must never claim a private mutation succeeded when it wasn't
+  actually persisted.
+- Mobile safe areas use `env(safe-area-inset-*)`, never hardcoded
+  device-specific pixel values.
+- The sticky mobile header and bottom navigation are first-class
+  application chrome — changes to either must be verified in both
+  normal browser and standalone/installed contexts.
+- Essential mobile interactions must never depend on hover or a hidden
+  gesture (see "UX & Interaction" above — this applies with equal force
+  to the installed experience).
+- Mobile keyboard behavior, `dvh`-based viewport units, comfortable
+  touch targets, and scroll restoration are product-quality
+  requirements, not PWA extras.
+- A Service Worker update must never force an unexpected reload while
+  the user is mid-edit — a new version only activates when the user
+  explicitly clicks the update prompt's own action.
+- Logout/account switching must never let another account's cached
+  content flash or reappear — this holds by construction here (nothing
+  private is ever cached), not through extra invalidation logic; keep
+  it that way rather than introducing caching that would need one.
+- PWA/mobile polish must never add meaningful client weight or hurt
+  performance, and the installed app icon/identity must stay aligned
+  with canonical MEDIO branding.
 
 ## Production
 

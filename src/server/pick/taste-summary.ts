@@ -64,9 +64,13 @@ export async function getRecommendationTasteSummary(
   // aggregate queries are skipped entirely rather than run for nothing.
   if (ratings.length === 0) return empty;
 
+  // Pick always reasons over the user's entire history, never a Stats UI
+  // date range (see CLAUDE.md, "Stats + Pick for Me") — `null` bounds
+  // mean unbounded/all-time, same behavior these calls always had before
+  // Stats 2.0 introduced ranges.
   const [movieAggregates, showAggregates] = await Promise.all([
-    getMovieWatchAggregates(userId),
-    getShowWatchAggregates(userId),
+    getMovieWatchAggregates(userId, null),
+    getShowWatchAggregates(userId, null),
   ]);
 
   const ratingByKey = new Map(

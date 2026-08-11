@@ -1,4 +1,5 @@
 import { Separator } from "@/components/ui/separator";
+import { InstallAppSetting } from "./install-app-setting";
 import { ResetPreferencesControl } from "./reset-preferences-control";
 import { SettingRow } from "./setting-row";
 import { SettingsCategoryHeader } from "./settings-category-header";
@@ -16,6 +17,10 @@ export function GeneralSettings() {
         description="App-wide behavior that doesn't fit a more specific category."
       />
       <Separator />
+      {/* Client Component that renders nothing at all when there's no
+          real install action available (see docs/pwa.md, "Install UX")
+          — never a placeholder/disabled row. */}
+      <InstallAppSetting />
       <SettingRow
         title="Reset preferences"
         comment="Restores every setting on this page to its default. Your Library, watch history, ratings, and notes are never affected."

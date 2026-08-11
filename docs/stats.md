@@ -25,15 +25,84 @@ itself — the same layering `getLibraryPage`/`getDiaryPage` already use.
 
 ## Information architecture
 
-Conceptually, Stats covers: Overview, Viewing rhythm, Taste (genres),
-People (directors/actors), Rewatching, and Viewing patterns (Movie vs
-Show, Show completion tendency) — but this is **not** implemented as
-tabs or mechanically-boxed sections. `/stats` is one page, composed
-editorially: an opening headline + count line (`StatsHero`), a 12-month
-viewing-rhythm chart (`StatsTimeline`), then curated Genre, People,
-Rewatch, Patterns, and Ratings sections. Every section omits itself
-entirely when its underlying evidence is too thin to be meaningful —
-there is no "not enough data" placeholder anywhere on this page.
+Conceptually, Stats covers: a date-range control, Overview, Viewing
+rhythm, Taste (genres), People (directors/actors), Rewatching, and
+Viewing patterns (Movie vs Show, Show completion tendency) — but this is
+**not** implemented as tabs or mechanically-boxed sections. `/stats` is
+one page, composed editorially: a compact range control
+(`StatsRangeControl`), an opening headline + count line (`StatsHero`),
+an optional Compare summary (`StatsComparisonSection`), a viewing-rhythm
+chart (`StatsTimeline`), then curated Genre, People, Rewatch, Patterns,
+and Ratings sections. Every section omits itself entirely when its
+underlying evidence is too thin to be meaningful — there is no "not
+enough data" placeholder anywhere on this page.
+
+## Date ranges
+
+`?range=` is real URL state (`server/stats/range.ts`'s
+`parseStatsRangeParam`/`formatStatsRangeParam`) — `all` (the default),
+a specific year (`2025`), `last12months`, or a specific month
+(`2026-08`). `StatsRange` is resolved to a half-open `[start, end)` UTC
+bound (`resolveStatsRangeBounds`) — reusing Diary 2.0's own month-
+scoping convention exactly (see docs/diary.md, "Month navigation and
+timezone") rather than inventing a second timezone interpretation: the
+server can't know the viewer's real local timezone, so a period edge can
+be off by at most a few hours, an accepted documented tradeoff at this
+granularity. A `null` bound means "all time," unbounded.
+
+Every range-aware query (`getViewingVolume`, `getMovieWatchAggregates`,
+`getShowWatchAggregates`) takes this bound as a plain parameter and adds
+`and watched_at >= start and watched_at < end` only when it's non-null —
+the exact same shape `server/diary/events.ts`'s own `period` filter
+uses. The pure insight-computation layer (genres/people/rewatch/movie-vs-
+show/rating-summary/headline/viewing-time) is completely unaware ranges
+exist at all — it only ever sees whatever titles/aggregates the range-
+scoped queries already produced, so none of those files changed for
+Stats 2.0.
+
+**Show Tracking State counts** (`getTrackingStateCounts`, feeding
+Completion/TV Journey) are deliberately **never** range-scoped — a
+show's `watching`/`on_hold`/`dropped` status describes its *current*
+state, not a dated event, so it reflects "right now" regardless of the
+selected range (the same reasoning current ratings are never treated as
+historical — see "Date-range rating semantics" below).
+
+### Historical years
+
+`getActiveStatsYears`/`getStatsActiveYears` (`aggregates.ts`/
+`compose.ts`) return only years with real watch history, newest first —
+the range control's year chips never offer a guaranteed-empty year. A
+brand-new account (no active years at all) sees Stats' one true empty
+state ("No stats yet.") with no range control at all; an account with
+real history elsewhere but nothing in the *selected* range sees a
+sparse-range message ("Nothing watched in {range}.") with the range
+control still fully usable — the same empty-vs-sparse distinction
+Diary's own month-scoped browsing already makes (see docs/diary.md,
+"Empty vs. sparse").
+
+### Comparison
+
+`getStatsComparison` (`compose.ts`) computes the current range's profile
+and its immediately-preceding equivalent period
+(`resolvePreviousStatsRangeBounds` — real calendar arithmetic, never a
+ms-duration shift of the current bounds, which would misalign a
+"previous year" across a leap year) in parallel, then
+`deriveStatsComparison` (`compare.ts`, pure) turns the two profiles into
+a small set of already-composed human-language facts — never a raw
+`{ metric, delta, percent }` tuple the UI phrases itself, and never
+red/green up/down judgment (see CLAUDE.md, "No judgment"). Only
+genuinely different facts appear (a Movies/Shows/Episodes count that
+didn't change produces no fact at all); a Movie-vs-Show balance shift
+needs to clear `MIN_MOVIE_VS_SHOW_SHIFT_POINTS` (10 percentage points)
+before it's worth mentioning. "All time" has no meaningful previous
+period, so Compare is hidden entirely for it
+(`statsRangeSupportsComparison`).
+
+The previous period's profile is built via the same `buildStatsProfile`
+path as the current one — never a second, parallel computation — with a
+`lightweight` flag that skips work Comparison's own UI never renders
+(director-portrait hydration, the rhythm chart), saving real provider
+requests rather than doubling them.
 
 `src/features/stats/` files prefixed `taste-*` are specifically the
 Taste (genre/people) part of that composition — kept as their own
@@ -115,6 +184,21 @@ contributes one `5`, not four, to any genre/director/actor average
 below). Clearing a rating removes it from every rating-based
 calculation immediately (nothing is cached beyond the request).
 
+### Date-range rating semantics
+
+A rating-based insight for a selected range includes a title because it
+was **watched** during that range — `ratedTitleCount`/rating
+distribution/Movie-vs-Show rating comparison are all filtered to the
+titles present in that range's own watch aggregates
+(`buildStatsProfile`'s `inRangeRatings`). The rating **value** shown is
+always the title's *current* rating, never a historical one — this app
+has no historical rating-event data (see CLAUDE.md, "Stats"). Section
+copy stays deliberately range-neutral ("You rate the highest," not
+"Movies you rated highest in 2026") specifically so it never *implies*
+the rating itself happened during the selected range — a real, safer
+simplification than trying to phrase every section's heading per range,
+left as a documented opportunity rather than built out this phase.
+
 ### Statistical reliability
 
 Every rating-based insight has an explicit minimum-sample threshold
@@ -183,25 +267,56 @@ exactly the request-explosion architecture this app forbids (see
 `"finishes"` (dropped ratio ≤15%) or `"explores"` (higher) — never a
 shaming label, requires ≥3 explicitly tracked shows
 (`MIN_TRACKED_SHOWS_FOR_COMPLETION_TENDENCY`). A true "N shows
-completed" count is a deliberate, documented cut for this phase.
+completed" count is a deliberate, documented cut for this phase. This
+insight is never range-scoped (see "Date ranges" above) — it always
+reflects current tracking state.
 
-## Viewing timeline
+## Viewing rhythm and range
 
-A rolling 12-month behavioral-rhythm chart (`STATS_TIMELINE_MONTHS`),
-counting viewing **events** (Movies + Episodes, rewatches included —
-this correctly reflects real viewing volume). Always relative to today,
-never a fixed calendar year — this is not a Year in Review. Buckets by
-UTC calendar month rather than the viewer's real local timezone: unlike
-Diary's per-entry day labels (which a user directly compares against
-their own clock), a monthly bucket is coarse enough that a timezone
-shift only matters for events within hours of a month boundary, and
-computing it server-side keeps the aggregation one pure, testable
-function (`timeline.ts`) rather than needing Diary's pre/post-mount
-reconciliation. `getRecentViewingTimestamps` (`aggregates.ts`) is the
-one place this domain fetches raw timestamps rather than a SQL
-aggregate — bounded to the trailing window, so row count stays
-reasonable regardless of total lifetime history size. Weekday/time-of-day
-viewing patterns are deliberately deferred (see "Deferred" below).
+The viewing-rhythm chart's bucket granularity follows the selected range
+— never a 10-year, 120-column monthly chart, and never a meaningless
+12-entry monthly chart for one selected month (`computeViewingRhythm` —
+`compose.ts`):
+
+- **"All time"** — bucketed by real calendar **year**, from one bounded
+  SQL aggregate (`getYearlyActivityCounts`) — never a raw lifetime
+  timestamp pull.
+- **A specific year, or "Last 12 months"** — bucketed by **month**,
+  exactly the original 12-entry chart (`computeMonthlyActivity`,
+  `STATS_TIMELINE_MONTHS`), reused unchanged: a specific past year's
+  Jan-Dec is just the trailing-12-month window ending at that year's own
+  January 1st of the *following* year.
+- **A specific month** — bucketed by **day** (`computeDailyActivity`),
+  the one case a 12-entry monthly chart can't represent meaningfully.
+
+Every granularity counts viewing **events** (Movies + Episodes,
+rewatches included — this correctly reflects real viewing volume), and
+every bucket includes zero-activity periods (a real gap is real
+information, never hidden). All three shapes flow through one generic
+`ActivityBucket`/`ViewingRhythm` type the chart component
+(`StatsTimeline`) renders identically regardless of which granularity
+produced it. Buckets by UTC calendar boundaries rather than the viewer's
+real local timezone — the same documented simplification Diary's own
+month-scope query boundary uses (see "Date ranges" above), and for the
+same reason: unlike Diary's per-entry day *labels* (which a user directly
+compares against their own clock), a chart bucket is coarse enough that a
+timezone shift only matters for events within hours of a boundary, and
+computing it server-side keeps the aggregation pure and testable rather
+than needing Diary's pre/post-mount reconciliation.
+`getViewingTimestampsInRange`/`getYearlyActivityCounts` (`aggregates.ts`)
+are the only two places this domain ever fetches/aggregates timestamps
+for the chart — always bounded to the selected range, never the user's
+unbounded lifetime. Weekday/time-of-day viewing patterns remain
+deliberately deferred (see "Deferred" below).
+
+### Stats + Diary
+
+The chart's single busiest bucket, when month-granularity, links
+directly into that month's real chronology in Diary
+(`/library/diary?month=YYYY-MM`) — the one deliberate Stats→Diary
+integration this phase adds (see CLAUDE.md, "Stats + Diary"). Never
+shown for day/year granularity, where "a month" isn't the unit being
+charted at all.
 
 ## Viewing time
 
@@ -240,25 +355,51 @@ responses used to hydrate titles may still use Next's normal public
 fetch caching (24h `next.revalidate`); that stays a separate,
 provider-owned concern from the private Stats composition wrapping it.
 
+## Stats + Pick for Me
+
+Pick's own taste projection (`server/pick/taste-summary.ts`) shares the
+same *pure* ranking functions Stats uses (`computeGenreInsights`,
+`computeFavoriteDirectors`, `hydrateTasteTitles`, `selectHydrationIds`)
+— but always calls `getMovieWatchAggregates`/`getShowWatchAggregates`
+with `null` bounds (all time), never a Stats UI date range. Pick reasons
+over the user's entire history regardless of whatever range a user
+happens to have last selected on `/stats`; the two features share
+derived domain-level helpers, never a live dependency on Stats' own UI
+projection (see CLAUDE.md, "Stats + Pick for Me").
+
 ## Future Year in Review reuse
 
-Aggregation helpers that could plausibly need a date range later
-(`getRecentViewingTimestamps`, the grouped SQL aggregates) are written
-so a `from`/`to` parameter could be added without restructuring — but no
-such parameter is exposed today, and `/stats` itself has no date-range
-UI. All-time is the only mode this phase implements.
+Stats 2.0's own range infrastructure (`server/stats/range.ts`'s
+`StatsRange`/bounds resolution, the range-aware aggregate queries) is
+exactly the reusable foundation a future Year in Review would need — but
+Year in Review itself (a distinct narrative product experience, not just
+"Stats with `range=2026`") remains out of scope for this phase, per its
+own explicit instruction.
 
 ## Deliberately deferred
 
 - **Weekday / time-of-day patterns** — would need either per-event
   local-timezone bucketing (raising the same "how many raw rows do we
-  pull" question the 12-month timeline window already manages
+  pull" question the range-scoped rhythm chart already manages
   carefully) or an assumption about backdated entries' synthetic times
   that isn't safe to make. Omitted rather than guessed.
 - **Exact Show completion count** — see "Show completion behavior"
   above.
+- **A custom, arbitrary date-range picker** — the four preset ranges
+  (All time / a specific year / Last 12 months / a specific month)
+  cover every range described in this phase's scope without an
+  enterprise date-range control; a custom picker was judged not to
+  clearly earn its complexity yet and was cut, not merely missed.
+- **Range-aware section copy** (e.g. "Highest-rated Movies you watched
+  in 2026" instead of the current range-neutral "You rate the highest")
+  — see "Date-range rating semantics" above; every section's *data* is
+  already correctly range-scoped, only the heading text isn't yet
+  range-specific.
+- **Standout/highlight titles with artwork**, a **reactions insight**,
+  and a **tiny day-by-day activity strip independent of the rhythm
+  chart** — each considered, none judged to clearly earn its place this
+  phase over the existing curated sections.
 - Year in Review, taste-based recommendations, AI-generated taste
   descriptions, public profiles/sharing, leaderboards, streaks,
-  achievements, custom date-range filtering, note analysis, and
-  personalizing Home/Discover from Stats — all explicitly out of scope
-  for this phase.
+  achievements, note analysis, and personalizing Home/Discover from
+  Stats — all explicitly out of scope for this phase.

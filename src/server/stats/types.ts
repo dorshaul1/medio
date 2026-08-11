@@ -5,6 +5,7 @@
 // extraction) — kept as their own vocabulary since they represent a
 // distinct analytical concept within the broader Stats projection.
 import type { CreditedPerson, Genre, MediaImage } from "@/server/media/types";
+import type { StatsRange } from "./range";
 
 // --- Bounded, hydrated title input ---------------------------------------
 //
@@ -186,6 +187,27 @@ export type MonthlyActivity = {
   eventCount: number;
 };
 
+// The viewing-rhythm chart's bucket granularity varies with the selected
+// range (see docs/stats.md, "Viewing rhythm and range"): a single month
+// selected buckets by day, a year or Last 12 months buckets by month
+// (`MonthlyActivity`, unchanged), and All time buckets by year — never a
+// 10-year, 120-column monthly chart. `ActivityBucket` is the one generic
+// shape the UI actually renders; `toActivityBuckets`/`computeDailyActivity`/
+// `computeYearlyActivity` (`timeline.ts`) each produce it from their own
+// granularity-appropriate source.
+export type ActivityBucketGranularity = "day" | "month" | "year";
+
+export type ActivityBucket = {
+  key: string;
+  label: string;
+  eventCount: number;
+};
+
+export type ViewingRhythm = {
+  granularity: ActivityBucketGranularity;
+  buckets: readonly ActivityBucket[];
+} | null;
+
 // Minutes estimated across every hydrated title (movie runtime × movie
 // watch events; a show's typical episode runtime × its episode watch
 // events — see docs/stats.md, "Viewing time"). Only ever produced when
@@ -216,23 +238,23 @@ export type TasteOverview = {
   // MIN_REGULAR_EPISODES_FOR_SHOW_TASTE_ELIGIBILITY) — never "every show
   // with a row in show_tracking_state."
   uniqueShowsWatched: number;
-  // Movie + episode viewing events with `watchedAt` in the current
-  // calendar year — a small supporting figure only, never the page's
-  // framing (see docs/stats.md, "Current-year context").
-  watchedThisYearCount: number;
 };
 
 // --- The composed projection ----------------------------------------------
 
 export type StatsProfile = {
+  // The exact range this profile was computed for — echoed back so the
+  // UI/comparison layer never has to re-derive it.
+  range: StatsRange;
   // False only when the user has never recorded a single movie or
-  // episode watch — the page's one true empty state.
+  // episode watch *within the selected range* — see docs/stats.md,
+  // "Empty vs. sparse vs. no history in range".
   hasAnyHistory: boolean;
   overview: TasteOverview;
   headline: TasteHeadline;
-  // Oldest-to-newest, always 12 entries — null only when there is no
-  // history at all (see docs/stats.md).
-  viewingTimeline: readonly MonthlyActivity[] | null;
+  // Oldest-to-newest, granularity depends on the selected range — null
+  // only when there is no history in range at all (see docs/stats.md).
+  viewingRhythm: ViewingRhythm;
   estimatedViewingTime: ViewingTimeEstimate | null;
   genres: GenreInsights;
   directors: readonly PersonTasteStat[];
@@ -244,3 +266,20 @@ export type StatsProfile = {
   ratingComparison: RatingComparison;
   ratedTitleCount: number;
 };
+
+// --- Comparison --------------------------------------------------------
+
+// One human-language comparison sentence, already fully composed server-
+// side (see docs/stats.md, "Comparison") — never a raw
+// `{ metric, delta, percent }` tuple the UI has to phrase itself, and
+// never a red/green up/down signal (watching more or less TV isn't
+// inherently good or bad — see CLAUDE.md, "No judgment").
+export type ComparisonFact = {
+  kind: "movies" | "episodes" | "shows" | "genreShift" | "movieVsShowShift";
+  text: string;
+};
+
+export type StatsComparison = {
+  previousLabel: string;
+  facts: readonly ComparisonFact[];
+} | null;
