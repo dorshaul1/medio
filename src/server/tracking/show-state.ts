@@ -149,6 +149,33 @@ export async function listWatchingShows(limit: number): Promise<readonly ShowTra
   return rows.map(toShowTrackingState);
 }
 
+// Batched explicit tracking status for a specific, already-known set of
+// shows — one query, never per item. For a caller (Search results,
+// Discover cards) that only needs the *explicit* watching/on_hold/dropped
+// state, not the full derived caught_up/waiting/completed classification
+// (that requires per-show provider hydration — see
+// docs/library.md, "Show derived state at Library scale" — deliberately
+// out of reach for an N-result public browsing surface). See
+// server/media/personal-state.ts.
+export async function getShowTrackingStatusesBatch(
+  showProviderIds: readonly number[],
+): Promise<ReadonlyMap<number, ShowTrackingState["status"]>> {
+  if (showProviderIds.length === 0) return new Map();
+  const { user } = await requireSession();
+
+  const rows = await db
+    .select({ showProviderId: showTrackingState.showProviderId, status: showTrackingState.status })
+    .from(showTrackingState)
+    .where(
+      and(
+        eq(showTrackingState.userId, user.id),
+        inArray(showTrackingState.showProviderId, [...showProviderIds]),
+      ),
+    );
+
+  return new Map(rows.map((row) => [row.showProviderId, row.status]));
+}
+
 // Batch "does this user already have any relationship with this show" —
 // for a bounded set of candidate show ids, which ones already have
 // either an explicit tracking state (watching/on_hold/dropped) or any

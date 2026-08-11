@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { MediaPoster } from "@/features/media/media-poster";
 import { MediaRowScroller } from "@/features/media/media-row-scroller";
 import { cn } from "@/lib/utils";
-import type { MediaSummary } from "@/server/media/types";
+import type { MediaPersonalState, MediaSummary } from "@/server/media/types";
 
 const TILE_WIDTH = {
   // The default for most rows.
@@ -26,6 +26,7 @@ export function MediaCollectionRow({
   size = "default",
   priority = false,
   watchedMovieIds,
+  personalStates,
 }: {
   // Caller-supplied rather than derived, so the heading/section pairing
   // stays a plain id/aria-labelledby without a client-only id hook.
@@ -38,13 +39,18 @@ export function MediaCollectionRow({
   action?: ReactNode;
   size?: "default" | "large";
   priority?: boolean;
-  // Optional — only a caller that already batched a private watched-state
-  // lookup for exactly these items passes this (see
-  // `server/tracking/movie-events.ts`'s `getWatchedMovieIds`); every other
-  // caller renders plain, state-unaware posters, same as before. Movies
-  // only — see that function's own comment for why a show's equivalent
-  // isn't included.
+  // Optional, movie-watched-only — only a caller that already batched a
+  // private watched-state lookup for exactly these items passes this
+  // (see `server/tracking/movie-events.ts`'s `getWatchedMovieIds`).
+  // Ignored when `personalStates` is also passed — see that prop below.
   watchedMovieIds?: ReadonlySet<number>;
+  // The fuller batched personal-state signal (see
+  // server/media/personal-state.ts), covering both media types and every
+  // state, not just "watched movie" — a caller that already has this
+  // (Discover's genre rows) passes it instead of `watchedMovieIds`.
+  // Optional/additive: every other caller keeps rendering plain, state-
+  // unaware posters, same as before.
+  personalStates?: ReadonlyMap<string, MediaPersonalState>;
 }) {
   if (items.length === 0) {
     return null;
@@ -71,6 +77,13 @@ export function MediaCollectionRow({
               media={item}
               priority={priority && index < 6}
               watched={item.mediaType === "movie" && (watchedMovieIds?.has(item.id) ?? false)}
+              {...(personalStates
+                ? {
+                    personalState: personalStates.get(`${item.mediaType}:${item.id}`) ?? {
+                      kind: "none",
+                    },
+                  }
+                : {})}
             />
           </div>
         ))}

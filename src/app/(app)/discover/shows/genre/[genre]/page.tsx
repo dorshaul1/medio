@@ -7,6 +7,7 @@ import { GenrePagination } from "@/features/discover/genre-pagination";
 import { GenreResultsGrid } from "@/features/discover/genre-results-grid";
 import { findGenreBySlug } from "@/features/discover/genre-selection";
 import { GenreSortSelect } from "@/features/discover/genre-sort-select";
+import { getPersonalStates } from "@/server/media/personal-state";
 import { discoverShowsByGenre, getShowGenres } from "@/server/tmdb/queries";
 
 // See the equivalent comment in
@@ -27,6 +28,9 @@ export default async function ShowGenrePage({
   const sort = normalizeDiscoverSort(search.sort);
   const page = normalizeDiscoverPage(search.page);
   const result = await discoverShowsByGenre(genre.id, { sort, page });
+  const personalStates = await getPersonalStates(
+    result.items.map((item) => ({ mediaType: item.mediaType, mediaProviderId: item.id })),
+  );
 
   const basePath = `/discover/shows/genre/${slug}`;
 
@@ -38,7 +42,11 @@ export default async function ShowGenrePage({
         <GenreSortSelect basePath={basePath} sort={sort} />
       </div>
 
-      <GenreResultsGrid items={result.items} emptyLabel={`${genre.name.toLowerCase()} shows`} />
+      <GenreResultsGrid
+        items={result.items}
+        emptyLabel={`${genre.name.toLowerCase()} shows`}
+        personalStates={personalStates}
+      />
 
       <GenrePagination
         basePath={basePath}

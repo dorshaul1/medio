@@ -229,16 +229,61 @@ const NO_RESULTS_MARKER = "zzznoresultszzz";
 // behavior every other spec already relies on — when no dedicated
 // fixture matches, so this is purely additive.
 const MOVIE_IMPORT_1 = { ...MOVIE, id: 620, title: "The Ninth Reel", release_date: "2019-05-01" };
-const TITLE_SEARCH_FIXTURES: Record<string, Record<string, unknown>> = {
-  "the ninth reel": MOVIE_IMPORT_1,
+// Used only by e2e/discover.spec.ts's quick-Save-from-search coverage —
+// Fight Club (550) itself is watched by e2e/tracking.spec.ts's own
+// mobile-viewport test, which would make Discover's "Save" control stop
+// rendering for it entirely (see PlanningControl's own "never for
+// already-consumed media" rule) if these ran concurrently.
+const MOVIE_SEARCH_SAVE_1 = { ...MOVIE, id: 621, title: "The Tenth Reel" };
+// Keyed by kind as well as query text — Unified Search (unlike the old
+// per-page Movies-only search) calls all three `/search/*` endpoints for
+// every query, so a movie-shaped dedicated fixture must never leak into
+// the `/search/tv`/`/search/person` response for the same query text
+// (their real schemas require different fields entirely, which would
+// fail validation and surface as a spurious "couldn't load" error).
+const TITLE_SEARCH_FIXTURES: Record<
+  string,
+  { kind: "movie" | "tv" | "person"; item: Record<string, unknown> }
+> = {
+  "the ninth reel": { kind: "movie", item: MOVIE_IMPORT_1 },
+  "the tenth reel": { kind: "movie", item: MOVIE_SEARCH_SAVE_1 },
 };
 
-function searchResponse(defaultItem: Record<string, unknown>, query: string) {
+function searchResponse(
+  defaultItem: Record<string, unknown>,
+  query: string,
+  kind: "movie" | "tv" | "person",
+) {
   const empty = query.toLowerCase().includes(NO_RESULTS_MARKER);
   if (empty) return { page: 1, total_pages: 0, total_results: 0, results: [] };
   const dedicated = TITLE_SEARCH_FIXTURES[query.trim().toLowerCase()];
-  return { page: 1, total_pages: 1, total_results: 1, results: [dedicated ?? defaultItem] };
+  const item = dedicated && dedicated.kind === kind ? dedicated.item : defaultItem;
+  return { page: 1, total_pages: 1, total_results: 1, results: [item] };
 }
+
+// Unified Search's People coverage (e2e/discover.spec.ts,
+// e2e/global-search.spec.ts) — reuses the existing Edward Norton fixture
+// (already registered below as Fight Club's cast/Person-page fixture)
+// rather than a fourth Person fixture; nothing mutates a Person's own
+// data, so sharing it as a search target is safe. `known_for` matches
+// `/search/person`'s own real response shape (distinct from the fuller
+// `/person/{id}` details fixture below).
+const PERSON_SEARCH_RESULT = {
+  id: 819,
+  name: "Edward Norton",
+  profile_path: "/norton-fixture.jpg",
+  known_for_department: "Acting",
+  popularity: 20,
+  known_for: [
+    {
+      id: MOVIE.id,
+      media_type: "movie",
+      title: MOVIE.title,
+      release_date: MOVIE.release_date,
+      poster_path: MOVIE.poster_path,
+    },
+  ],
+};
 
 // Genre browsing ignores with_genres/sort_by for determinism — only
 // `page` varies the response, which is all pagination E2E coverage needs.
@@ -272,8 +317,10 @@ const ROUTES: Record<string, (url: URL) => unknown> = {
   "/3/genre/tv/list": () => ({ genres: SHOW_GENRES }),
   "/3/discover/movie": (url) => discoverResponse(MOVIE, MOVIE_PAGE_2, url),
   "/3/discover/tv": (url) => discoverResponse(SHOW, SHOW_PAGE_2, url),
-  "/3/search/movie": (url) => searchResponse(MOVIE, url.searchParams.get("query") ?? ""),
-  "/3/search/tv": (url) => searchResponse(SHOW, url.searchParams.get("query") ?? ""),
+  "/3/search/movie": (url) => searchResponse(MOVIE, url.searchParams.get("query") ?? "", "movie"),
+  "/3/search/tv": (url) => searchResponse(SHOW, url.searchParams.get("query") ?? "", "tv"),
+  "/3/search/person": (url) =>
+    searchResponse(PERSON_SEARCH_RESULT, url.searchParams.get("query") ?? "", "person"),
   // Movie/show details — used by the /movies/[id] and /shows/[id] pages
   // when an E2E test clicks through from a poster.
   [`/3/movie/${MOVIE.id}`]: () => ({

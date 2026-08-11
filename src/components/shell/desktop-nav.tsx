@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { AccountControl } from "@/components/shell/account-control";
 import { Wordmark } from "@/components/shell/wordmark";
 import { isNavItemActive, primaryNavigation } from "@/config/navigation";
+import { GlobalSearchNavTrigger } from "@/features/search/global-search-trigger";
 import { cn } from "@/lib/utils";
 
 // The only reason this is a Client Component: it needs the current pathname
@@ -19,6 +20,7 @@ export function DesktopNav({ user }: { user: { name: string; email: string } }) 
     >
       <div className="flex flex-col gap-8">
         <Wordmark className="px-2.5" />
+        <GlobalSearchNavTrigger />
         <ul className="flex flex-col gap-1">
           {primaryNavigation.map((item) => {
             const active = isNavItemActive(pathname, item.href);

@@ -414,11 +414,18 @@ Two distinct jobs, deliberately not overlapping:
   render nothing at all when they don't (see `docs/home.md`). Discover
   never duplicates any of this.
 - **Discover** (`/discover`) answers *"help me find something I want to
-  watch"* — Search (always both movies and shows, URL-addressable via
-  `?q=`) first, then an intentional **Movies/Shows** mode
-  (`?type=movies|shows`, default movies) driving a curated set of genre
-  rows, each with a **View all** into a dedicated, paginated,
-  sortable genre-catalog page.
+  watch"* — Unified Search (Movies, Shows, *and* People, one cross-type
+  ranked list, URL-addressable via `?q=`; see `docs/search.md`) first,
+  then an intentional **Movies/Shows** mode (`?type=movies|shows`,
+  default movies) driving Discover's own editorial moment (a real,
+  honestly-labeled collection — "Acclaimed movies", "New TV", "Under 100
+  minutes" — never an invented judgment or a duplicate of Home's rows), a
+  curated set of genre rows each with a **View all** into a dedicated,
+  paginated, sortable genre-catalog page, and a **More genres** escape
+  hatch to the rest of TMDB's real genre list beyond the curated set.
+  Unified Search is also reachable from anywhere in the app via `⌘K`/
+  `Ctrl+K` (`GlobalSearchProvider`, mounted in `AppShell`) — the exact
+  same ranking/results system as `/discover?q=`, not a second one.
 
 Discover deliberately does not duplicate Home's Trending/Popular sections
 — see `docs/media-provider.md` ("Discover vs Trending") for the underlying

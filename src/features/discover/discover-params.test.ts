@@ -3,6 +3,7 @@ import {
   normalizeDiscoverMediaType,
   normalizeDiscoverPage,
   normalizeDiscoverSort,
+  normalizeSearchResultType,
 } from "./discover-params";
 
 describe("normalizeDiscoverMediaType", () => {
@@ -52,5 +53,19 @@ describe("normalizeDiscoverPage", () => {
     expect(normalizeDiscoverPage("abc")).toBe(1);
     expect(normalizeDiscoverPage("0")).toBe(1);
     expect(normalizeDiscoverPage("-2")).toBe(1);
+  });
+});
+
+describe("normalizeSearchResultType", () => {
+  it("accepts the four real filter values", () => {
+    expect(normalizeSearchResultType("all")).toBe("all");
+    expect(normalizeSearchResultType("movies")).toBe("movies");
+    expect(normalizeSearchResultType("shows")).toBe("shows");
+    expect(normalizeSearchResultType("people")).toBe("people");
+  });
+
+  it("defaults to 'all' — never something the user must opt into", () => {
+    expect(normalizeSearchResultType(undefined)).toBe("all");
+    expect(normalizeSearchResultType("nonsense")).toBe("all");
   });
 });

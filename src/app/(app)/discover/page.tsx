@@ -1,11 +1,20 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { PageContainer } from "@/components/shell/page-container";
+import {
+  AcclaimedMoviesCollection,
+  NewShowsCollection,
+  ShortMoviesCollection,
+} from "@/features/discover/discover-editorial-collections";
 import { DiscoverGenreRows } from "@/features/discover/discover-genre-rows";
-import { normalizeDiscoverMediaType } from "@/features/discover/discover-params";
+import {
+  normalizeDiscoverMediaType,
+  normalizeSearchResultType,
+} from "@/features/discover/discover-params";
 import { DiscoverSearchInput } from "@/features/discover/discover-search-input";
 import { CURATED_MOVIE_GENRES, CURATED_SHOW_GENRES } from "@/features/discover/genre-selection";
 import { MediaTypeToggle } from "@/features/discover/media-type-toggle";
+import { MoreGenres } from "@/features/discover/more-genres";
 import {
   extractSearchQueryParam,
   normalizeSearchQuery,
@@ -27,6 +36,8 @@ export default async function DiscoverPage({ searchParams }: PageProps<"/discove
   const params = await searchParams;
   const rawQuery = extractSearchQueryParam(params.q);
   const query = normalizeSearchQuery(params.q);
+  const expanded = params.expanded === "1";
+  const resultType = normalizeSearchResultType(params.resultType);
   const { discoverDefaultType } = await getCurrentUserPreferences();
   const mediaType = normalizeDiscoverMediaType(params.type, discoverDefaultType);
   const genreNames = mediaType === "movies" ? CURATED_MOVIE_GENRES : CURATED_SHOW_GENRES;
@@ -42,12 +53,29 @@ export default async function DiscoverPage({ searchParams }: PageProps<"/discove
       </div>
 
       {query ? (
-        <Suspense fallback={<SearchResultsSkeleton />}>
-          <SearchResults query={query} />
+        <Suspense key={`${query}:${expanded}:${resultType}`} fallback={<SearchResultsSkeleton />}>
+          <SearchResults query={query} expanded={expanded} resultType={resultType} />
         </Suspense>
       ) : (
-        <div className="flex flex-col gap-8">
+        <div className="flex flex-col gap-10">
           <MediaTypeToggle active={mediaType} />
+
+          {/* Discover's own editorial moment — real, honestly-labeled
+              collections distinct from Home's Trending/Popular/In-theaters
+              (see docs/architecture.md, "Home vs Discover") — one per
+              mode, not a wall of near-identical rows. */}
+          <Suspense
+            key={`editorial:${mediaType}`}
+            fallback={
+              <MediaCollectionRowSkeleton
+                title={mediaType === "movies" ? "Acclaimed movies" : "New TV"}
+                size="large"
+              />
+            }
+          >
+            {mediaType === "movies" ? <AcclaimedMoviesCollection /> : <NewShowsCollection />}
+          </Suspense>
+
           <Suspense
             key={mediaType}
             fallback={
@@ -59,6 +87,16 @@ export default async function DiscoverPage({ searchParams }: PageProps<"/discove
             }
           >
             <DiscoverGenreRows mediaType={mediaType} />
+          </Suspense>
+
+          {mediaType === "movies" ? (
+            <Suspense fallback={null}>
+              <ShortMoviesCollection />
+            </Suspense>
+          ) : null}
+
+          <Suspense fallback={null}>
+            <MoreGenres mediaType={mediaType} />
           </Suspense>
         </div>
       )}

@@ -1,6 +1,10 @@
-// Sending a search request for one accidental keystroke would be noisy —
-// this is the line between "still typing" and "worth asking TMDB about".
-export const MIN_SEARCH_QUERY_LENGTH = 2;
+import { SEARCH_MIN_QUERY_LENGTH } from "@/server/search/constants";
+
+// Re-exported for existing importers — the canonical value now lives in
+// server/search/constants.ts (Unified Search's own domain), shared with
+// the compact suggestion surface (features/search/) rather than each
+// defining its own threshold.
+export const MIN_SEARCH_QUERY_LENGTH = SEARCH_MIN_QUERY_LENGTH;
 
 // A `?q=` URL param is `string | string[] | undefined` (repeated `q=`
 // params become an array) — this is the one place that gets normalized to

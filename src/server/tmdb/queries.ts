@@ -7,6 +7,7 @@ import type {
   Pagination,
   Person,
   PersonCredits,
+  PersonSummary,
   SeasonDetails,
   ShowCredits,
   ShowDetails,
@@ -22,6 +23,7 @@ import {
   mapTmdbMovieDetails,
   mapTmdbMovieSummary,
   mapTmdbPerson,
+  mapTmdbPersonSummary,
   mapTmdbSeasonDetails,
   mapTmdbShowDetails,
   mapTmdbShowSummary,
@@ -37,6 +39,7 @@ import {
   tmdbMovieSearchResponseSchema,
   tmdbPersonCombinedCreditsResponseSchema,
   tmdbPersonDetailsSchema,
+  tmdbPersonSearchResponseSchema,
   tmdbSeasonDetailsSchema,
   tmdbShowDetailsSchema,
   tmdbShowSearchResponseSchema,
@@ -255,6 +258,71 @@ export async function discoverShowsByGenre(
   };
 }
 
+export type DiscoverCollectionOptions = MediaQueryOptions & {
+  sort?: DiscoverSort;
+  page?: number;
+  // Movies only — a real, honest exploration dimension (see
+  // docs/search.md, "Discover editorial collections"), not an arbitrary
+  // filter: TMDB's own `with_runtime.lte`.
+  runtimeLte?: number;
+};
+
+// Discover's own editorial collections (`features/discover/discover-editorial-collections.tsx`)
+// — the same `/discover/movie`|`/discover/tv` endpoints as
+// discoverMoviesByGenre/discoverShowsByGenre, just without a genre
+// constraint, so a page-level "Acclaimed movies" or "Under 100 minutes"
+// section can exist without inventing a fake genre. Kept as separate
+// functions rather than making `genreId` optional on the two above: every
+// existing call site (genre pages, genre rows) always has a real genre,
+// so an optional param there would just be dead branching for them.
+export async function discoverMovies(
+  options: DiscoverCollectionOptions = {},
+): Promise<Pagination<MediaSummary>> {
+  const sort = options.sort ?? "popular";
+  const raw = await tmdbFetch("/discover/movie", {
+    query: {
+      sort_by: MOVIE_SORT_BY[sort],
+      "vote_count.gte": sort === "top_rated" ? TOP_RATED_MIN_VOTE_COUNT : undefined,
+      "with_runtime.lte": options.runtimeLte,
+      page: options.page ?? 1,
+      language: options.language ?? DEFAULT_LANGUAGE,
+      include_adult: false,
+    },
+    signal: options.signal,
+    next: { revalidate: POPULAR_REVALIDATE_SECONDS },
+  });
+  const parsed = validate(tmdbMovieSearchResponseSchema, raw);
+  return {
+    page: parsed.page,
+    totalPages: parsed.total_pages,
+    totalResults: parsed.total_results,
+    items: parsed.results.map(mapTmdbMovieSummary),
+  };
+}
+
+export async function discoverShows(
+  options: DiscoverCollectionOptions = {},
+): Promise<Pagination<MediaSummary>> {
+  const sort = options.sort ?? "popular";
+  const raw = await tmdbFetch("/discover/tv", {
+    query: {
+      sort_by: SHOW_SORT_BY[sort],
+      "vote_count.gte": sort === "top_rated" ? TOP_RATED_MIN_VOTE_COUNT : undefined,
+      page: options.page ?? 1,
+      language: options.language ?? DEFAULT_LANGUAGE,
+    },
+    signal: options.signal,
+    next: { revalidate: POPULAR_REVALIDATE_SECONDS },
+  });
+  const parsed = validate(tmdbShowSearchResponseSchema, raw);
+  return {
+    page: parsed.page,
+    totalPages: parsed.total_pages,
+    totalResults: parsed.total_results,
+    items: parsed.results.map(mapTmdbShowSummary),
+  };
+}
+
 // Search endpoints have effectively unbounded cardinality — long-caching
 // arbitrary queries would just grow the cache forever for little reuse, so
 // these are deliberately never persistently cached.
@@ -304,6 +372,33 @@ export async function searchShows(
     totalPages: parsed.total_pages,
     totalResults: parsed.total_results,
     items: parsed.results.map(mapTmdbShowSummary),
+  };
+}
+
+// See docs/media-provider.md, "People search" — makes People first-class
+// Search results (server/search/) alongside Movies/Shows, not a
+// secondary/omitted category. Same no-store policy as searchMovies/
+// searchShows above, same reasoning.
+export async function searchPeople(
+  query: string,
+  options: SearchOptions = {},
+): Promise<Pagination<PersonSummary>> {
+  const raw = await tmdbFetch("/search/person", {
+    query: {
+      query,
+      page: options.page ?? 1,
+      language: options.language ?? DEFAULT_LANGUAGE,
+      include_adult: false,
+    },
+    signal: options.signal,
+    cache: "no-store",
+  });
+  const parsed = validate(tmdbPersonSearchResponseSchema, raw);
+  return {
+    page: parsed.page,
+    totalPages: parsed.total_pages,
+    totalResults: parsed.total_results,
+    items: parsed.results.map(mapTmdbPersonSummary),
   };
 }
 

@@ -195,9 +195,16 @@ the existing "only what a real screen renders" discipline:
   shape.
 
 Not fetched: `/person/{id}/images` (the details response's one profile
-photo is enough — see "Person images" below), external-ID endpoints,
-`/person/popular` or People search (out of scope this phase — see
-`docs/architecture.md`).
+photo is enough — see "Person images" below), external-ID endpoints, or
+`/person/popular`.
+
+**People search** — `searchPeople(query)` wraps `/search/person`,
+validated/mapped into `PersonSummary` (id, name, profile, `knownFor
+Department`, `popularity`, up to a few `knownFor` titles — all already
+present on this one response, no extra fetch). Makes People first-class
+Unified Search results alongside Movies/Shows — see `docs/search.md`,
+which owns the product-level ranking/UI; this is only the provider
+integration boundary.
 
 **Filmography grouping** (`server/people/compose.ts`, pure, no I/O) turns
 TMDB's raw credit list into the product's own professional categories —

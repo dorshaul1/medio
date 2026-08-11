@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray, or } from "drizzle-orm";
 import { requireSession } from "@/server/auth/session";
 import { db, type Transaction } from "@/server/db";
 import { mediaPlanningItems } from "@/server/db/schema/planning";
@@ -132,6 +132,48 @@ export async function getPlanningState(
     .limit(1);
 
   return row ? toPlanningItem(row) : null;
+}
+
+// Batched planning intent for a specific, already-known set of media
+// identities — one query per media type (never per item), for a caller
+// that already knows exactly which titles are on screen (Search results,
+// Discover cards). Keyed by `${mediaType}:${mediaProviderId}` since a
+// movie and a show can share the same provider id. See
+// server/media/personal-state.ts, the one place this composes with
+// Tracking/Ratings into what UI actually renders.
+export async function getPlanningIntentsBatch(
+  items: readonly { mediaType: MediaType; mediaProviderId: number }[],
+): Promise<ReadonlyMap<string, PlanningIntent>> {
+  const { user } = await requireSession();
+  const movieIds = items.filter((item) => item.mediaType === "movie").map((i) => i.mediaProviderId);
+  const showIds = items.filter((item) => item.mediaType === "show").map((i) => i.mediaProviderId);
+  if (movieIds.length === 0 && showIds.length === 0) return new Map();
+
+  const conditions = [
+    movieIds.length > 0
+      ? and(
+          eq(mediaPlanningItems.mediaType, "movie"),
+          inArray(mediaPlanningItems.mediaProviderId, movieIds),
+        )
+      : undefined,
+    showIds.length > 0
+      ? and(
+          eq(mediaPlanningItems.mediaType, "show"),
+          inArray(mediaPlanningItems.mediaProviderId, showIds),
+        )
+      : undefined,
+  ].filter((condition) => condition !== undefined);
+
+  const rows = await db
+    .select({
+      mediaType: mediaPlanningItems.mediaType,
+      mediaProviderId: mediaPlanningItems.mediaProviderId,
+      intent: mediaPlanningItems.intent,
+    })
+    .from(mediaPlanningItems)
+    .where(and(eq(mediaPlanningItems.userId, user.id), or(...conditions)));
+
+  return new Map(rows.map((row) => [`${row.mediaType}:${row.mediaProviderId}`, row.intent]));
 }
 
 // Every saved item (Watchlist + Backlog, both media types), most

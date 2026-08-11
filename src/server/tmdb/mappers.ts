@@ -13,7 +13,9 @@ import type {
   PersonCastCredit,
   PersonCredits,
   PersonCrewCredit,
+  PersonKnownForItem,
   PersonMediaCredit,
+  PersonSummary,
   ProductionCountry,
   SeasonDetails,
   SeasonSummary,
@@ -36,6 +38,8 @@ import type {
   tmdbPersonCombinedCreditsResponseSchema,
   tmdbPersonCrewCreditSchema,
   tmdbPersonDetailsSchema,
+  tmdbPersonKnownForItemSchema,
+  tmdbPersonSearchResultSchema,
   tmdbProductionCountrySchema,
   tmdbSeasonDetailsSchema,
   tmdbSeasonSummarySchema,
@@ -67,6 +71,8 @@ type TmdbPersonDetails = z.infer<typeof tmdbPersonDetailsSchema>;
 type TmdbPersonCastCredit = z.infer<typeof tmdbPersonCastCreditSchema>;
 type TmdbPersonCrewCredit = z.infer<typeof tmdbPersonCrewCreditSchema>;
 type TmdbPersonCombinedCreditsResponse = z.infer<typeof tmdbPersonCombinedCreditsResponseSchema>;
+type TmdbPersonSearchResult = z.infer<typeof tmdbPersonSearchResultSchema>;
+type TmdbPersonKnownForItem = z.infer<typeof tmdbPersonKnownForItemSchema>;
 
 // TMDB uses `""` for "no date on file", not `null` — normalize both to a
 // real absence.
@@ -373,5 +379,33 @@ export function mapPersonCombinedCredits(
     crew: credits.crew
       .map(mapPersonCrewCredit)
       .filter((credit): credit is PersonCrewCredit => credit !== null),
+  };
+}
+
+// Same "no usable media identity, drop it" rule as mapPersonMediaCredit —
+// a `known_for` entry with neither `title` nor `name` isn't renderable.
+function mapPersonKnownForItem(item: TmdbPersonKnownForItem): PersonKnownForItem | null {
+  const mediaType = item.media_type === "movie" ? "movie" : "show";
+  const title = item.media_type === "movie" ? item.title : item.name;
+  if (!title) return null;
+
+  const date =
+    item.media_type === "movie"
+      ? nullableDate(item.release_date ?? "")
+      : nullableDate(item.first_air_date ?? "");
+
+  return { mediaType, mediaProviderId: item.id, title, year: yearFromDate(date) };
+}
+
+export function mapTmdbPersonSummary(person: TmdbPersonSearchResult): PersonSummary {
+  return {
+    id: person.id,
+    name: person.name,
+    profile: mediaImage(person.profile_path),
+    knownForDepartment: person.known_for_department,
+    popularity: person.popularity,
+    knownFor: person.known_for
+      .map(mapPersonKnownForItem)
+      .filter((item): item is PersonKnownForItem => item !== null),
   };
 }

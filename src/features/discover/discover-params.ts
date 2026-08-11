@@ -1,3 +1,4 @@
+import { SEARCH_RESULT_TYPES, type SearchResultTypeFilter } from "@/server/search/constants";
 import type { DiscoverSort } from "@/server/tmdb/queries";
 
 // Discover's Movies/Shows browse mode — URL-addressable via `?type=`.
@@ -43,4 +44,17 @@ export function normalizeDiscoverPage(raw: string | string[] | undefined): numbe
   const value = Array.isArray(raw) ? raw[0] : raw;
   const page = value ? Number.parseInt(value, 10) : 1;
   return Number.isInteger(page) && page > 0 ? page : 1;
+}
+
+// Unified Search's optional `?resultType=` narrowing filter — "all" is
+// always the fallback for anything missing/invalid (see
+// docs/search.md, "Unified search ranking": "All" is the default
+// architecture, never something the user must opt into).
+export function normalizeSearchResultType(
+  raw: string | string[] | undefined,
+): SearchResultTypeFilter {
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  return (SEARCH_RESULT_TYPES as readonly string[]).includes(value ?? "")
+    ? (value as SearchResultTypeFilter)
+    : "all";
 }

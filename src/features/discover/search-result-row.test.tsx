@@ -1,7 +1,25 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { MediaSummary } from "@/server/media/types";
 import { SearchResultRow } from "./search-result-row";
+
+// Same reasoning as planning-control.test.tsx: PlanningControl's own
+// action module ultimately imports server-only domain code, which must
+// never actually execute under jsdom.
+const changePlanningIntentAction = vi.fn();
+const removePlanningItemAction = vi.fn();
+vi.mock("@/features/media/planning-actions", () => ({
+  changePlanningIntentAction: (...args: unknown[]) => changePlanningIntentAction(...args),
+  removePlanningItemAction: (...args: unknown[]) => removePlanningItemAction(...args),
+}));
+
+beforeEach(() => {
+  Element.prototype.hasPointerCapture = vi.fn().mockReturnValue(false);
+  Element.prototype.setPointerCapture = vi.fn();
+  Element.prototype.releasePointerCapture = vi.fn();
+  changePlanningIntentAction.mockReset().mockResolvedValue(undefined);
+  removePlanningItemAction.mockReset().mockResolvedValue(undefined);
+});
 
 const SHOW: MediaSummary = {
   mediaType: "show",
@@ -21,9 +39,15 @@ const SHOW: MediaSummary = {
 
 describe("SearchResultRow", () => {
   it("links to the canonical show route", () => {
-    render(<SearchResultRow media={SHOW} />);
+    render(
+      <SearchResultRow
+        media={SHOW}
+        personalState={{ kind: "none" }}
+        defaultSaveIntent="watchlist"
+      />,
+    );
 
-    expect(screen.getByRole("link", { name: "Game of Thrones 2011" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Game of Thrones/ })).toHaveAttribute(
       "href",
       "/shows/1399",
     );
@@ -33,18 +57,89 @@ describe("SearchResultRow", () => {
     render(
       <SearchResultRow
         media={{ ...SHOW, mediaType: "movie", id: 550, title: "Fight Club", releaseYear: 1999 }}
+        personalState={{ kind: "none" }}
+        defaultSaveIntent="watchlist"
       />,
     );
 
-    expect(screen.getByRole("link", { name: "Fight Club 1999" })).toHaveAttribute(
-      "href",
-      "/movies/550",
+    expect(screen.getByRole("link", { name: /Fight Club/ })).toHaveAttribute("href", "/movies/550");
+  });
+
+  it("shows a subtle type tag distinguishing Movie from Show", () => {
+    render(
+      <SearchResultRow
+        media={SHOW}
+        personalState={{ kind: "none" }}
+        defaultSaveIntent="watchlist"
+      />,
     );
+    expect(screen.getByText("Show")).toBeInTheDocument();
   });
 
   it("falls back to a type-appropriate placeholder when there's no poster", () => {
-    render(<SearchResultRow media={{ ...SHOW, poster: null }} />);
+    render(
+      <SearchResultRow
+        media={{ ...SHOW, poster: null }}
+        personalState={{ kind: "none" }}
+        defaultSaveIntent="watchlist"
+      />,
+    );
 
     expect(screen.queryByRole("img")).not.toBeInTheDocument();
+  });
+
+  it("offers a quick Save action for an unsaved result", () => {
+    render(
+      <SearchResultRow
+        media={SHOW}
+        personalState={{ kind: "none" }}
+        defaultSaveIntent="watchlist"
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: `Save ${SHOW.title} to Watchlist` }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows a quiet Watchlist state and its own compact save trigger for a saved result", () => {
+    render(
+      <SearchResultRow
+        media={SHOW}
+        personalState={{ kind: "watchlist" }}
+        defaultSaveIntent="watchlist"
+      />,
+    );
+
+    expect(screen.getByText("Watchlist")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: `${SHOW.title}: saved to Watchlist` }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows a quiet Watched state (with rating) and no Save control for a watched movie", () => {
+    render(
+      <SearchResultRow
+        media={{ ...SHOW, mediaType: "movie", id: 550 }}
+        personalState={{ kind: "watched", rating: 4 }}
+        defaultSaveIntent="watchlist"
+      />,
+    );
+
+    expect(screen.getByText("Watched · 4/5")).toBeInTheDocument();
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+  });
+
+  it("shows a quiet Watching state and no Save control for an actively-watching show", () => {
+    render(
+      <SearchResultRow
+        media={SHOW}
+        personalState={{ kind: "watching" }}
+        defaultSaveIntent="watchlist"
+      />,
+    );
+
+    expect(screen.getByText("Watching")).toBeInTheDocument();
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 });

@@ -331,9 +331,11 @@ in the same change.
 
 - Home owns timely/current public media collections (Trending,
   Popular, In theaters) and, later, personal Continue Watching/Up Next
-  content. Discover owns Search and intentional Movies/Shows genre
-  exploration. Don't duplicate Home's sections inside Discover without a
-  real product reason — see `docs/architecture.md`, "Home vs Discover".
+  content. Discover owns unified Search (Movies/Shows/People) and
+  intentional Movies/Shows genre exploration. Don't duplicate Home's
+  sections inside Discover without a real product reason — see
+  `docs/architecture.md`, "Home vs Discover". See "Search & Discover"
+  below for the deeper rules.
 - Movies and Shows are a mode inside Discover, not primary navigation
   destinations. Never mix movies and shows in one row/collection.
 - Media presentation is context-specific — a browse tile
@@ -363,6 +365,57 @@ in the same change.
   minimal diff, and don't keep a weak abstraction just because removing
   it touches call sites. Delete components/exports that a redesign makes
   dead; don't leave superseded implementations in the tree.
+
+## Search & Discover
+
+- MEDIO Search is unified across Movies, Shows, and People in one
+  cross-type relevance ranking — never grouped into separate Movie/Show/
+  People sections or fixed per-type quotas, and result type never
+  determines default priority (Show > Movie > Person, or any other fixed
+  ordering, is not allowed). Users never choose a media type before
+  searching. See `docs/search.md`.
+- Search, Discover, and Pick for Me are three distinct product roles and
+  must stay that way: Search is known-intent lookup ("I roughly know what
+  I'm looking for"), Discover is exploration ("show me something worth
+  exploring"), Pick for Me is decision-making ("decide for me now").
+- Search ranking uses textual match quality (exact/prefix/word-boundary/
+  substring) as the dominant signal; provider popularity/relevance and
+  recency are ambiguity resolvers only, weighted so they can never lift a
+  weaker text match above a stronger one. Personal media state gives only
+  a small, bounded relevance boost — never enough to beat a clearly
+  better textual match. Search ranking and Pick for Me ranking are
+  separate domains — provider popularity is a much stronger, legitimate
+  signal for Search intent resolution than it is for personal
+  recommendations; never reuse Pick's weights for Search or vice versa.
+- Media type in a unified result is communicated through subtle
+  icon+word metadata (`ResultTypeTag`), never a colored badge, and may be
+  offered as an optional user filter (default "All") — never the
+  starting architecture.
+- People are first-class Search results (same row scale as a Movie/Show
+  result, not a smaller secondary treatment) and route to `/people/[id]`.
+- Search/Discover results display user-private media state (Watchlist/
+  Backlog/Watched/Watching/...) quietly, and support quick Save reusing
+  the exact same planning Server Actions and Default Save Destination
+  Movie/Show Details use — never a parallel mutation path. Personal state
+  for a visible result set is always one batched lookup
+  (`getPersonalStates`), never a query per result.
+- Discover is editorial and varied — a small number of real, honestly-
+  labeled collections (never an invented judgment like "Hidden gems," and
+  never a duplicate of Home's own Trending/Popular/In-theaters rows) —
+  not an endless stack of near-identical rows.
+- Avoid advanced database-style filtering; MEDIO is not IMDb Advanced
+  Search. Genre browsing stays genre rows + a genre page + a plain
+  "More genres" list — never a filter sidebar.
+- Mobile Search and Discover are independently composed and must not
+  rely on hover for anything essential.
+- TMDB search/discover responses may use normal public provider caching;
+  the personalized compositions built on top of them (ranked results with
+  personal state attached) remain private, request-scoped, never shared-
+  cached.
+- Don't create a universal media-card mega-component to force Home,
+  Discover, Search, and Library into identical layouts — a search result
+  row, a genre grid tile, and a Library row are deliberately different
+  compositions for different contexts.
 
 ## TV / Show Details
 

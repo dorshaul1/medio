@@ -7,6 +7,7 @@ import {
   selectCuratedGenres,
 } from "@/features/discover/genre-selection";
 import { MediaCollectionRow } from "@/features/media/media-collection-row";
+import { getPersonalStates } from "@/server/media/personal-state";
 import type { Genre } from "@/server/media/types";
 import {
   discoverMoviesByGenre,
@@ -14,7 +15,6 @@ import {
   getMovieGenres,
   getShowGenres,
 } from "@/server/tmdb/queries";
-import { getWatchedMovieIds } from "@/server/tracking/movie-events";
 
 // A restrained number per row — this is a browse row, not the dedicated
 // genre catalog page (which has real pagination).
@@ -30,17 +30,17 @@ async function MovieGenreRow({ genre }: { genre: Genre }) {
     const visible = items.slice(0, ITEMS_PER_ROW);
     // One batched, bounded-to-this-row private lookup — never a query
     // per poster (see docs/media-provider.md). A failure here shouldn't
-    // break browsing, so it degrades to "no watched marks this row"
-    // rather than the row itself failing.
-    const watchedMovieIds = await getWatchedMovieIds(visible.map((item) => item.id)).catch(
-      () => new Set<number>(),
-    );
+    // break browsing, so it degrades to "no personal-state marks this
+    // row" rather than the row itself failing.
+    const personalStates = await getPersonalStates(
+      visible.map((item) => ({ mediaType: item.mediaType, mediaProviderId: item.id })),
+    ).catch(() => new Map());
     return (
       <MediaCollectionRow
         id={`genre-movies-${genreSlug(genre.name)}`}
         title={genre.name}
         items={visible}
-        watchedMovieIds={watchedMovieIds}
+        personalStates={personalStates}
         action={
           <Link
             href={`/discover/movies/genre/${genreSlug(genre.name)}`}
@@ -59,11 +59,16 @@ async function MovieGenreRow({ genre }: { genre: Genre }) {
 async function ShowGenreRow({ genre }: { genre: Genre }) {
   try {
     const { items } = await discoverShowsByGenre(genre.id);
+    const visible = items.slice(0, ITEMS_PER_ROW);
+    const personalStates = await getPersonalStates(
+      visible.map((item) => ({ mediaType: item.mediaType, mediaProviderId: item.id })),
+    ).catch(() => new Map());
     return (
       <MediaCollectionRow
         id={`genre-shows-${genreSlug(genre.name)}`}
         title={genre.name}
-        items={items.slice(0, ITEMS_PER_ROW)}
+        items={visible}
+        personalStates={personalStates}
         action={
           <Link
             href={`/discover/shows/genre/${genreSlug(genre.name)}`}

@@ -7,6 +7,13 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
 
+// GlobalSearch's own entry point needs GlobalSearchProvider's context —
+// a separate, already-tested concern (see features/search/) unrelated to
+// what this file verifies about DesktopNav itself.
+vi.mock("@/features/search/global-search-trigger", () => ({
+  GlobalSearchNavTrigger: () => null,
+}));
+
 const USER = { name: "Ada Lovelace", email: "ada@example.com" };
 
 function renderNav() {

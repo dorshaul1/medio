@@ -292,3 +292,36 @@ export const tmdbPersonCombinedCreditsResponseSchema = z.object({
   cast: z.array(tmdbPersonCastCreditSchema),
   crew: z.array(tmdbPersonCrewCreditSchema),
 });
+
+// `/search/person` — see docs/media-provider.md, "People search". TMDB's
+// `known_for` embeds a few of the person's own best-known movie/TV
+// credits (mixed shapes in one array, same `media_type`-discriminated
+// pattern as person combined-credits above) — cheap because it's already
+// part of this one response, not a second fetch. Only the fields Search's
+// People result actually renders are validated, same discipline as every
+// other schema here.
+export const tmdbPersonKnownForItemSchema = z.object({
+  id: z.number(),
+  media_type: z.enum(["movie", "tv"]),
+  title: z.string().optional(),
+  name: z.string().optional(),
+  release_date: z.string().optional(),
+  first_air_date: z.string().optional(),
+  poster_path: z.string().nullable(),
+});
+
+export const tmdbPersonSearchResultSchema = z.object({
+  id: z.number(),
+  name: z.string(),
+  profile_path: z.string().nullable(),
+  known_for_department: z.string().nullable(),
+  popularity: z.number(),
+  known_for: z.array(tmdbPersonKnownForItemSchema),
+});
+
+export const tmdbPersonSearchResponseSchema = z.object({
+  page: z.number(),
+  total_pages: z.number(),
+  total_results: z.number(),
+  results: z.array(tmdbPersonSearchResultSchema),
+});

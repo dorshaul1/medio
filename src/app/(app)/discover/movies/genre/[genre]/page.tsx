@@ -7,6 +7,7 @@ import { GenrePagination } from "@/features/discover/genre-pagination";
 import { GenreResultsGrid } from "@/features/discover/genre-results-grid";
 import { findGenreBySlug } from "@/features/discover/genre-selection";
 import { GenreSortSelect } from "@/features/discover/genre-sort-select";
+import { getPersonalStates } from "@/server/media/personal-state";
 import { discoverMoviesByGenre, getMovieGenres } from "@/server/tmdb/queries";
 
 // A real, deliberate catalog-browsing experience — the destination
@@ -27,6 +28,11 @@ export default async function MovieGenrePage({
   const sort = normalizeDiscoverSort(search.sort);
   const page = normalizeDiscoverPage(search.page);
   const result = await discoverMoviesByGenre(genre.id, { sort, page });
+  // One batched, page-bounded private lookup — never a query per tile
+  // (see docs/search.md, "Personal state on public surfaces").
+  const personalStates = await getPersonalStates(
+    result.items.map((item) => ({ mediaType: item.mediaType, mediaProviderId: item.id })),
+  );
 
   const basePath = `/discover/movies/genre/${slug}`;
 
@@ -38,7 +44,11 @@ export default async function MovieGenrePage({
         <GenreSortSelect basePath={basePath} sort={sort} />
       </div>
 
-      <GenreResultsGrid items={result.items} emptyLabel={`${genre.name.toLowerCase()} movies`} />
+      <GenreResultsGrid
+        items={result.items}
+        emptyLabel={`${genre.name.toLowerCase()} movies`}
+        personalStates={personalStates}
+      />
 
       <GenrePagination
         basePath={basePath}

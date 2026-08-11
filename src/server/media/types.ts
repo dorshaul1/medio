@@ -275,3 +275,60 @@ export type PersonCredits = {
   cast: readonly PersonCastCredit[];
   crew: readonly PersonCrewCredit[];
 };
+
+// The one shared, batched "does the user already have a relationship
+// with this title" projection — see `server/media/personal-state.ts`
+// (the `server-only` module that actually computes this) and
+// docs/search.md, "Personal state on public surfaces". Defined
+// here, in the plain types module, rather than alongside the
+// `server-only`-guarded query it's the return type of: UI code (Search/
+// Discover result rows) needs to import this type, and this file — unlike
+// `personal-state.ts` — carries no `server-only` sentinel and no real
+// I/O, the same reasoning `server/library/types.ts` already follows for
+// `LibraryItem`.
+//
+// A flat discriminated union, not several optional booleans — Planning
+// and Tracking are already mutually exclusive per title (planning clears
+// the moment tracking starts; see docs/library.md), so at most one of
+// these is ever true, and modeling that as one union makes an impossible
+// "watchlist AND watching" state unrepresentable rather than merely
+// unlikely.
+export type MediaPersonalState =
+  | { kind: "none" }
+  | { kind: "watchlist" }
+  | { kind: "backlog" }
+  // Movie only — a show's "fully watched" requires exact aired-episode
+  // knowledge (per-show provider hydration), which this deliberately
+  // never does for an N-result public browsing surface — see
+  // docs/library.md, "Show derived state at Library scale". A show's
+  // state here is only ever its *explicit* tracking status below.
+  | { kind: "watched"; rating: number | null }
+  | { kind: "watching" }
+  | { kind: "on_hold" }
+  | { kind: "dropped" };
+
+// A person search result's "a few known works" — deliberately leaner than
+// PersonMediaCredit (no role/character/job context; a search result is
+// identifying the person, not describing their filmography — see
+// server/search/). Comes from the same `/search/person` response as the
+// rest of PersonSummary, so showing it costs nothing extra.
+export type PersonKnownForItem = {
+  mediaType: MediaType;
+  mediaProviderId: number;
+  title: string;
+  year: number | null;
+};
+
+// A person as a Search result — see docs/media-provider.md, "People
+// search". Distinct from `Person` (Person Details' fuller identity):
+// this is only what a compact, fast-scanning result row needs.
+export type PersonSummary = {
+  id: number;
+  name: string;
+  profile: MediaImage | null;
+  knownForDepartment: string | null;
+  // TMDB's own relative-popularity signal for this person — an internal
+  // ranking tie-breaker only (see server/search/rank.ts), never rendered.
+  popularity: number;
+  knownFor: readonly PersonKnownForItem[];
+};

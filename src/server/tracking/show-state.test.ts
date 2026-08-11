@@ -13,6 +13,7 @@ const {
   clearShowTrackingState,
   getShowTrackingState,
   getKnownShowIds,
+  getShowTrackingStatusesBatch,
 } = await import("./show-state");
 const { recordEpisodeWatch } = await import("./episode-events");
 
@@ -137,5 +138,28 @@ describe("getKnownShowIds", () => {
     expect(known.has(WINTERS_WATCH)).toBe(false);
 
     await deleteTestUser(otherUserId);
+  });
+});
+
+describe("getShowTrackingStatusesBatch", () => {
+  it("returns each requested show's explicit status, one query for all of them", async () => {
+    await startWatchingShow(WINTERS_WATCH);
+    await startWatchingShow(BREAKING_BAD);
+    await putShowOnHold(BREAKING_BAD);
+
+    const result = await getShowTrackingStatusesBatch([
+      WINTERS_WATCH,
+      BREAKING_BAD,
+      RICK_AND_MORTY,
+    ]);
+
+    expect(result.get(WINTERS_WATCH)).toBe("watching");
+    expect(result.get(BREAKING_BAD)).toBe("on_hold");
+    expect(result.has(RICK_AND_MORTY)).toBe(false);
+  });
+
+  it("returns an empty map without querying for an empty input", async () => {
+    const result = await getShowTrackingStatusesBatch([]);
+    expect(result.size).toBe(0);
   });
 });

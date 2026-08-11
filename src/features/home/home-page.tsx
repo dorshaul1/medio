@@ -79,7 +79,11 @@ export async function HomePage() {
       <PageHeader
         title="Home"
         action={
-          <div className="flex items-center gap-2">
+          // `flex-wrap`: a safety net on the narrowest phones, where
+          // "Calendar · N this week" + "Pick for me" together can still
+          // be wider than the viewport even on their own line below the
+          // title — Pick wraps to a second line rather than clipping.
+          <div className="flex flex-wrap items-center gap-2">
             <Suspense fallback={<CalendarEntryPointFallback />}>
               <CalendarEntryPoint />
             </Suspense>

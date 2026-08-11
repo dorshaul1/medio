@@ -43,18 +43,29 @@ export function PlanningControl({
   intent,
   title,
   defaultIntent,
+  compact = false,
 }: {
   mediaType: MediaType;
   mediaProviderId: number;
   intent: PlanningIntent | null;
   // Only consumed for the unsaved state's accessible name — once saved,
   // the trigger's own visible text ("Watchlist"/"Backlog") is already a
-  // sufficient accessible name for a single per-page control.
+  // sufficient accessible name for a single per-page control (default,
+  // non-compact mode only — see `compact` below).
   title: string;
   // Where the one-click unsaved-state Save action lands — the "Default
   // Save destination" preference (see docs/settings.md); the secondary
   // dropdown below always still offers switching to the other intent.
   defaultIntent: PlanningIntent;
+  // A dense browsing context (a Search/Discover result row, a poster
+  // grid card) — same control, same actions, same server calls, just an
+  // icon-only saved state (a tooltip carries the "Watchlist"/"Backlog"
+  // text instead of a visible Button label) so it doesn't force a wide
+  // fixed-width slot onto every card. Movie/Show Details (the default,
+  // spacious header context) keeps the visible label — see CLAUDE.md,
+  // "Do not create a universal media-card mega-component" — this is the
+  // one control staying itself, adapting to context, not two components.
+  compact?: boolean;
 }) {
   const [isPending, startTransition] = useTransition();
 
@@ -93,6 +104,43 @@ export function PlanningControl({
   const otherIntent = intent === "watchlist" ? "backlog" : "watchlist";
   const otherLabel = intent === "watchlist" ? "Backlog" : "Watchlist";
 
+  const menu = (
+    <DropdownMenuContent align="start">
+      <DropdownMenuItem onSelect={() => save(otherIntent)}>
+        <span className="flex flex-col">
+          <span>Move to {otherLabel}</span>
+          <span className="text-xs text-muted-foreground">
+            {otherIntent === "watchlist" ? "Saved for later" : "Planning to watch"}
+          </span>
+        </span>
+      </DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem onSelect={remove}>Remove from {label}</DropdownMenuItem>
+    </DropdownMenuContent>
+  );
+
+  if (compact) {
+    return (
+      <DropdownMenu>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <DropdownMenuTrigger asChild>
+              <IconButton
+                aria-label={`${title}: saved to ${label}`}
+                variant="ghost"
+                disabled={isPending}
+              >
+                <BookmarkCheck />
+              </IconButton>
+            </DropdownMenuTrigger>
+          </TooltipTrigger>
+          <TooltipContent>{label}</TooltipContent>
+        </Tooltip>
+        {menu}
+      </DropdownMenu>
+    );
+  }
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -101,18 +149,7 @@ export function PlanningControl({
           {label}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start">
-        <DropdownMenuItem onSelect={() => save(otherIntent)}>
-          <span className="flex flex-col">
-            <span>Move to {otherLabel}</span>
-            <span className="text-xs text-muted-foreground">
-              {otherIntent === "watchlist" ? "Saved for later" : "Planning to watch"}
-            </span>
-          </span>
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={remove}>Remove from {label}</DropdownMenuItem>
-      </DropdownMenuContent>
+      {menu}
     </DropdownMenu>
   );
 }

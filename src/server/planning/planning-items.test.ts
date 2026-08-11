@@ -13,6 +13,7 @@ const {
   removePlanningItem,
   getPlanningState,
   listPlanningItems,
+  getPlanningIntentsBatch,
 } = await import("./planning-items");
 
 const INCEPTION = 27205;
@@ -154,5 +155,35 @@ describe("listPlanningItems", () => {
     expect(await listPlanningItems(10)).toEqual([]);
 
     await deleteTestUser(otherUserId);
+  });
+});
+
+describe("getPlanningIntentsBatch", () => {
+  it("returns intents keyed by media type + provider id, one query per type", async () => {
+    await addToWatchlist("movie", FIGHT_CLUB);
+    await addToBacklog("show", WINTERS_WATCH);
+
+    const result = await getPlanningIntentsBatch([
+      { mediaType: "movie", mediaProviderId: FIGHT_CLUB },
+      { mediaType: "show", mediaProviderId: WINTERS_WATCH },
+    ]);
+
+    expect(result.get(`movie:${FIGHT_CLUB}`)).toBe("watchlist");
+    expect(result.get(`show:${WINTERS_WATCH}`)).toBe("backlog");
+  });
+
+  it("distinguishes a movie and a show that happen to share the same provider id", async () => {
+    await addToWatchlist("movie", WINTERS_WATCH);
+
+    const result = await getPlanningIntentsBatch([
+      { mediaType: "show", mediaProviderId: WINTERS_WATCH },
+    ]);
+
+    expect(result.get(`show:${WINTERS_WATCH}`)).toBeUndefined();
+  });
+
+  it("returns an empty map without querying for an empty input", async () => {
+    const result = await getPlanningIntentsBatch([]);
+    expect(result.size).toBe(0);
   });
 });
