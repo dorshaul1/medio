@@ -128,6 +128,33 @@ in the same change.
   empty space.
 - Don't build product UI while doing infrastructure/design-system work —
   keep phases scoped (see Architecture above).
+- Mobile is a first-class, independently designed MEDIO experience —
+  never treat it as compressed desktop. Secondary information may be
+  hidden, deferred, or reorganized on mobile when that improves clarity,
+  as long as core functionality isn't lost.
+- Essential actions must never depend on hover alone — anything
+  necessary to use the product must also work by tap/keyboard focus.
+  Desktop-only pointer affordances (e.g. `MediaRowScroller`'s scroll
+  arrows) are fine specifically because native scroll already covers
+  touch/trackpad without them.
+- Give compact icon-only/toggle controls (`IconButton`'s `sm` size,
+  `Switch`, `Checkbox`) an invisible expanded hit area (a `relative` +
+  `before:absolute before:-inset-*` pseudo-element) when their visible
+  box is smaller than a comfortable touch target — the visible control
+  stays small; the tappable area doesn't. Verify there's no dense
+  adjacent-control context where the expanded area would overlap a
+  neighboring control.
+- Interactive product chrome (nav labels, tabs/segmented controls, toggle
+  buttons, day-grid cells) should carry `select-none` so normal taps
+  don't trigger accidental text selection — never applied globally, and
+  never on genuinely readable content (descriptions, notes, overviews),
+  which must stay selectable.
+- Prefer `dvh` over `vh` for full-viewport-height containers (`min-h-dvh`,
+  not `min-h-screen`) — `vh` is fixed at load and reads wrong as mobile
+  browser chrome shows/hides; `dvh` stays correct.
+- A `Dialog`'s content may be taller than the viewport — it scrolls
+  inside itself (`max-h-[calc(100dvh-4rem)] overflow-y-auto` on
+  `DialogContent`) rather than silently overflowing past the screen.
 
 ## Application shell
 
@@ -150,6 +177,12 @@ in the same change.
   requirement. The account control (`AccountControl`) is real (name/email +
   sign out) — keep it that small; don't grow it into an avatar/dropdown
   profile system without a real requirement.
+- The mobile header strip (wordmark + `AccountControl`, in `AppShell`) is
+  `sticky`, not merely fixed at the top of the page — it stays reachable
+  on long scrolling routes (Library, Diary, Stats) without permanently
+  occupying more vertical space than its own height. Solid background,
+  not translucent/blurred — content must be fully hidden behind it, never
+  showing through.
 
 ## Database
 

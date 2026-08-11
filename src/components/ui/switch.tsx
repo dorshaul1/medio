@@ -9,9 +9,14 @@ function Switch({ className, ...props }: ComponentProps<typeof SwitchPrimitive.R
     <SwitchPrimitive.Root
       data-slot="switch"
       className={cn(
-        "peer inline-flex h-5 w-8 shrink-0 items-center rounded-full bg-muted outline-none transition-colors disabled:cursor-not-allowed disabled:opacity-50",
+        "peer relative inline-flex h-5 w-8 shrink-0 items-center rounded-full bg-muted outline-none transition-colors disabled:cursor-not-allowed disabled:opacity-50",
         "focus-visible:ring-3 focus-visible:ring-ring/50",
         "data-[state=checked]:bg-primary",
+        // The visible track (32×20) sits below a comfortable touch
+        // target — an invisible `::before` (a generated box, not a real
+        // element; taps on it still land on the switch itself) expands
+        // the hit area to ~44×44 without growing the control on screen.
+        "before:absolute before:-inset-x-1.5 before:-inset-y-3 before:content-['']",
         className,
       )}
       {...props}

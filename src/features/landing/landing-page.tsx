@@ -21,7 +21,7 @@ import { PublicNav } from "@/features/landing/public-nav";
 // reads and works completely without touching anything.
 export function LandingPage() {
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-dvh flex-col">
       <PublicNav />
 
       <main className="flex-1">

@@ -10,10 +10,14 @@ function Checkbox({ className, ...props }: ComponentProps<typeof CheckboxPrimiti
     <CheckboxPrimitive.Root
       data-slot="checkbox"
       className={cn(
-        "group peer size-4 shrink-0 rounded-sm border border-input outline-none transition-[background-color,border-color] disabled:cursor-not-allowed disabled:opacity-50",
+        "group peer relative size-4 shrink-0 rounded-sm border border-input outline-none transition-[background-color,border-color] disabled:cursor-not-allowed disabled:opacity-50",
         "focus-visible:ring-3 focus-visible:ring-ring/50",
         "data-[state=checked]:border-primary data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground",
         "data-[state=indeterminate]:border-primary data-[state=indeterminate]:bg-primary data-[state=indeterminate]:text-primary-foreground",
+        // Same invisible expanded hit area as Switch/IconButton's `sm`
+        // size — the visible 16px box stays small; the tappable area
+        // doesn't.
+        "before:absolute before:-inset-3.5 before:content-['']",
         className,
       )}
       {...props}

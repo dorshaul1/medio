@@ -4,7 +4,7 @@ import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 
 const iconButtonVariants = cva(
-  "inline-flex shrink-0 items-center justify-center rounded-md outline-none transition-[color,background-color,opacity] disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 focus-visible:ring-3 focus-visible:ring-ring/50",
+  "relative inline-flex shrink-0 items-center justify-center rounded-md outline-none transition-[color,background-color,opacity] disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 focus-visible:ring-3 focus-visible:ring-ring/50",
   {
     variants: {
       variant: {
@@ -15,7 +15,13 @@ const iconButtonVariants = cva(
         ghost: "text-foreground hover:bg-muted active:bg-muted/70",
       },
       size: {
-        sm: "size-8 [&_svg]:size-4",
+        // `sm`'s visible box (32px) sits below the ~44px comfortable touch
+        // target, so it gets an invisible expanded hit area via `::before`
+        // (a generated box, not a real element — clicks/taps on it still
+        // land on the button itself) rather than growing the icon on
+        // screen. `default`/`lg` are already close enough that a second
+        // invisible layer isn't worth the complexity.
+        sm: "size-8 before:absolute before:-inset-1.5 before:content-[''] [&_svg]:size-4",
         default: "size-9 [&_svg]:size-4",
         lg: "size-10 [&_svg]:size-5",
       },

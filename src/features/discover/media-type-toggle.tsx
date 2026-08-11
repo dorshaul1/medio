@@ -27,7 +27,7 @@ export function MediaTypeToggle({ active }: { active: DiscoverMediaType }) {
             href={option.href}
             aria-current={isActive ? "page" : undefined}
             className={cn(
-              "-mb-px border-b-2 border-transparent pb-2.5 text-sm font-medium text-muted-foreground outline-none transition-colors",
+              "-mb-px border-b-2 border-transparent pb-2.5 text-sm font-medium text-muted-foreground outline-none transition-colors select-none",
               "hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50",
               isActive && "border-primary text-foreground",
             )}

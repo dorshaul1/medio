@@ -40,7 +40,7 @@ export function LibraryIllustration() {
             aria-pressed={index === stateIndex}
             onClick={() => setStateIndex(index)}
             className={cn(
-              "flex flex-1 items-center justify-center gap-1.5 rounded-md border px-2 py-2 text-xs font-medium transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+              "flex flex-1 items-center justify-center gap-1.5 rounded-md border px-2 py-2 text-xs font-medium transition-colors outline-none select-none focus-visible:ring-3 focus-visible:ring-ring/50",
               index === stateIndex
                 ? "border-primary-border bg-primary-subtle text-primary"
                 : "border-border text-muted-foreground hover:text-foreground",

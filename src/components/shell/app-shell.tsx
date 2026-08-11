@@ -31,13 +31,19 @@ export function AppShell({
   motion: MotionPreferenceValue;
 }) {
   return (
-    <div className="flex min-h-screen" data-density={density} data-motion={motion}>
+    <div className="flex min-h-dvh" data-density={density} data-motion={motion}>
       <DesktopNav user={user} />
 
       <div className="flex min-w-0 flex-1 flex-col pb-16 md:pb-0">
         {/* Mobile has no sidebar to hold secondary controls, so the brand
-            mark and account control get a minimal header strip instead. */}
-        <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3 md:hidden">
+            mark and account control get a minimal header strip instead.
+            Sticky (not just fixed-at-top-of-page) so it stays reachable on
+            long scrolling routes (Library, Diary, Stats) without wasting
+            permanent vertical space the way a taller always-visible bar
+            would — a solid background (matching MobileNav's own bottom
+            bar), not a translucent/blurred one, since content should be
+            fully hidden behind it, never showing through. */}
+        <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-border bg-background px-4 py-3 md:hidden">
           <Wordmark className="shrink-0 text-xl" />
           <AccountControl name={user.name} email={user.email} />
         </div>

@@ -48,7 +48,7 @@ function timeKey(value: DecisionContext["timeBudgetMinutes"]): string {
 
 function chipClass(active: boolean): string {
   return cn(
-    "rounded-sm px-3 py-1.5 text-sm font-medium outline-none transition-colors",
+    "rounded-sm px-3 py-1.5 text-sm font-medium outline-none transition-colors select-none",
     "focus-visible:ring-3 focus-visible:ring-ring/50",
     active ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground",
   );

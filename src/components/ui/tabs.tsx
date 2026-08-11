@@ -31,7 +31,7 @@ function TabsTrigger({ className, ...props }: ComponentProps<typeof TabsPrimitiv
     <TabsPrimitive.Trigger
       data-slot="tabs-trigger"
       className={cn(
-        "-mb-px border-b-2 border-transparent pb-2.5 text-sm font-medium text-muted-foreground outline-none transition-colors",
+        "-mb-px border-b-2 border-transparent pb-2.5 text-sm font-medium text-muted-foreground outline-none transition-colors select-none",
         "hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50",
         // The indicator carries the brand signal; the label itself stays
         // neutral so tabs don't read as "green text everywhere".

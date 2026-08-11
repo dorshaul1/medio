@@ -21,7 +21,7 @@ export function AuthScreen({
   footer: ReactNode;
 }) {
   return (
-    <main className="flex min-h-screen items-center justify-center px-6 sm:justify-start sm:px-16 lg:px-24">
+    <main className="flex min-h-dvh items-center justify-center px-6 sm:justify-start sm:px-16 lg:px-24">
       <div className="w-full max-w-sm">
         <Link href="/" className="inline-block">
           <Wordmark className="text-xl" />

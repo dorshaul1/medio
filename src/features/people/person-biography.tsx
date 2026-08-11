@@ -43,7 +43,7 @@ export function PersonBiography({ biography }: { biography: string | null }) {
         <button
           type="button"
           onClick={() => setExpanded(true)}
-          className="self-start rounded-sm text-sm font-medium text-foreground underline decoration-muted-foreground/40 underline-offset-2 outline-none transition-colors hover:decoration-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
+          className="self-start rounded-sm text-sm font-medium text-foreground underline decoration-muted-foreground/40 underline-offset-2 outline-none select-none transition-colors hover:decoration-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
         >
           Read more
         </button>

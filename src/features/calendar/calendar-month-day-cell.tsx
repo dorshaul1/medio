@@ -87,7 +87,7 @@ export function CalendarMonthDayCell({
       aria-label={`${dateLabel}${cellIndicatorLabel(events)}`}
       onClick={onSelect}
       className={cn(
-        "relative flex h-16 flex-col overflow-hidden rounded-md p-1 text-left outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 sm:h-20 sm:p-1.5",
+        "relative flex h-16 flex-col overflow-hidden rounded-md p-1 text-left outline-none transition-colors select-none focus-visible:ring-3 focus-visible:ring-ring/50 sm:h-20 sm:p-1.5",
         baseStateClass,
         isSelected && "ring-2 ring-primary",
       )}

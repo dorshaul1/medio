@@ -36,7 +36,7 @@ export function DesktopNav({ user }: { user: { name: string; email: string } }) 
                   href={item.href}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "flex items-center gap-3 rounded-md px-2.5 py-2 text-sm transition-colors",
+                    "flex items-center gap-3 rounded-md px-2.5 py-2 text-sm transition-colors select-none",
                     active
                       ? "bg-muted font-medium text-foreground"
                       : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",

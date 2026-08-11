@@ -69,7 +69,7 @@ export function PickForMeIllustration() {
               aria-pressed={context === option.key}
               onClick={() => setContext(option.key)}
               className={cn(
-                "rounded-full px-2.5 py-1 text-xs font-medium transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+                "rounded-full px-2.5 py-1 text-xs font-medium transition-colors outline-none select-none focus-visible:ring-3 focus-visible:ring-ring/50",
                 context === option.key
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:text-foreground",
