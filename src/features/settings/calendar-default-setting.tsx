@@ -13,7 +13,7 @@ export function CalendarDefaultSetting({ value }: { value: CalendarDefaultViewVa
   return (
     <TextChoice
       value={value}
-      ariaLabel="Default Calendar view"
+      ariaLabel="Calendar page view"
       options={OPTIONS}
       onChange={(next) =>
         updatePreferencesAction({ calendarDefaultView: next }).then(() => undefined)

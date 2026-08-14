@@ -22,8 +22,8 @@ export type MotionPreferenceValue = (typeof motionPreferenceValues)[number];
 export const spoilerProtectionValues = ["off", "standard", "strict"] as const;
 export type SpoilerProtectionValue = (typeof spoilerProtectionValues)[number];
 
-export const homeFocusValues = ["balanced", "personal", "discovery"] as const;
-export type HomeFocusValue = (typeof homeFocusValues)[number];
+export const homeLayoutValues = ["balanced", "personal", "calendar"] as const;
+export type HomeLayoutValue = (typeof homeLayoutValues)[number];
 
 export const discoverDefaultTypeValues = ["movies", "shows"] as const;
 export type DiscoverDefaultTypeValue = (typeof discoverDefaultTypeValues)[number];
@@ -57,14 +57,28 @@ export const userPreferences = pgTable(
     spoilerProtection: text("spoiler_protection", { enum: spoilerProtectionValues })
       .notNull()
       .default("standard"),
-    homeFocus: text("home_focus", { enum: homeFocusValues }).notNull().default("balanced"),
+    homeLayout: text("home_layout", { enum: homeLayoutValues }).notNull().default("balanced"),
     discoverDefaultType: text("discover_default_type", { enum: discoverDefaultTypeValues })
       .notNull()
       .default("movies"),
     calendarDefaultView: text("calendar_default_view", { enum: calendarDefaultViewValues })
       .notNull()
       .default("upcoming"),
+    // Which of Calendar's two layouts the Calendar Home layout's body
+    // shows — the same "upcoming"/"calendar" choice as
+    // `calendarDefaultView`, reused for a different destination (Home's
+    // Calendar layout body, not the standalone /calendar page). Defaults
+    // to the full month grid — see docs/home.md, "Calendar layout".
+    homeCalendarView: text("home_calendar_view", { enum: calendarDefaultViewValues })
+      .notNull()
+      .default("calendar"),
     showFinishSoon: boolean("show_finish_soon").notNull().default(true),
+    // Whether Up Next renders at the top of Home — deliberately
+    // independent of `homeLayout` (see docs/home.md, "Up Next is a
+    // separate preference"): Up Next answers "what should I watch right
+    // now", homeLayout answers "what fills the rest of the page". Never
+    // encoded as a layout variant (no `calendarWithUpNext`).
+    showUpNext: boolean("show_up_next").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
@@ -87,8 +101,8 @@ export const userPreferences = pgTable(
       sql`${table.spoilerProtection} in ('off', 'standard', 'strict')`,
     ),
     check(
-      "user_preferences_home_focus_check",
-      sql`${table.homeFocus} in ('balanced', 'personal', 'discovery')`,
+      "user_preferences_home_layout_check",
+      sql`${table.homeLayout} in ('balanced', 'personal', 'calendar')`,
     ),
     check(
       "user_preferences_discover_default_type_check",
@@ -97,6 +111,10 @@ export const userPreferences = pgTable(
     check(
       "user_preferences_calendar_default_view_check",
       sql`${table.calendarDefaultView} in ('upcoming', 'calendar')`,
+    ),
+    check(
+      "user_preferences_home_calendar_view_check",
+      sql`${table.homeCalendarView} in ('upcoming', 'calendar')`,
     ),
   ],
 );

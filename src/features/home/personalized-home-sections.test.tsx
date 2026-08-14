@@ -50,21 +50,40 @@ function show(
 
 // A Server Component — render it via its resolved value, the same
 // pattern used elsewhere in this app for async components under test.
-async function renderSections(showFinishSoon = true) {
-  const element = await PersonalizedHomeSections({ showFinishSoon });
+async function renderSections(
+  overrides: Partial<{
+    showUpNext: boolean;
+    showFinishSoon: boolean;
+    showContinuationRows: boolean;
+  }> = {},
+) {
+  const element = await PersonalizedHomeSections({
+    showUpNext: true,
+    showFinishSoon: true,
+    showContinuationRows: true,
+    ...overrides,
+  });
   render(element);
 }
 
 describe("PersonalizedHomeSections", () => {
   it("renders nothing for a user with no eligible active shows", async () => {
     getPersonalHome.mockResolvedValue({ upNext: null, finishSoon: [], continueWatching: [] });
-    const element = await PersonalizedHomeSections({ showFinishSoon: true });
+    const element = await PersonalizedHomeSections({
+      showUpNext: true,
+      showFinishSoon: true,
+      showContinuationRows: true,
+    });
     expect(element).toBeNull();
   });
 
   it("renders nothing when the read fails, rather than breaking Home", async () => {
     getPersonalHome.mockRejectedValue(new Error("db unavailable"));
-    const element = await PersonalizedHomeSections({ showFinishSoon: true });
+    const element = await PersonalizedHomeSections({
+      showUpNext: true,
+      showFinishSoon: true,
+      showContinuationRows: true,
+    });
     expect(element).toBeNull();
   });
 
@@ -102,9 +121,66 @@ describe("PersonalizedHomeSections", () => {
       finishSoon: [show({ showProviderId: 2, title: "Finish Soon Show" })],
       continueWatching: [show({ showProviderId: 3, title: "Continue Watching Show" })],
     });
-    await renderSections(false);
+    await renderSections({ showFinishSoon: false });
 
     expect(screen.queryByRole("heading", { name: "Finish Soon" })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Continue Watching" })).toBeInTheDocument();
+  });
+
+  describe("showUpNext off", () => {
+    it("hides the Up Next card and folds its show into the front of Continue Watching", async () => {
+      getPersonalHome.mockResolvedValue({
+        upNext: show({ showProviderId: 1, title: "Up Next Show" }),
+        finishSoon: [],
+        continueWatching: [show({ showProviderId: 2, title: "Continue Watching Show" })],
+      });
+      await renderSections({ showUpNext: false });
+
+      expect(
+        screen.queryByRole("heading", { level: 2, name: "Up Next Show" }),
+      ).not.toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Continue Watching" })).toBeInTheDocument();
+      const links = screen.getAllByRole("link").map((link) => link.getAttribute("aria-label"));
+      expect(links[0]).toMatch(/Up Next Show/);
+    });
+
+    it("never fabricates a Continue Watching row when showContinuationRows is false (Calendar layout)", async () => {
+      getPersonalHome.mockResolvedValue({
+        upNext: show({ showProviderId: 1, title: "Up Next Show" }),
+        finishSoon: [],
+        continueWatching: [],
+      });
+      const element = await PersonalizedHomeSections({
+        showUpNext: false,
+        showFinishSoon: true,
+        showContinuationRows: false,
+      });
+      expect(element).toBeNull();
+    });
+
+    it("hides gracefully when there's no eligible show at all, even with showUpNext on", async () => {
+      getPersonalHome.mockResolvedValue({ upNext: null, finishSoon: [], continueWatching: [] });
+      const element = await PersonalizedHomeSections({
+        showUpNext: true,
+        showFinishSoon: true,
+        showContinuationRows: true,
+      });
+      expect(element).toBeNull();
+    });
+  });
+
+  describe("showContinuationRows off (Calendar layout)", () => {
+    it("renders Up Next alone, never Finish Soon/Continue Watching", async () => {
+      getPersonalHome.mockResolvedValue({
+        upNext: show({ showProviderId: 1, title: "Up Next Show" }),
+        finishSoon: [show({ showProviderId: 2, title: "Finish Soon Show" })],
+        continueWatching: [show({ showProviderId: 3, title: "Continue Watching Show" })],
+      });
+      await renderSections({ showContinuationRows: false });
+
+      expect(screen.getByRole("heading", { level: 2, name: "Up Next Show" })).toBeInTheDocument();
+      expect(screen.queryByRole("heading", { name: "Finish Soon" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("heading", { name: "Continue Watching" })).not.toBeInTheDocument();
+    });
   });
 });

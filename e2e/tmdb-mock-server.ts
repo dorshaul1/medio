@@ -187,6 +187,31 @@ const SHOW_CALENDAR_2 = {
 // Eighth Reel: saved to Watchlist, releasing in 2 days.
 const MOVIE_CALENDAR_1 = { ...MOVIE, id: 600, title: "The Eighth Reel" };
 
+// Used only by e2e/home-layout.spec.ts — dedicated ids for the same
+// cross-file-parallelism reason as SHOW_CALENDAR_1 above, and a
+// deliberately separate pair from Calendar's own fixtures since this
+// file also starts/tracks a show, which would otherwise race Calendar's
+// spec for the same title under full parallelism.
+//
+// Eleventh Watch: actively tracked. Episode 1 aired long ago (marked
+// watched by the test); Episode 2 airs today — the Calendar layout's
+// "Today" section. Episode 3 airs in 5 days — "This week".
+const SHOW_HOME_LAYOUT_1 = {
+  ...SHOW,
+  id: 1700,
+  name: "Eleventh Watch",
+  original_name: "Eleventh Watch",
+};
+
+// Twelfth Watch: saved to Backlog, never tracked — Personal mode's
+// Backlog row fixture. No release-date significance of its own.
+const SHOW_HOME_LAYOUT_2 = {
+  ...SHOW,
+  id: 1701,
+  name: "Twelfth Watch",
+  original_name: "Twelfth Watch",
+};
+
 // The exact curated genre sets from
 // src/features/discover/genre-selection.ts, with plausible (but made up —
 // this is a fixture, not real TMDB data) IDs.
@@ -1276,6 +1301,119 @@ const ROUTES: Record<string, (url: URL) => unknown> = {
     original_language: "en",
     production_countries: [],
     belongs_to_collection: null,
+  }),
+  [`/3/tv/${SHOW_HOME_LAYOUT_1.id}`]: () => ({
+    ...SHOW_HOME_LAYOUT_1,
+    tagline: "",
+    last_air_date: CALENDAR_TODAY,
+    status: "Returning Series",
+    genres: [],
+    original_language: "en",
+    number_of_seasons: 1,
+    number_of_episodes: 3,
+    episode_run_time: [],
+    created_by: [],
+    seasons: [
+      {
+        id: 170011,
+        season_number: 1,
+        name: "Season 1",
+        overview: "",
+        air_date: "2020-01-01",
+        episode_count: 3,
+        poster_path: null,
+      },
+    ],
+    last_episode_to_air: {
+      id: 1700102,
+      episode_number: 2,
+      season_number: 1,
+      name: "The Turn",
+      overview: "",
+      runtime: 40,
+      air_date: CALENDAR_TODAY,
+      still_path: null,
+      vote_average: 0,
+    },
+    next_episode_to_air: {
+      id: 1700103,
+      episode_number: 3,
+      season_number: 1,
+      name: "The Reckoning",
+      overview: "",
+      runtime: 40,
+      air_date: CALENDAR_IN_5_DAYS,
+      still_path: null,
+      vote_average: 0,
+    },
+  }),
+  [`/3/tv/${SHOW_HOME_LAYOUT_1.id}/season/1`]: () => ({
+    id: 170011,
+    season_number: 1,
+    name: "Season 1",
+    overview: "",
+    air_date: "2020-01-01",
+    poster_path: null,
+    episodes: [
+      {
+        id: 1700101,
+        episode_number: 1,
+        season_number: 1,
+        name: "The Beginning",
+        overview: "",
+        runtime: 40,
+        air_date: "2020-01-01",
+        still_path: null,
+        vote_average: 0,
+      },
+      {
+        id: 1700102,
+        episode_number: 2,
+        season_number: 1,
+        name: "The Turn",
+        overview: "",
+        runtime: 40,
+        air_date: CALENDAR_TODAY,
+        still_path: null,
+        vote_average: 0,
+      },
+      {
+        id: 1700103,
+        episode_number: 3,
+        season_number: 1,
+        name: "The Reckoning",
+        overview: "",
+        runtime: 40,
+        air_date: CALENDAR_IN_5_DAYS,
+        still_path: null,
+        vote_average: 0,
+      },
+    ],
+  }),
+  [`/3/tv/${SHOW_HOME_LAYOUT_2.id}`]: () => ({
+    ...SHOW_HOME_LAYOUT_2,
+    tagline: "",
+    last_air_date: null,
+    status: "Returning Series",
+    genres: [],
+    original_language: "en",
+    number_of_seasons: 1,
+    number_of_episodes: 1,
+    episode_run_time: [],
+    created_by: [],
+    seasons: [
+      {
+        id: 170111,
+        season_number: 1,
+        name: "Season 1",
+        overview: "",
+        air_date: "2020-01-01",
+        episode_count: 1,
+        poster_path: null,
+      },
+    ],
+    last_episode_to_air: null,
+    next_episode_to_air: null,
   }),
 };
 

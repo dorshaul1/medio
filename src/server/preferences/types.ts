@@ -9,7 +9,7 @@ import type {
   CalendarDefaultViewValue,
   DensityPreferenceValue,
   DiscoverDefaultTypeValue,
-  HomeFocusValue,
+  HomeLayoutValue,
   MotionPreferenceValue,
   SpoilerProtectionValue,
   ThemePreferenceValue,
@@ -21,8 +21,16 @@ export type UserPreferences = {
   motion: MotionPreferenceValue;
   defaultSaveIntent: PlanningIntentValue;
   spoilerProtection: SpoilerProtectionValue;
-  homeFocus: HomeFocusValue;
+  homeLayout: HomeLayoutValue;
   discoverDefaultType: DiscoverDefaultTypeValue;
   calendarDefaultView: CalendarDefaultViewValue;
+  // Whether the Calendar Home layout's body shows the upcoming agenda or
+  // the full calendar grid — only meaningful when `homeLayout ===
+  // "calendar"`, but always a real, durable preference like every other
+  // (see docs/home.md, "Calendar layout").
+  homeCalendarView: CalendarDefaultViewValue;
   showFinishSoon: boolean;
+  // Independent of `homeLayout` — see docs/home.md, "Up Next is a
+  // separate preference".
+  showUpNext: boolean;
 };

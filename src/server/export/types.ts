@@ -76,10 +76,12 @@ export type NativeExportPreferences = {
   motion: string;
   defaultSaveIntent: string;
   spoilerProtection: string;
-  homeFocus: string;
+  homeLayout: string;
   discoverDefaultType: string;
   calendarDefaultView: string;
+  homeCalendarView: string;
   showFinishSoon: boolean;
+  showUpNext: boolean;
 };
 
 export type NativeExportData = {

@@ -5,19 +5,120 @@ to watch next?"* This document covers the personalization layer; see
 `docs/tracking.md` for the tracking domain it derives from and
 `docs/library.md` for the related (but distinct) personal-media surface.
 
-## Home's two layers
+## Home's layers
 
-1. **Personal viewing** — Up Next, Finish Soon, Continue Watching. What
+1. **Up Next** — the single strongest next episode to continue. Governed
+   entirely by its own preference (`showUpNext`, default on) — see "Up
+   Next is a separate preference" below. Renders above everything else,
+   in every Home layout, whenever it's on and a valid candidate exists.
+2. **Personal continuation** — Finish Soon, Continue Watching. What else
    matters to *this* user right now, derived from their own watch
-   history.
-2. **Public/current discovery** — Trending movies/shows, In theaters,
+   history. Renders for Balanced/Personal layouts only — see "Home
+   layout and composition" below.
+3. **Public/current discovery** — Trending movies/shows, In theaters,
    Popular movies/shows. What's timely in the wider media world.
+4. **Personal release intelligence** — a Home-specific presentation of
+   Calendar's own domain (new/upcoming episodes, season premieres,
+   planned movie releases). How much of this shows, if any, is the other
+   thing Home layout controls — see below and docs/calendar.md, "Home
+   integration".
 
-Personal content renders above public content whenever it exists. When it
-doesn't (a brand-new user, or a user fully caught up on everything),
-nothing personal renders at all — public sections simply start at the top
-of the page. There is no empty "Up Next" card, no "start watching
-something" prompt. See `features/home/personalized-home-sections.tsx`.
+Personal content renders above public content whenever it exists. When
+none of it does (a brand-new user, or a user fully caught up on
+everything, with Up Next off or empty), nothing personal renders at all —
+whatever the current layout shows next simply starts at the top of the
+page. There is no empty "Up Next" card, no "start watching something"
+prompt. See `features/home/personalized-home-sections.tsx`.
+
+## Up Next is a separate preference
+
+Up Next used to be entangled with the old "Home focus" concept; it is now
+governed by its own independent, durable preference (`showUpNext`,
+`user_preferences.show_up_next`, default **on**) — see docs/settings.md,
+"Home layout and Show Up Next". `homeLayout` never encodes Up Next as
+part of a layout variant (`resolveHomeLayout`'s `HomeComposition` type has
+no `showUpNext`/`upNext` field at all, and a test asserts this directly —
+see `layout.test.ts`); the two preferences are composed together only at
+render time, in `PersonalizedHomeSections`
+(`features/home/personalized-home-sections.tsx`):
+
+- `showUpNext` decides whether the Up Next card renders, in every layout.
+- `layout.showContinuationRows` (from `resolveHomeLayout` — true for
+  Balanced/Personal, false for Calendar) decides whether Finish Soon/
+  Continue Watching render below it.
+
+Both preferences read from the exact same `getPersonalHome()`
+classification — turning Up Next off never changes *which* show is "the"
+Up Next candidate, only whether it's shown as the dedicated hero card.
+When it's off (or there's genuinely no eligible show), that show is
+folded into the front of Continue Watching instead of simply vanishing
+from Home — the layout body becomes "the first Home content" as the
+preference promises, without silently losing a real personal title. This
+folding only applies when `showContinuationRows` is true; Calendar's body
+never shows Continue Watching regardless of `showUpNext`.
+
+Conceptually, with Up Next on:
+
+```
+Balanced:  Up Next → Balanced content
+Personal:  Up Next → Personal content
+Calendar:  Up Next → Calendar content only
+```
+
+With Up Next off, each layout's own content simply becomes the first
+thing on the page — no `calendarWithUpNext`-style variant is ever needed.
+
+## Home layout and composition
+
+`resolveHomeLayout(layout)` (`server/home/layout.ts`, pure) decides what
+fills Home *below* Up Next — three layouts with genuinely different
+compositions, not a shared set of rows in different orders (see
+CLAUDE.md, "Home layout changes composition and hierarchy meaningfully;
+it is not merely cosmetic row ordering"):
+
+- **Balanced** (default) — Finish Soon/Continue Watching, two public
+  discovery sections (Trending movies/shows), plus a small, header-less
+  calendar teaser (`buildHomeCalendarPreview`, capped at
+  `HOME_CALENDAR_PREVIEW_LIMIT`) — a curated mix where no one category
+  dominates.
+- **Personal** — Finish Soon/Continue Watching, a Backlog row
+  (`features/home/backlog-row.tsx`, `server/home/backlog.ts`) surfacing
+  the user's own saved Backlog titles, one public discovery section (down
+  from Balanced's two — never zero), and no calendar content at all. This
+  is "My MEDIO."
+- **Calendar** — the Calendar body *only* — no Continue Watching, no
+  Backlog row, zero public discovery sections. Discover already owns
+  broad browsing, so no Home layout duplicates it (see CLAUDE.md,
+  "Discovery is a dedicated product destination and should not be
+  duplicated as a Home-layout option"). Which of Calendar's own two
+  layouts that body actually is — the Today/This week/Later agenda
+  (`features/home/home-calendar-agenda.tsx`) or the full month grid
+  (`features/home/home-calendar-month.tsx`, reusing `CalendarMonthView`
+  unchanged) — is its own separate preference, `homeCalendarView`
+  (default **calendar**, i.e. the full grid): see docs/settings.md, "Home
+  layout and Show Up Next".
+
+The agenda body (and Balanced's smaller teaser) never compute their own
+release eligibility — both call the exact same `getCalendarEvents`/
+`buildReleaseTimeline` composition Calendar's own page uses, then only
+re-bucket/cap that already-decided, already-ranked output
+(`server/home/calendar-agenda.ts`). "Today" folds in Calendar's
+"Recently released" (both answer "what's new right now" on Home); "This
+week" folds in "Tomorrow"; "Later" is capped
+(`HOME_CALENDAR_LATER_LIMIT`), never Calendar's full 90-day horizon —
+Home's header `CalendarEntryPoint` remains the one constant way into the
+real page. The full-grid body reuses `CalendarMonthView` entirely unchanged, always
+showing the current month: Home never grows its own `?month=`
+navigation state, so the grid's own month-navigation chevrons/Today link
+hand off to the real `/calendar?view=calendar` page rather than adding a
+second month-navigable surface. See docs/calendar.md, "Home integration".
+
+The Backlog row reuses Planning's existing `listPlanningItems` read,
+filtered to `backlog` intent only (never `watchlist` — Backlog is the
+stronger "I intend to watch this" signal; see CLAUDE.md, "Library"), the
+same "fetch broadly, filter downstream" convention
+`server/calendar/candidates.ts` already establishes, rather than a new
+intent-filtered query function.
 
 ## Definitions
 
@@ -171,6 +272,9 @@ provider-owned concern from the private personalization wrapping it.
 
 ## What this phase deliberately does not include
 
-Tonight, My Queue, Watchlist/Backlog Home sections, a taste-based
-recommendation engine, Movies in Continue Watching, a "Waiting for"/
-release-calendar section, or persisted derived Home categories.
+Tonight, My Queue, a Watchlist Home section (Personal layout's row is
+Backlog only — see "Home layout and composition"), a taste-based
+recommendation engine, Movies in Continue Watching, or persisted derived
+Home categories/compositions (`homeLayout`/`showUpNext` are themselves
+durable preferences, but every section they turn on is still computed
+fresh at read time, same as Up Next/Continue Watching).

@@ -163,7 +163,7 @@
     `SettingsCategoryHeader` (the shared open layout), `VisualChoice`/
     `TextChoice` (the two reusable choice primitives — see
     docs/settings.md), one `*-mini-preview.tsx` per visual choice
-    (Theme/Density/Motion/Spoiler protection/Home focus), one
+    (Theme/Density/Motion/Spoiler protection/Home layout), one
     `*-setting.tsx` per individual setting, the six `*-settings.tsx`
     category compositions (General/Appearance/Tracking/Spoilers/Home/
     Developer), `reset-preferences-control.tsx`, `settings-actions.ts`

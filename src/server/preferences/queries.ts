@@ -16,10 +16,12 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
   motion: "system",
   defaultSaveIntent: "watchlist",
   spoilerProtection: "standard",
-  homeFocus: "balanced",
+  homeLayout: "balanced",
   discoverDefaultType: "movies",
   calendarDefaultView: "upcoming",
+  homeCalendarView: "calendar",
   showFinishSoon: true,
+  showUpNext: true,
 };
 
 export function toPreferences(row: typeof userPreferences.$inferSelect): UserPreferences {
@@ -29,10 +31,12 @@ export function toPreferences(row: typeof userPreferences.$inferSelect): UserPre
     motion: row.motion,
     defaultSaveIntent: row.defaultSaveIntent,
     spoilerProtection: row.spoilerProtection,
-    homeFocus: row.homeFocus,
+    homeLayout: row.homeLayout,
     discoverDefaultType: row.discoverDefaultType,
     calendarDefaultView: row.calendarDefaultView,
+    homeCalendarView: row.homeCalendarView,
     showFinishSoon: row.showFinishSoon,
+    showUpNext: row.showUpNext,
   };
 }
 

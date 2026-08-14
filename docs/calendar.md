@@ -308,7 +308,23 @@ own null-fallback precedent). "This week" is `today + tomorrow +
 thisWeek` group counts — deliberately excludes `recent` (a forward-
 looking teaser, not a missed-releases prompt) and counts groups, not raw
 events, so the number matches what the user will actually see as
-distinct rows.
+distinct rows. This header link remains the one constant way into the
+*full*, unbounded Calendar page regardless of Home layout.
+
+Home's Calendar layout (and Balanced's smaller teaser) go further than
+the header count: they render a real, bounded release agenda directly on
+Home itself — see docs/home.md, "Home layout and composition".
+`server/home/calendar-agenda.ts` builds this entirely on top of
+Calendar's own `getCalendarEvents`/`buildReleaseTimeline` composition (no
+separate Home release calculation exists), consolidating Calendar's five
+buckets into a simpler Today/This week/Later shape and capping "Later"
+to a small preview. `features/home/home-calendar-agenda-view.tsx` reuses
+Calendar's own presentation components (`CalendarSection`,
+`CalendarEventGroup`, `CalendarEventRow`, `CalendarEpisodeEventRow`)
+unchanged, including spoiler protection and the inline episode
+quick-tracking action — Home's agenda is a smaller,
+differently-composed *view* of the same domain and the same rendering
+primitives, never a re-implementation of either.
 
 ## Show Details integration
 

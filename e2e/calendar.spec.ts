@@ -27,9 +27,15 @@ test.describe
       await page.goto("/calendar");
       await expect(page.getByRole("heading", { level: 1, name: "Calendar" })).toBeVisible();
 
+      // Scoped to Ninth Watch's own row, not just "somewhere in Today" —
+      // other specs running concurrently against the suite's one shared
+      // authenticated user may have their own active show land in Today
+      // too, which would otherwise make a page-wide "New" text match
+      // ambiguous.
       const today = page.getByRole("heading", { name: "Today" }).locator("..");
-      await expect(today.getByText("Ninth Watch")).toBeVisible();
-      await expect(today.getByText(/New/)).toBeVisible();
+      const ninthWatchToday = today.getByText("Ninth Watch").locator("..");
+      await expect(ninthWatchToday).toBeVisible();
+      await expect(ninthWatchToday.getByText(/New/)).toBeVisible();
 
       // Also upcoming, in a later bucket — a distinct event, not merged
       // with today's.

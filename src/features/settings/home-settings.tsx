@@ -3,10 +3,18 @@ import type { UserPreferences } from "@/server/preferences/types";
 import { CalendarDefaultSetting } from "./calendar-default-setting";
 import { DiscoverDefaultSetting } from "./discover-default-setting";
 import { FinishSoonSetting } from "./finish-soon-setting";
-import { HomeFocusSetting } from "./home-focus-setting";
+import { HomeCalendarViewSetting } from "./home-calendar-view-setting";
+import { HomeLayoutSetting } from "./home-layout-setting";
 import { SettingRow } from "./setting-row";
 import { SettingsCategoryHeader } from "./settings-category-header";
+import { ShowUpNextSetting } from "./show-up-next-setting";
 
+// "Home layout" and "Show Up Next" are two deliberately separate rows —
+// see docs/home.md, "Up Next is a separate preference": Up Next answers
+// "what should I watch right now" and appears above every layout when on;
+// Home layout answers "what fills the rest of the page". Kept visually
+// distinct (a VisualChoice row, then a plain Switch row) so Show Up Next
+// never reads as a fourth layout option.
 export function HomeSettings({ preferences }: { preferences: UserPreferences }) {
   return (
     <div className="flex flex-col gap-2">
@@ -16,10 +24,25 @@ export function HomeSettings({ preferences }: { preferences: UserPreferences }) 
       />
       <Separator />
       <SettingRow
-        title="Home focus"
-        comment="Personal emphasizes Up Next and Continue Watching. Discovery gives Trending and Popular more space. Balanced is the default mix."
+        title="Show Up Next"
+        comment="Show your next episode to watch at the top of Home."
+        htmlFor="show-up-next"
       >
-        <HomeFocusSetting value={preferences.homeFocus} />
+        <ShowUpNextSetting value={preferences.showUpNext} />
+      </SettingRow>
+      <Separator />
+      <SettingRow
+        title="Home layout"
+        comment="Choose what fills your Home below Up Next: a balanced mix, your own shows and saved titles, or your release calendar."
+      >
+        <HomeLayoutSetting value={preferences.homeLayout} />
+      </SettingRow>
+      <Separator />
+      <SettingRow
+        title="Home calendar view"
+        comment="When Home layout is Calendar, show the upcoming agenda or the full calendar grid — separate from Calendar page view below, which is for the full Calendar page."
+      >
+        <HomeCalendarViewSetting value={preferences.homeCalendarView} />
       </SettingRow>
       <Separator />
       <SettingRow
@@ -38,8 +61,8 @@ export function HomeSettings({ preferences }: { preferences: UserPreferences }) 
       </SettingRow>
       <Separator />
       <SettingRow
-        title="Default Calendar view"
-        comment="Sets which layout — the Upcoming agenda or the Calendar month grid — Calendar opens to."
+        title="Calendar page view"
+        comment="Sets which layout — the Upcoming agenda or the month grid — the full Calendar page opens to when you visit it directly. Separate from Home calendar view above."
       >
         <CalendarDefaultSetting value={preferences.calendarDefaultView} />
       </SettingRow>

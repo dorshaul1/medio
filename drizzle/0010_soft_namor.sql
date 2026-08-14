@@ -1,0 +1,2 @@
+ALTER TABLE "user_preferences" ADD COLUMN "home_calendar_view" text DEFAULT 'calendar' NOT NULL;--> statement-breakpoint
+ALTER TABLE "user_preferences" ADD CONSTRAINT "user_preferences_home_calendar_view_check" CHECK ("user_preferences"."home_calendar_view" in ('upcoming', 'calendar'));

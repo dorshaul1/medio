@@ -1,4 +1,4 @@
-import type { MediaImage } from "@/server/media/types";
+import type { MediaImage, MediaType } from "@/server/media/types";
 
 // One shape shared by Up Next, Continue Watching, and Finish Soon — all
 // three are literally the same kind of fact ("an active show with a
@@ -39,4 +39,16 @@ export type PersonalHome = {
   // includes `upNext` or any `finishSoon` item — see docs/home.md,
   // "Personalized-section deduplication".
   continueWatching: readonly ActiveShowContinuation[];
+};
+
+// One title in Personal mode's Backlog row — deliberately leaner than
+// `ActiveShowContinuation` (no progress/next-episode context, since a
+// Backlog title hasn't been started yet — see docs/home.md, "Personal
+// mode").
+export type HomeBacklogItem = {
+  mediaType: MediaType;
+  mediaProviderId: number;
+  title: string;
+  poster: MediaImage | null;
+  year: number | null;
 };

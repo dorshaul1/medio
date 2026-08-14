@@ -1,10 +1,13 @@
 import { Suspense } from "react";
 import { PageContainer } from "@/components/shell/page-container";
 import { PageHeader } from "@/components/shell/page-header";
+import { BacklogRowSection } from "@/features/home/backlog-row-section";
 import {
   CalendarEntryPoint,
   CalendarEntryPointFallback,
 } from "@/features/home/calendar-entry-point";
+import { HomeCalendarAgenda } from "@/features/home/home-calendar-agenda";
+import { HomeCalendarMonth } from "@/features/home/home-calendar-month";
 import {
   InTheatersCollection,
   PopularMoviesCollection,
@@ -54,25 +57,38 @@ const PUBLIC_SECTIONS: Record<PublicHomeSection, React.ReactNode> = {
 // that file can branch between this and the public Landing page by
 // session state (see docs/authentication.md, "`/` behavior by auth
 // state") without Home's own composition needing to know that branching
-// exists. Two layers: what makes sense for *this* user to watch next (Up
-// Next / Finish Soon / Continue Watching), and what's timely in the
-// wider media world (Trending, In theaters, Popular) — see docs/home.md.
-// Which comes first, and how many public sections show, is the one
-// thing "Home focus" (see docs/settings.md) controls; nothing about the
-// underlying data or classification changes. Personalized Home is its
-// own Suspense boundary with no fallback (see PersonalizedHomeSections'
-// own comment on why a skeleton here would be misleading) so it neither
-// blocks nor waits on the public sections.
+// exists. Three independent preferences compose here — see docs/home.md,
+// "Up Next is a separate preference": `showUpNext` decides whether Up
+// Next renders at the very top, in every layout; `homeLayout`
+// (`resolveHomeLayout`, `server/home/layout.ts`) decides what fills the
+// page underneath it; `homeCalendarView` decides, only when the Calendar
+// layout's body is showing, whether that body is the Today/This week/
+// Later agenda or the full month grid (the same "upcoming"/"calendar"
+// choice `/calendar` itself offers, reused for this different
+// destination). Balanced adds continuation rows, a small calendar
+// teaser, and a couple of public discovery rows; Personal adds
+// continuation rows and a Backlog row with discovery cut further;
+// Calendar replaces everything below Up Next with its own body and
+// nothing else — never just a reordering of the same fixed rows. Each
+// piece is its own Suspense boundary with no fallback (see
+// PersonalizedHomeSections' own comment on why a skeleton here would be
+// misleading), so none of them block each other.
 export async function HomePage() {
   const preferences = await getCurrentUserPreferences();
-  const layout = resolveHomeLayout(preferences.homeFocus);
+  const layout = resolveHomeLayout(preferences.homeLayout);
 
-  const personal = (
-    <Suspense fallback={null}>
-      <PersonalizedHomeSections showFinishSoon={preferences.showFinishSoon} />
-    </Suspense>
-  );
   const publicSections = layout.publicSections.map((section) => PUBLIC_SECTIONS[section]);
+
+  const calendarBody =
+    layout.calendarAgendaSize === "full" ? (
+      preferences.homeCalendarView === "calendar" ? (
+        <HomeCalendarMonth />
+      ) : (
+        <HomeCalendarAgenda size="full" />
+      )
+    ) : layout.calendarAgendaSize === "preview" ? (
+      <HomeCalendarAgenda size="preview" />
+    ) : null;
 
   return (
     <PageContainer>
@@ -92,17 +108,20 @@ export async function HomePage() {
         }
       />
       <div className="flex flex-col gap-10">
-        {layout.personalFirst ? (
-          <>
-            {personal}
-            {publicSections}
-          </>
-        ) : (
-          <>
-            {publicSections}
-            {personal}
-          </>
-        )}
+        <Suspense fallback={null}>
+          <PersonalizedHomeSections
+            showUpNext={preferences.showUpNext}
+            showFinishSoon={preferences.showFinishSoon}
+            showContinuationRows={layout.showContinuationRows}
+          />
+        </Suspense>
+        {layout.showBacklogRow ? (
+          <Suspense fallback={null}>
+            <BacklogRowSection />
+          </Suspense>
+        ) : null}
+        {calendarBody ? <Suspense fallback={null}>{calendarBody}</Suspense> : null}
+        {publicSections}
       </div>
     </PageContainer>
   );

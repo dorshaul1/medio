@@ -759,6 +759,38 @@ in the same change.
 - Up Next shows the show's own poster/backdrop, never the next episode's
   still image or overview — an unwatched episode's plot is never
   revealed.
+- Up Next and Home layout are two independent preferences —
+  `showUpNext` (default on) and `homeLayout` (`resolveHomeLayout`,
+  `server/home/layout.ts`). Up Next is never encoded into a layout
+  variant (no `calendarWithUpNext`); when on, it renders above whichever
+  layout is selected, in every layout, composed at render time
+  (`PersonalizedHomeSections`) — see docs/home.md, "Up Next is a separate
+  preference". If no valid Up Next exists, it hides gracefully even when
+  the preference is on.
+- Home layout options are Balanced, Personal, and Calendar
+  (`resolveHomeLayout`, `server/home/layout.ts`) — see docs/home.md,
+  "Home layout and composition". Finish Soon/Continue Watching
+  (`showContinuationRows`) render for Balanced/Personal only — Calendar's
+  body is calendar content alone.
+- Discovery is a dedicated product destination (`/discover`) and must
+  never be duplicated as a Home-layout option — Home never grows a
+  layout whose entire point is "more Trending/Popular."
+- Calendar layout uses the canonical Calendar/Release Intelligence domain
+  (`getCalendarEvents`/`buildReleaseTimeline`) and prioritizes personally
+  relevant new/upcoming releases — never a separate Home release
+  calculation, never general entertainment news, never all upcoming TMDB
+  releases, never Trending. Its body never mixes in Continue Watching,
+  discovery rows, or a Backlog row.
+- Home layout changes composition and hierarchy meaningfully (what
+  renders — a calendar agenda, a Backlog row, how much public discovery
+  shows), not merely cosmetic row ordering.
+- When Home layout is Calendar, a third independent preference,
+  `homeCalendarView` (default the full grid), decides whether that body
+  is the Today/This week/Later agenda or the full calendar month grid
+  (`HomeCalendarMonth`, reusing `CalendarMonthView` unchanged) — the same
+  "upcoming"/"calendar" choice `calendarDefaultView` offers for
+  `/calendar` itself, but a genuinely separate preference for a different
+  destination; never conflated with it.
 
 ## Pick for Me
 
@@ -886,7 +918,7 @@ in the same change.
 - Settings save immediately on change — no "Save Settings" button.
   Optimistic controls roll back only on a real write failure.
 - Visual choice settings (Theme, Density, Motion, Spoiler protection,
-  Home focus) use the shared `VisualChoice` primitive with a genuinely
+  Home layout) use the shared `VisualChoice` primitive with a genuinely
   explanatory miniature preview; settings that change interaction
   behavior rather than layout (Default Save destination, Default
   Discover view) use the plain `TextChoice` primitive instead — never a

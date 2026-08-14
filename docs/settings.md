@@ -132,7 +132,9 @@ concentrated in TV episode progression, not movie identity/overview.
 | Appearance | Interface motion | `data-motion` on AppShell → `globals.css` transition override |
 | Tracking & Library | Default Save destination | `PlanningControl`'s one-click Save target (Movie/Show Details) |
 | Spoilers | Spoiler protection | `resolveEpisodeSpoilerDecision` → `EpisodeRow` rendering |
-| Home & Discovery | Home focus | `resolveHomeLayout` → Home's section order/count (`src/server/home/layout.ts`) |
+| Home & Discovery | Show Up Next | `PersonalizedHomeSections`'s Up Next card visibility, in every layout — independent of Home layout (see "Home layout and Show Up Next") |
+| Home & Discovery | Home layout | `resolveHomeLayout` → Home's composition below Up Next (`src/server/home/layout.ts`; see "Home layout and Show Up Next") |
+| Home & Discovery | Home calendar view | Whether the Calendar layout's body is the agenda or the full month grid (`home-page.tsx`; see "Home layout and Show Up Next") |
 | Home & Discovery | Show Finish Soon | `PersonalizedHomeSections`'s Finish Soon row visibility |
 | Home & Discovery | Default Discover view | `normalizeDiscoverMediaType`'s fallback when `?type=` is absent |
 | Home & Discovery | Default Calendar view | `normalizeCalendarView`'s fallback when `?view=` is absent (see docs/calendar.md) |
@@ -140,20 +142,59 @@ concentrated in TV episode progression, not movie identity/overview.
 | Developer (non-production only) | Add mock data | Seeds real watch/rating/planning rows via the real domain functions |
 | Developer (non-production only) | Reset all data | Wipes every table this user owns, except the account itself |
 
-## Home focus semantics
+## Home layout and Show Up Next
 
-`resolveHomeLayout(focus)` (`src/server/home/layout.ts`, pure) decides
-two things only: whether personalized sections render before or after
-public discovery sections, and how many public sections show. It never
-removes personal sections, and public sections always render even at
-"Personal" focus (fewer of them, never zero) — a user with no active
-personal content must never see an empty Home.
+Two deliberately independent preferences — see docs/home.md, "Up Next is
+a separate preference" for the full picture:
 
-- **Balanced** — personal first, all five public sections (today's
-  default behavior, unchanged).
-- **Personal** — personal first, only Trending movies/shows.
-- **Discovery** — public sections lead, personal sections follow, all
-  five public sections shown.
+- **Show Up Next** (`showUpNext`, default **on**) — whether the Up Next
+  card renders at the top of Home, in every layout. Never a layout
+  variant of its own; composed with the layout at render time
+  (`PersonalizedHomeSections`). Hides gracefully when there's simply no
+  eligible show, even while on.
+- **Home layout** (`homeLayout`) — `resolveHomeLayout(layout)`
+  (`src/server/home/layout.ts`, pure) returns a `HomeComposition`
+  deciding what fills the page *below* Up Next. This type has no
+  `showUpNext`/`upNext` field at all (enforced by a dedicated test — see
+  `layout.test.ts`). What genuinely differs per layout is composition,
+  not row order:
+
+  - **Balanced** (default) — Finish Soon/Continue Watching
+    (`showContinuationRows: true`), a small calendar preview
+    (`calendarAgendaSize: "preview"`), plus two public discovery sections
+    (Trending movies/shows).
+  - **Personal** — Finish Soon/Continue Watching, a Backlog row
+    (`showBacklogRow: true`), no calendar content, and discovery cut
+    further than Balanced's (one public section) — never zero, so a
+    user's Home is never a closed loop.
+  - **Calendar** — the Calendar body *only* (`calendarAgendaSize:
+    "full"`, see docs/home.md and docs/calendar.md, "Home integration")
+    — `showContinuationRows: false`, zero public discovery sections.
+    Discover already owns broad browsing, so Home never duplicates it
+    here.
+- **Home calendar view** (`homeCalendarView`, default **calendar** — the
+  full grid) — only meaningful while Home layout is Calendar: whether
+  that body is the Today/This week/Later agenda
+  (`HomeCalendarAgenda`/`server/home/calendar-agenda.ts`) or the full
+  month grid (`HomeCalendarMonth`, reusing `CalendarMonthView` entirely
+  unchanged). The same "upcoming"/"calendar" choice `calendarDefaultView`
+  offers for `/calendar` itself, reused here for a different destination
+  — always a real, visible preference, never conditionally hidden based
+  on the current Home layout selection.
+
+Calendar layout reuses Calendar's own `getCalendarEvents`/
+`buildReleaseTimeline` composition — `server/home/calendar-agenda.ts`
+only ever re-buckets/caps that already-decided output; no new
+eligibility or ranking logic exists for Home. The full-grid body reuses
+`CalendarMonthView` as-is; Home never grows its own `?month=` navigation
+state, so that grid's month-navigation controls hand off to the real
+`/calendar?view=calendar` page.
+
+Settings UI keeps Home layout, Show Up Next, and Home calendar view
+visually distinct on purpose (see `features/settings/home-settings.tsx`):
+Home layout is a three-option `VisualChoice`; Show Up Next is a separate
+plain `Switch` row; Home calendar view is a plain `TextChoice` row — none
+of them ever reads as another one's option.
 
 ## Default Save destination
 
