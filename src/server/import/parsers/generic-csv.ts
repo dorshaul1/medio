@@ -4,12 +4,8 @@
 // not an arbitrary column-mapping importer — exactly these columns, in
 // any order, matched by exact (case-insensitive) header name only.
 //
-// Columns: media_type, title, year, season, episode, watched_at,
-// rating, list. Every column but `media_type`/`title` is optional. One
-// row can produce more than one record — e.g. a row with both
-// `watched_at` and `rating` filled in creates a watch event *and* a
-// rating from the same line, since a real "I watched and rated this"
-// spreadsheet row is a completely ordinary shape to migrate from.
+// Columns: media_type, title, year, season, episode, watched_at, list.
+// Every column but `media_type`/`title` is optional.
 import { findColumn } from "../csv-headers";
 import { parseCsv } from "../csv-parse";
 import { parseDateOnly } from "../date";
@@ -22,7 +18,6 @@ export const GENERIC_CSV_COLUMNS = [
   "season",
   "episode",
   "watched_at",
-  "rating",
   "list",
 ] as const;
 
@@ -30,9 +25,9 @@ export const GENERIC_CSV_COLUMNS = [
 // docs/data-portability.md, "Generic CSV template".
 export const GENERIC_CSV_TEMPLATE = [
   GENERIC_CSV_COLUMNS.join(","),
-  "movie,Fight Club,1999,,,1999-10-15,5,",
-  "show,Winter's Watch,2011,1,1,2020-01-01,,",
-  "movie,The Third Reel,2021,,,,,watchlist",
+  "movie,Fight Club,1999,,,1999-10-15,",
+  "show,Winter's Watch,2011,1,1,2020-01-01,",
+  "movie,The Third Reel,2021,,,,watchlist",
 ].join("\n");
 
 function parseYear(raw: string | undefined): number | null {
@@ -65,7 +60,6 @@ export function parseGenericCsv(text: string): ParseResult {
     const seasonRaw = findColumn(csvRow, "season");
     const episodeRaw = findColumn(csvRow, "episode");
     const watchedAtRaw = findColumn(csvRow, "watched_at");
-    const ratingRaw = findColumn(csvRow, "rating");
     const listRaw = findColumn(csvRow, "list")?.trim().toLowerCase();
 
     if (watchedAtRaw) {
@@ -103,23 +97,6 @@ export function parseGenericCsv(text: string): ParseResult {
         errors.push({
           row,
           reason: `Row ${row}: "${title}" is a Show watch with no season/episode — vague show-level completion can't be imported as exact episode history, so it was skipped.`,
-        });
-      }
-    }
-
-    if (ratingRaw) {
-      const rating = Number.parseInt(ratingRaw, 10);
-      if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
-        errors.push({
-          row,
-          reason: `Row ${row}: "${title}" has an invalid "rating" (must be 1–5).`,
-        });
-      } else {
-        records.push({
-          kind: "rating",
-          identity: { kind: "titleYear", mediaType, title, year },
-          rating,
-          sourceRatingLabel: null,
         });
       }
     }

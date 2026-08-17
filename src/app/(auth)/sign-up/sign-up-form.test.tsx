@@ -54,14 +54,14 @@ describe("SignUpForm", () => {
     expect(refresh).toHaveBeenCalled();
   });
 
-  it("navigates to the preserved return destination on success", async () => {
+  it("always lands on Home, even if a return destination was set for the Log in switch link", async () => {
     const user = userEvent.setup();
     signUpEmail.mockResolvedValue({ error: null });
-    render(<SignUpForm next="/discover" />);
+    render(<SignUpForm />);
 
     await fillAndSubmit(user);
 
-    expect(push).toHaveBeenCalledWith("/discover");
+    expect(push).toHaveBeenCalledWith("/");
   });
 
   it("shows a human error for an existing account, marking only the email field", async () => {

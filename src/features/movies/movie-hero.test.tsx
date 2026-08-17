@@ -1,18 +1,13 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { MovieDetails, Trailer } from "@/server/media/types";
-import type { MediaOpinion } from "@/server/opinions/types";
 import type { MovieWatchSummary } from "@/server/tracking/types";
 import { MovieHero } from "./movie-hero";
 
-vi.mock("@/features/media/opinion-actions", () => ({
-  setMediaRatingAction: vi.fn(),
-  clearMediaRatingAction: vi.fn(),
-  setMediaNoteAction: vi.fn(),
-  clearMediaNoteAction: vi.fn(),
+vi.mock("@/features/media/comment-actions", () => ({
+  setMediaCommentAction: vi.fn(),
+  clearMediaCommentAction: vi.fn(),
 }));
-
-const NO_OPINION: MediaOpinion = { rating: null, note: null };
 
 // MovieTrackingControl's Server Actions aren't exercised by these tests
 // (no interaction is simulated) — mocked so importing them never risks
@@ -63,7 +58,7 @@ describe("MovieHero", () => {
         watchSummary={UNWATCHED}
         watchEvents={[]}
         planningIntent={null}
-        opinion={NO_OPINION}
+        comment={null}
         defaultSaveIntent="watchlist"
       />,
     );
@@ -80,7 +75,7 @@ describe("MovieHero", () => {
         watchSummary={UNWATCHED}
         watchEvents={[]}
         planningIntent={null}
-        opinion={NO_OPINION}
+        comment={null}
         defaultSaveIntent="watchlist"
       />,
     );
@@ -101,7 +96,7 @@ describe("MovieHero", () => {
         watchSummary={UNWATCHED}
         watchEvents={[]}
         planningIntent={null}
-        opinion={NO_OPINION}
+        comment={null}
         defaultSaveIntent="watchlist"
       />,
     );
@@ -119,7 +114,7 @@ describe("MovieHero", () => {
         watchSummary={UNWATCHED}
         watchEvents={[]}
         planningIntent={null}
-        opinion={NO_OPINION}
+        comment={null}
         defaultSaveIntent="watchlist"
       />,
     );
@@ -135,7 +130,7 @@ describe("MovieHero", () => {
         watchSummary={UNWATCHED}
         watchEvents={[]}
         planningIntent={null}
-        opinion={NO_OPINION}
+        comment={null}
         defaultSaveIntent="watchlist"
       />,
     );
@@ -149,7 +144,7 @@ describe("MovieHero", () => {
         watchSummary={UNWATCHED}
         watchEvents={[]}
         planningIntent={null}
-        opinion={NO_OPINION}
+        comment={null}
         defaultSaveIntent="watchlist"
       />,
     );
@@ -165,7 +160,7 @@ describe("MovieHero", () => {
         watchSummary={UNWATCHED}
         watchEvents={[]}
         planningIntent={null}
-        opinion={NO_OPINION}
+        comment={null}
         defaultSaveIntent="watchlist"
       />,
     );
@@ -181,7 +176,7 @@ describe("MovieHero", () => {
         watchSummary={{ hasWatched: true, watchCount: 2, lastWatchedAt: new Date("2024-01-01") }}
         watchEvents={[]}
         planningIntent={null}
-        opinion={NO_OPINION}
+        comment={null}
         defaultSaveIntent="watchlist"
       />,
     );
@@ -204,7 +199,7 @@ describe("MovieHero", () => {
         watchSummary={UNWATCHED}
         watchEvents={[]}
         planningIntent={null}
-        opinion={NO_OPINION}
+        comment={null}
         defaultSaveIntent="watchlist"
       />,
     );
@@ -222,7 +217,7 @@ describe("MovieHero", () => {
         watchSummary={UNWATCHED}
         watchEvents={[]}
         planningIntent={null}
-        opinion={NO_OPINION}
+        comment={null}
         defaultSaveIntent="watchlist"
       />,
     );
@@ -239,7 +234,7 @@ describe("MovieHero", () => {
         watchSummary={UNWATCHED}
         watchEvents={[]}
         planningIntent={null}
-        opinion={NO_OPINION}
+        comment={null}
         defaultSaveIntent="watchlist"
       />,
     );
@@ -255,7 +250,7 @@ describe("MovieHero", () => {
         watchSummary={UNWATCHED}
         watchEvents={[]}
         planningIntent="backlog"
-        opinion={NO_OPINION}
+        comment={null}
         defaultSaveIntent="watchlist"
       />,
     );
@@ -271,7 +266,7 @@ describe("MovieHero", () => {
         watchSummary={{ hasWatched: true, watchCount: 1, lastWatchedAt: new Date("2024-01-01") }}
         watchEvents={[]}
         planningIntent={null}
-        opinion={NO_OPINION}
+        comment={null}
         defaultSaveIntent="watchlist"
       />,
     );
@@ -287,7 +282,7 @@ describe("MovieHero", () => {
         watchSummary={UNWATCHED}
         watchEvents={[]}
         planningIntent={null}
-        opinion={NO_OPINION}
+        comment={null}
         defaultSaveIntent="watchlist"
       />,
     );

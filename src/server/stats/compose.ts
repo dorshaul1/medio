@@ -1,6 +1,5 @@
 import "server-only";
 import { requireSession } from "@/server/auth/session";
-import { listMediaRatings } from "@/server/opinions/ratings";
 import { getPersonDetails } from "@/server/tmdb/queries";
 import {
   getActiveStatsYears,
@@ -13,7 +12,9 @@ import { getMovieWatchAggregates, getShowWatchAggregates } from "./candidates";
 import { deriveStatsComparison } from "./compare";
 import { computeCompletionInsight } from "./completion";
 import {
+  MIN_EVENTS_FOR_WEEKDAY_INSIGHT,
   STATS_TIMELINE_MONTHS,
+  TASTE_CREDITS_HYDRATION_LIMIT,
   TASTE_RECENT_MOVIE_HYDRATION_LIMIT,
   TASTE_RECENT_SHOW_HYDRATION_LIMIT,
 } from "./constants";
@@ -31,7 +32,6 @@ import {
   type StatsRangeBounds,
   statsRangeSupportsComparison,
 } from "./range";
-import { computeMovieShowRatingComparison, computeRatingDistribution } from "./rating-summary";
 import {
   computeRewatchRatePercent,
   findMostRevisitedShow,
@@ -40,6 +40,7 @@ import {
 import {
   computeDailyActivity,
   computeMonthlyActivity,
+  computeWeekdayActivity,
   computeYearlyActivity,
   toActivityBuckets,
 } from "./timeline";
@@ -51,6 +52,7 @@ import type {
   StatsProfile,
   TasteTitle,
   ViewingRhythm,
+  WeekdayRhythm,
 } from "./types";
 import { estimateViewingTime } from "./viewing-time";
 
@@ -60,13 +62,9 @@ import { estimateViewingTime } from "./viewing-time";
 // directory is explicitly `userId`-scoped, never session-aware itself.
 //
 // Everything returned here is *derived* at request time from
-// user-owned facts (tracking events, ratings) plus normalized provider
-// metadata — nothing here is ever written back to Postgres (see
-// CLAUDE.md, "Stats is derived...").
-
-function ratingKey(mediaType: "movie" | "show", providerId: number): string {
-  return `${mediaType}:${providerId}`;
-}
+// user-owned facts (tracking events) plus normalized provider metadata —
+// nothing here is ever written back to Postgres (see CLAUDE.md, "Stats
+// is derived...").
 
 function findHydratedTitle(
   titles: readonly TasteTitle[],
@@ -115,18 +113,28 @@ async function computeViewingRhythm(
   userId: string,
   range: StatsRange,
   now: Date,
-): Promise<ViewingRhythm> {
+): Promise<{ viewingRhythm: ViewingRhythm; weekdayRhythm: WeekdayRhythm }> {
   if (range.kind === "all") {
     const yearly = await getYearlyActivityCounts(userId);
-    if (yearly.length === 0) return null;
-    return { granularity: "year", buckets: computeYearlyActivity(yearly) };
+    // "All time" never fetches raw timestamps (would mean an unbounded
+    // lifetime pull) — the weekday breakdown simply isn't available here,
+    // same documented limitation as any other range-bound insight (see
+    // `computeWeekdayActivity`).
+    if (yearly.length === 0) return { viewingRhythm: null, weekdayRhythm: null };
+    return {
+      viewingRhythm: { granularity: "year", buckets: computeYearlyActivity(yearly) },
+      weekdayRhythm: null,
+    };
   }
 
   if (range.kind === "month") {
     const bounds = resolveStatsRangeBounds(range, now);
-    if (!bounds) return null;
+    if (!bounds) return { viewingRhythm: null, weekdayRhythm: null };
     const timestamps = await getViewingTimestampsInRange(userId, bounds);
-    return { granularity: "day", buckets: computeDailyActivity(timestamps, range) };
+    return {
+      viewingRhythm: { granularity: "day", buckets: computeDailyActivity(timestamps, range) },
+      weekdayRhythm: computeWeekdayActivity(timestamps, MIN_EVENTS_FOR_WEEKDAY_INSIGHT),
+    };
   }
 
   // "year" / "last12months" — a real trailing-12-month window: for a
@@ -135,10 +143,13 @@ async function computeViewingRhythm(
   // function lands exactly on Jan-Dec of the requested year.
   const anchorNow = range.kind === "year" ? new Date(Date.UTC(range.year + 1, 0, 1)) : now;
   const bounds = resolveStatsRangeBounds(range, now);
-  if (!bounds) return null;
+  if (!bounds) return { viewingRhythm: null, weekdayRhythm: null };
   const timestamps = await getViewingTimestampsInRange(userId, bounds);
   const monthly = computeMonthlyActivity(timestamps, STATS_TIMELINE_MONTHS, anchorNow);
-  return { granularity: "month", buckets: toActivityBuckets(monthly) };
+  return {
+    viewingRhythm: { granularity: "month", buckets: toActivityBuckets(monthly) },
+    weekdayRhythm: computeWeekdayActivity(timestamps, MIN_EVENTS_FOR_WEEKDAY_INSIGHT),
+  };
 }
 
 // Builds one full `StatsProfile` for an already-resolved `bounds` — the
@@ -158,18 +169,12 @@ async function buildStatsProfile(input: {
 }): Promise<StatsProfile> {
   const { userId, range, bounds, now, lightweight = false } = input;
 
-  const [viewingVolume, trackingCounts, movieAggregates, showAggregates, ratings] =
-    await Promise.all([
-      getViewingVolume(userId, bounds),
-      getTrackingStateCounts(userId),
-      getMovieWatchAggregates(userId, bounds),
-      getShowWatchAggregates(userId, bounds),
-      listMediaRatings(),
-    ]);
-
-  const ratingByKey = new Map(
-    ratings.map((rating) => [ratingKey(rating.mediaType, rating.mediaProviderId), rating.rating]),
-  );
+  const [viewingVolume, trackingCounts, movieAggregates, showAggregates] = await Promise.all([
+    getViewingVolume(userId, bounds),
+    getTrackingStateCounts(userId),
+    getMovieWatchAggregates(userId, bounds),
+    getShowWatchAggregates(userId, bounds),
+  ]);
 
   // Computed on the full (unbounded within the range, cheap — SQL
   // group/count only) aggregate rows, so a rewatch title is never missed
@@ -181,7 +186,6 @@ async function buildStatsProfile(input: {
     candidates: movieAggregates.map((movie) => ({
       id: movie.movieProviderId,
       lastActivityAt: movie.lastWatchedAt,
-      isRated: ratingByKey.has(ratingKey("movie", movie.movieProviderId)),
     })),
     mustIncludeIds: mostRewatchedMovieAgg ? [mostRewatchedMovieAgg.movieProviderId] : [],
     limit: TASTE_RECENT_MOVIE_HYDRATION_LIMIT,
@@ -190,7 +194,6 @@ async function buildStatsProfile(input: {
     candidates: showAggregates.map((show) => ({
       id: show.showProviderId,
       lastActivityAt: show.lastActivityAt,
-      isRated: ratingByKey.has(ratingKey("show", show.showProviderId)),
     })),
     mustIncludeIds: mostRevisitedShowAgg ? [mostRevisitedShowAgg.showProviderId] : [],
     limit: TASTE_RECENT_SHOW_HYDRATION_LIMIT,
@@ -198,30 +201,55 @@ async function buildStatsProfile(input: {
   const selectedMovieIdSet = new Set(selectedMovieIds);
   const selectedShowIdSet = new Set(selectedShowIds);
 
-  const titles = await hydrateTasteTitles({
-    movies: movieAggregates
-      .filter((movie) => selectedMovieIdSet.has(movie.movieProviderId))
-      .map((movie) => ({
-        movieProviderId: movie.movieProviderId,
-        watchCount: movie.watchCount,
-        lastWatchedAt: movie.lastWatchedAt,
-        rating: ratingByKey.get(ratingKey("movie", movie.movieProviderId)) ?? null,
+  // Credits (director/cast) are the expensive part of hydration — only a
+  // smaller, most-recently-active subset of the already-selected titles
+  // gets fetched, bounded independent of total lifetime history (see
+  // TASTE_CREDITS_HYDRATION_LIMIT).
+  const selectedMovies = movieAggregates.filter((movie) =>
+    selectedMovieIdSet.has(movie.movieProviderId),
+  );
+  const selectedShows = showAggregates.filter((show) => selectedShowIdSet.has(show.showProviderId));
+  const creditsMovieIdSet = new Set(
+    selectHydrationIds({
+      candidates: selectedMovies.map((movie) => ({
+        id: movie.movieProviderId,
+        lastActivityAt: movie.lastWatchedAt,
       })),
-    shows: showAggregates
-      .filter((show) => selectedShowIdSet.has(show.showProviderId))
-      .map((show) => ({
-        showProviderId: show.showProviderId,
-        watchedEpisodeCount: show.watchedEpisodeCount,
-        rewatchedEpisodeCount: show.rewatchedEpisodeCount,
-        totalEpisodeEvents: show.totalEpisodeEvents,
+      mustIncludeIds: mostRewatchedMovieAgg ? [mostRewatchedMovieAgg.movieProviderId] : [],
+      limit: TASTE_CREDITS_HYDRATION_LIMIT,
+    }),
+  );
+  const creditsShowIdSet = new Set(
+    selectHydrationIds({
+      candidates: selectedShows.map((show) => ({
+        id: show.showProviderId,
         lastActivityAt: show.lastActivityAt,
-        rating: ratingByKey.get(ratingKey("show", show.showProviderId)) ?? null,
       })),
+      mustIncludeIds: mostRevisitedShowAgg ? [mostRevisitedShowAgg.showProviderId] : [],
+      limit: TASTE_CREDITS_HYDRATION_LIMIT,
+    }),
+  );
+
+  const titles = await hydrateTasteTitles({
+    movies: selectedMovies.map((movie) => ({
+      movieProviderId: movie.movieProviderId,
+      watchCount: movie.watchCount,
+      lastWatchedAt: movie.lastWatchedAt,
+      fetchCredits: creditsMovieIdSet.has(movie.movieProviderId),
+    })),
+    shows: selectedShows.map((show) => ({
+      showProviderId: show.showProviderId,
+      watchedEpisodeCount: show.watchedEpisodeCount,
+      rewatchedEpisodeCount: show.rewatchedEpisodeCount,
+      totalEpisodeEvents: show.totalEpisodeEvents,
+      lastActivityAt: show.lastActivityAt,
+      fetchCredits: creditsShowIdSet.has(show.showProviderId),
+    })),
   });
 
   const genres = computeGenreInsights(titles);
   const directorStats = computeFavoriteDirectors(titles);
-  const actors = computeFavoriteActors(titles);
+  const actorStats = computeFavoriteActors(titles);
   const directors = lightweight ? directorStats : await hydrateDirectorPortraits(directorStats);
 
   const mostRewatchedMovieTitle =
@@ -262,32 +290,17 @@ async function buildStatsProfile(input: {
     viewingVolume.uniqueShowsWatched,
   );
 
-  // Rating-based insights are scoped to titles actually watched within
-  // this range — but each title's *value* is always its current rating,
-  // never a historical one (see docs/stats.md, "Date-range rating
-  // semantics"). `ratingByKey` above is already built from every rating
-  // regardless of range; only *which titles count at all* is scoped
-  // here, by intersecting with the range-scoped aggregate rows.
-  const inRangeMovieIds = new Set(movieAggregates.map((movie) => movie.movieProviderId));
-  const inRangeShowIds = new Set(showAggregates.map((show) => show.showProviderId));
-  const inRangeRatings = ratings.filter(
-    (rating) =>
-      (rating.mediaType === "movie" && inRangeMovieIds.has(rating.mediaProviderId)) ||
-      (rating.mediaType === "show" && inRangeShowIds.has(rating.mediaProviderId)),
-  );
-  const ratingDistribution = computeRatingDistribution(
-    inRangeRatings.map((rating) => rating.rating),
-  );
-  const ratingComparison = computeMovieShowRatingComparison(
-    inRangeRatings.filter((rating) => rating.mediaType === "movie").map((rating) => rating.rating),
-    inRangeRatings.filter((rating) => rating.mediaType === "show").map((rating) => rating.rating),
-  );
-  const headline = computeTasteHeadline(genres, directors);
+  const headline = computeTasteHeadline(genres, directors, actorStats);
 
   const hasAnyHistory =
     viewingVolume.uniqueMoviesWatched > 0 || viewingVolume.uniqueEpisodesWatched > 0;
-  const viewingRhythm =
-    !lightweight && hasAnyHistory ? await computeViewingRhythm(userId, range, now) : null;
+  let viewingRhythm: ViewingRhythm = null;
+  let weekdayRhythm: WeekdayRhythm = null;
+  if (!lightweight && hasAnyHistory) {
+    const rhythm = await computeViewingRhythm(userId, range, now);
+    viewingRhythm = rhythm.viewingRhythm;
+    weekdayRhythm = rhythm.weekdayRhythm;
+  }
   const estimatedViewingTime = estimateViewingTime(
     titles,
     viewingVolume.movieWatchEventCount + viewingVolume.episodeWatchEventCount,
@@ -299,16 +312,14 @@ async function buildStatsProfile(input: {
     overview: viewingVolume,
     headline,
     viewingRhythm,
+    weekdayRhythm,
     estimatedViewingTime,
     genres,
     directors,
-    actors,
+    actors: actorStats,
     rewatch: { mostRewatchedMovie, mostRevisitedShow, rewatchRatePercent },
     movieVsShow,
     completion,
-    ratingDistribution,
-    ratingComparison,
-    ratedTitleCount: inRangeRatings.length,
   };
 }
 

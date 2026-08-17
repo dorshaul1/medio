@@ -95,8 +95,8 @@ environment including production.
 - **No transaction helpers yet** — use Drizzle's native transaction API
   directly when a real multi-step atomic operation exists.
 - **Data ownership:** our PostgreSQL database owns users, auth-related
-  application state, watch state/history, lists, ratings, notes,
-  preferences, and other application-owned metadata. External media
+  application state, watch state/history, lists, comments, preferences,
+  and other application-owned metadata. External media
   providers (e.g. TMDB) own media metadata — we do not mirror their entire
   catalog into PostgreSQL. External media IDs and our user-owned state are
   kept as separate, deliberately-linked concerns, not merged.

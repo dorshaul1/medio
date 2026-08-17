@@ -1,6 +1,6 @@
 import "server-only";
 import { requireSession } from "@/server/auth/session";
-import { setMediaRating } from "@/server/opinions/ratings";
+import { setMediaComment } from "@/server/opinions/comments";
 import { addToBacklog, addToWatchlist } from "@/server/planning/planning-items";
 import { getSeasonDetails } from "@/server/tmdb/queries";
 import { recordEpisodeWatch } from "@/server/tracking/episode-events";
@@ -11,7 +11,7 @@ import { assertDeveloperToolsEnabled } from "./guard";
 // provider IDs, so every mocked title actually resolves to real artwork/
 // metadata the same way a genuine watch would. Every mutation below goes
 // through the exact same domain functions (`recordMovieWatch`,
-// `recordEpisodeWatch`, `setMediaRating`, `addToWatchlist`/
+// `recordEpisodeWatch`, `setMediaComment`, `addToWatchlist`/
 // `addToBacklog`) a real user action would call — this is realistic
 // seed data, not a parallel shortcut into the database. See
 // docs/settings.md, "Developer tools".
@@ -22,17 +22,17 @@ function daysAgo(days: number): Date {
 
 // `watches`: one entry per real viewing event (days ago) — more than one
 // entry means a rewatch, exactly like a real user watching it twice.
-const MOCK_MOVIES: readonly { id: number; rating?: number; watches: readonly number[] }[] = [
-  { id: 550, rating: 5, watches: [420, 20] }, // Fight Club — rewatched
-  { id: 155, rating: 5, watches: [300] }, // The Dark Knight
-  { id: 27205, rating: 5, watches: [250] }, // Inception
-  { id: 13, rating: 4, watches: [200] }, // Forrest Gump
-  { id: 680, rating: 4, watches: [180] }, // Pulp Fiction
-  { id: 372058, rating: 4, watches: [150] }, // Your Name.
-  { id: 118340, rating: 3, watches: [120] }, // Guardians of the Galaxy
-  { id: 24428, rating: 3, watches: [100] }, // The Avengers
-  { id: 603, watches: [60] }, // The Matrix — unrated, on purpose
-  { id: 278, rating: 5, watches: [520, 380, 30] }, // The Shawshank Redemption — heavily rewatched
+const MOCK_MOVIES: readonly { id: number; comment?: string; watches: readonly number[] }[] = [
+  { id: 550, comment: "Rewatched this one — still holds up.", watches: [420, 20] }, // Fight Club — rewatched
+  { id: 155, comment: "Heath Ledger's Joker is unmatched.", watches: [300] }, // The Dark Knight
+  { id: 27205, watches: [250] }, // Inception
+  { id: 13, watches: [200] }, // Forrest Gump
+  { id: 680, watches: [180] }, // Pulp Fiction
+  { id: 372058, comment: "Beautiful animation.", watches: [150] }, // Your Name.
+  { id: 118340, watches: [120] }, // Guardians of the Galaxy
+  { id: 24428, watches: [100] }, // The Avengers
+  { id: 603, watches: [60] }, // The Matrix
+  { id: 278, comment: "One of the best ever made.", watches: [520, 380, 30] }, // The Shawshank Redemption — heavily rewatched
 ];
 
 // One real season per show — episodes come from a live TMDB fetch so
@@ -41,13 +41,19 @@ const MOCK_MOVIES: readonly { id: number; rating?: number; watches: readonly num
 const MOCK_SHOWS: readonly {
   showId: number;
   seasonNumber: number;
-  rating?: number;
+  comment?: string;
   episodeCount: number;
   rewatchFirstEpisode?: boolean;
 }[] = [
-  { showId: 1396, seasonNumber: 1, rating: 5, episodeCount: 7, rewatchFirstEpisode: true }, // Breaking Bad S1
-  { showId: 1399, seasonNumber: 1, rating: 4, episodeCount: 4 }, // Game of Thrones S1
-  { showId: 60625, seasonNumber: 1, episodeCount: 2 }, // Rick and Morty S1 — unrated
+  {
+    showId: 1396,
+    seasonNumber: 1,
+    comment: "Incredible season.",
+    episodeCount: 7,
+    rewatchFirstEpisode: true,
+  }, // Breaking Bad S1
+  { showId: 1399, seasonNumber: 1, episodeCount: 4 }, // Game of Thrones S1
+  { showId: 60625, seasonNumber: 1, episodeCount: 2 }, // Rick and Morty S1
 ];
 
 const MOCK_WATCHLIST_MOVIE_IDS: readonly number[] = [244786]; // Whiplash
@@ -74,8 +80,12 @@ export async function seedMockData(): Promise<MockDataResult> {
       await recordMovieWatch({ movieProviderId: movie.id, watchedAt: daysAgo(daysAgoOffset) });
       movieEventsCreated++;
     }
-    if (movie.rating !== undefined) {
-      await setMediaRating({ mediaType: "movie", mediaProviderId: movie.id, rating: movie.rating });
+    if (movie.comment !== undefined) {
+      await setMediaComment({
+        mediaType: "movie",
+        mediaProviderId: movie.id,
+        content: movie.comment,
+      });
     }
   }
 
@@ -110,11 +120,11 @@ export async function seedMockData(): Promise<MockDataResult> {
         episodeEventsCreated++;
       }
 
-      if (show.rating !== undefined) {
-        await setMediaRating({
+      if (show.comment !== undefined) {
+        await setMediaComment({
           mediaType: "show",
           mediaProviderId: show.showId,
-          rating: show.rating,
+          content: show.comment,
         });
       }
       showsSeeded++;

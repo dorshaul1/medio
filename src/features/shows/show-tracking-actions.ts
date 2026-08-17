@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import {
   markSeasonWatched,
   markShowWatched,
@@ -18,48 +17,39 @@ import {
   startWatchingShow,
 } from "@/server/tracking/show-state";
 import type { EpisodeWatchEvent, ShowTrackingState } from "@/server/tracking/types";
+import { revalidateTrackingSurfaces } from "@/server/mutations/revalidate-tracking-surfaces";
 
 // Thin Server Action wrappers around the tracking domain (see the
 // equivalent comment in features/movies/movie-tracking-actions.ts).
-// Revalidates the show page, the season page, Home (`/`), and Calendar —
-// any of these writes can change personalized Home's Up Next/Continue
-// Watching/Finish Soon membership (see docs/home.md) *and* Calendar's
-// "New Episode Available" release events (see docs/calendar.md), since
-// both read the exact same unified next-episode domain. All revalidated
-// together rather than tracking exactly which one a given action affects.
+// Every write here goes through the one shared
+// `revalidateTrackingSurfaces` — see that module's own comment for why:
+// any of these can change personalized Home's Up Next/Continue Watching/
+// Finish Soon membership (see docs/home.md), Calendar's "New Episode
+// Available" release events (see docs/calendar.md), Library's rows/
+// progress, Stats' aggregates, and Pick for Me's candidates, since all of
+// them read the same unified next-episode/watch-event domain.
 
 export async function startWatchingShowAction(showProviderId: number): Promise<ShowTrackingState> {
   const state = await startWatchingShow(showProviderId);
-  revalidatePath(`/shows/${showProviderId}`);
-  revalidatePath("/");
-  revalidatePath("/calendar");
-  // Also called as Library's own "Resume" quick action (see
-  // features/library/library-show-quick-action.tsx) — see docs/library.md.
-  revalidatePath("/library");
+  revalidateTrackingSurfaces({ showProviderId, affectsDiary: false });
   return state;
 }
 
 export async function putShowOnHoldAction(showProviderId: number): Promise<ShowTrackingState> {
   const state = await putShowOnHold(showProviderId);
-  revalidatePath(`/shows/${showProviderId}`);
-  revalidatePath("/");
-  revalidatePath("/calendar");
+  revalidateTrackingSurfaces({ showProviderId, affectsDiary: false });
   return state;
 }
 
 export async function dropShowAction(showProviderId: number): Promise<ShowTrackingState> {
   const state = await dropShow(showProviderId);
-  revalidatePath(`/shows/${showProviderId}`);
-  revalidatePath("/");
-  revalidatePath("/calendar");
+  revalidateTrackingSurfaces({ showProviderId, affectsDiary: false });
   return state;
 }
 
 export async function clearShowTrackingStateAction(showProviderId: number): Promise<void> {
   await clearShowTrackingState(showProviderId);
-  revalidatePath(`/shows/${showProviderId}`);
-  revalidatePath("/");
-  revalidatePath("/calendar");
+  revalidateTrackingSurfaces({ showProviderId, affectsDiary: false });
 }
 
 export async function markEpisodeWatchedAction(input: {
@@ -70,13 +60,11 @@ export async function markEpisodeWatchedAction(input: {
   watchedAt?: Date;
 }): Promise<EpisodeWatchEvent> {
   const event = await recordEpisodeWatch(input);
-  revalidatePath(`/shows/${input.showProviderId}`);
-  revalidatePath(`/shows/${input.showProviderId}/seasons/${input.seasonNumber}`);
-  revalidatePath("/");
-  revalidatePath("/calendar");
-  // Also called as Library's own next-episode quick action (see
-  // features/library/library-show-quick-action.tsx) — see docs/library.md.
-  revalidatePath("/library");
+  revalidateTrackingSurfaces({
+    showProviderId: input.showProviderId,
+    seasonNumbers: [input.seasonNumber],
+    affectsDiary: true,
+  });
   return event;
 }
 
@@ -85,9 +73,7 @@ export async function markEpisodeWatchedAction(input: {
 // `ShowTrackingControl`). Explicit tracking state is untouched.
 export async function resetShowProgressAction(showProviderId: number): Promise<void> {
   await resetShowWatchHistory(showProviderId);
-  revalidatePath(`/shows/${showProviderId}`);
-  revalidatePath("/");
-  revalidatePath("/calendar");
+  revalidateTrackingSurfaces({ showProviderId, affectsDiary: true });
 }
 
 // Episode tracking is a plain watched/unwatched toggle, not
@@ -99,10 +85,11 @@ export async function unmarkEpisodeWatchedAction(input: {
   seasonNumber: number;
 }): Promise<void> {
   await unmarkEpisodeWatched(input.episodeProviderId);
-  revalidatePath(`/shows/${input.showProviderId}`);
-  revalidatePath(`/shows/${input.showProviderId}/seasons/${input.seasonNumber}`);
-  revalidatePath("/");
-  revalidatePath("/calendar");
+  revalidateTrackingSurfaces({
+    showProviderId: input.showProviderId,
+    seasonNumbers: [input.seasonNumber],
+    affectsDiary: true,
+  });
 }
 
 // Removes exactly one episode watch event — the Diary's "Delete" action
@@ -111,8 +98,7 @@ export async function unmarkEpisodeWatchedAction(input: {
 // *every* watch event for the episode (episode tracking's plain
 // watched/unwatched model — see docs/tracking.md); this removes exactly
 // the one event identified by `eventId`, so deleting one rewatch never
-// touches the episode's other viewings. Revalidates the same surfaces
-// every other episode-history write does — deleting the last remaining
+// touches the episode's other viewings. Deleting the last remaining
 // event for an episode can change Show Details' progress, the Season
 // page, Library, and Home's Up Next/Continue Watching/Finish Soon
 // membership, none of which are copies that need separate updating —
@@ -124,12 +110,11 @@ export async function removeEpisodeWatchEventAction(input: {
   seasonNumber: number;
 }): Promise<void> {
   await removeEpisodeWatchEvent(input.eventId);
-  revalidatePath(`/shows/${input.showProviderId}`);
-  revalidatePath(`/shows/${input.showProviderId}/seasons/${input.seasonNumber}`);
-  revalidatePath("/");
-  revalidatePath("/calendar");
-  revalidatePath("/library");
-  revalidatePath("/library/diary");
+  revalidateTrackingSurfaces({
+    showProviderId: input.showProviderId,
+    seasonNumbers: [input.seasonNumber],
+    affectsDiary: true,
+  });
 }
 
 // The Diary's "Edit watch date" action for an episode viewing (see
@@ -145,12 +130,11 @@ export async function updateEpisodeWatchedAtAction(input: {
   watchedAt: Date;
 }): Promise<EpisodeWatchEvent | null> {
   const event = await updateEpisodeWatchedAt(input.eventId, input.watchedAt);
-  revalidatePath(`/shows/${input.showProviderId}`);
-  revalidatePath(`/shows/${input.showProviderId}/seasons/${input.seasonNumber}`);
-  revalidatePath("/");
-  revalidatePath("/calendar");
-  revalidatePath("/library");
-  revalidatePath("/library/diary");
+  revalidateTrackingSurfaces({
+    showProviderId: input.showProviderId,
+    seasonNumbers: [input.seasonNumber],
+    affectsDiary: true,
+  });
   return event;
 }
 
@@ -165,28 +149,28 @@ export async function markSeasonWatchedAction(input: {
   episodes: readonly { episodeNumber: number; episodeProviderId: number }[];
 }): Promise<void> {
   await markSeasonWatched(input);
-  revalidatePath(`/shows/${input.showProviderId}`);
-  revalidatePath(`/shows/${input.showProviderId}/seasons/${input.seasonNumber}`);
-  revalidatePath("/");
-  revalidatePath("/calendar");
-  revalidatePath("/library");
+  revalidateTrackingSurfaces({
+    showProviderId: input.showProviderId,
+    seasonNumbers: [input.seasonNumber],
+    affectsDiary: true,
+  });
 }
 
 // Show Details' whole-show bulk action (see `MarkShowWatchedControl`) —
 // marks every remaining aired episode across every regular season
-// watched, in one transaction. Only the show's own route is revalidated
-// here, same precedent as `resetShowProgressAction`'s equivalent
-// whole-show bulk mutation below — an individual season page picks up
-// the change on its own next visit.
+// watched, in one transaction. Revalidates every season page actually
+// touched (derived from `input.episodes`), not just the show's own page.
 export async function markShowWatchedAction(input: {
   showProviderId: number;
   episodes: readonly { seasonNumber: number; episodeNumber: number; episodeProviderId: number }[];
 }): Promise<void> {
   await markShowWatched(input);
-  revalidatePath(`/shows/${input.showProviderId}`);
-  revalidatePath("/");
-  revalidatePath("/calendar");
-  revalidatePath("/library");
+  const seasonNumbers = [...new Set(input.episodes.map((episode) => episode.seasonNumber))];
+  revalidateTrackingSurfaces({
+    showProviderId: input.showProviderId,
+    seasonNumbers,
+    affectsDiary: true,
+  });
 }
 
 // The toggle-back half of `markSeasonWatchedAction` — deletes every
@@ -198,8 +182,9 @@ export async function unmarkSeasonWatchedAction(input: {
   seasonNumber: number;
 }): Promise<void> {
   await unmarkSeasonWatched(input);
-  revalidatePath(`/shows/${input.showProviderId}`);
-  revalidatePath(`/shows/${input.showProviderId}/seasons/${input.seasonNumber}`);
-  revalidatePath("/");
-  revalidatePath("/calendar");
+  revalidateTrackingSurfaces({
+    showProviderId: input.showProviderId,
+    seasonNumbers: [input.seasonNumber],
+    affectsDiary: true,
+  });
 }

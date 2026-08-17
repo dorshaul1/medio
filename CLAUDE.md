@@ -47,11 +47,28 @@ in the same change.
   UI or domain code.
 - Do not opportunistically implement future phases. If a task is scoped to
   one phase, stop at that phase's boundary even if the next step seems obvious.
+- Do not introduce new user-facing features during a dedicated hardening/
+  reliability phase — that phase's job is making existing behavior
+  correct and consistent, not growing scope.
+- Date/time grouping and range logic must reuse the canonical timezone/
+  date-only helpers each domain already owns (`server/calendar/date.ts`,
+  `server/stats/range.ts`, `features/diary/diary-date-grouping.ts`, ...)
+  — never independently parse or convert the same timestamps in a new
+  file. A date-only value (`YYYY-MM-DD`) is never round-tripped through
+  `new Date(dateOnly)` plus local getters; raw SQL date bucketing must
+  force UTC explicitly (`at time zone 'UTC'`) rather than relying on the
+  database connection's own session timezone.
 
 ## Quality
 
 - Preserve accessibility (semantic HTML, labels, keyboard behavior, contrast).
 - Preserve responsive behavior.
+- Loading/error/empty behavior should preserve useful state and avoid
+  unnecessary page blanking or flicker — keep already-valid data on
+  screen during a background refresh when it's safe to; a partial
+  provider/secondary-data failure degrades that one piece, never the
+  whole screen (see "Media provider" and the per-domain "Missing
+  provider media" precedent already established throughout this app).
 - Run the relevant quality commands before calling work done: `pnpm check`
   (format check + lint + typecheck + unit/component tests) at minimum;
   `pnpm build` for anything touching routing, config, or dependencies;
@@ -81,6 +98,12 @@ in the same change.
   test suite passed without actually running it.
 - When fixing a bug with a stable, reproducible case, add a regression test
   if it provides meaningful protection.
+- Major watch-state behavior (progress, next-episode eligibility, derived
+  Show state, rewatches, exact-event deletion) requires cross-product
+  domain/integration tests that assert Home, Library, Diary, Calendar,
+  and Pick for Me all agree from the same underlying event rows — not
+  only component tests against one surface at a time. See
+  `server/tracking/cross-product-consistency.test.ts`.
 
 ## Visual system
 
@@ -224,9 +247,21 @@ in the same change.
   session itself at that point — see docs/authentication.md.
 - Logout always returns to `/` (the public Landing page), never to
   `/sign-in`.
-- A safe internal return destination (`?next=`) may be preserved through
-  Sign In/Sign Up; external or protocol-relative "return" URLs are always
-  rejected (`src/lib/safe-redirect.ts`) — never trust `next` blindly.
+- Logout/account switching must invalidate private client state and may
+  never flash previous-user content. MEDIO relies on this holding by
+  construction (a hard navigation on sign-out clears all in-memory React
+  state; nothing personalized is ever fetch-cached — see "PWA" below) —
+  but any state deliberately kept in `localStorage`/`sessionStorage`
+  (e.g. GlobalSearch's recent searches) must be explicitly cleared on
+  sign-out too, since a page reload alone does not clear it.
+- A safe internal return destination (`?next=`) is preserved through Sign
+  In — a returning user goes back to where they were interrupted;
+  external or protocol-relative "return" URLs are always rejected
+  (`src/lib/safe-redirect.ts`) — never trust `next` blindly. Sign Up is
+  deliberately different: a brand-new account has nothing to "return
+  to," so completing it always lands on Home regardless of `next` (which
+  still exists on the Sign Up page only to carry through to the "Log in"
+  switch link, for someone who already has an account).
 - Keep auth/database code server-only; never expose `BETTER_AUTH_SECRET` or
   a session token (no logging either).
 - Use Better Auth's inferred types (session, user) — don't hand-duplicate them.
@@ -319,13 +354,19 @@ in the same change.
 - Map provider responses to application-owned media models via pure
   mapper functions — never pass a raw TMDB object upward.
 - Do not mirror the TMDB catalog into PostgreSQL.
-- TMDB's `vote_average` is `providerRating`, never `rating` — that name is
-  reserved for a future personal/user rating.
+- TMDB's `vote_average` is `providerRating`, never `rating` — MEDIO has no
+  personal rating feature (see docs/opinions.md), and that name must not
+  be reused to imply otherwise.
 - Do not add TMDB endpoints until a real product feature needs them.
 - Live TMDB calls must never be required by normal unit/E2E tests or CI —
   `pnpm tmdb:check` is the explicit, separate live-connectivity check.
 - TMDB requires attribution; watch-provider data (future) requires
   separate JustWatch attribution — see `docs/media-provider.md`.
+- Public provider metadata should be deduplicated and cached
+  appropriately, and must never create a per-card or per-event N+1
+  request pattern — fetch full Show/Movie Details once per visible
+  title, never once per row/episode; group episode hydration by
+  Show/Season where the domain allows it (see `getShowEpisodeProgress`).
 
 ## Media UI
 
@@ -470,11 +511,34 @@ in the same change.
 
 ## Tracking
 
+- Movie and Episode watch events are MEDIO's canonical viewing-history
+  source of truth. Progress, next Episode, and derived Show states
+  (`watching`/`caught_up`/`waiting`/`completed`) must come from one
+  shared domain implementation (`server/tracking/`,
+  `server/shows/show-episode-progress.ts`) and must not be independently
+  recreated by Home, Library, Calendar, Show Details, or Pick for Me —
+  see docs/tracking.md, "Canonical domain ownership", and its
+  `cross-product-consistency.test.ts` regression suite. Library's
+  season-level approximate aired-episode count is the one deliberate,
+  documented exception (see docs/library.md); it is never the excuse to
+  add a second one elsewhere.
+- Mutations must define consistent downstream invalidation/update
+  behavior across Home, Library, Diary, Calendar, Stats, and Pick for
+  Me — via the one shared `revalidateTrackingSurfaces`
+  (`server/mutations/revalidate-tracking-surfaces.ts`), never a
+  hand-rolled `revalidatePath` list per action (see docs/tracking.md,
+  "Mutation architecture").
+- Optimistic UI must roll back on persistence failure and must never
+  leave false watched/save state on screen — an in-flight mutation may
+  show a pending/loading state, but never a "succeeded" state before the
+  server actually confirms it.
 - Watch history is event-based; never replace it with `isWatched`.
   Multiple viewing events for the same movie/episode represent rewatches
   — never a manually maintained `rewatchCount`.
 - Rewatches increase watch count but never unique-episode progress —
-  dedupe by episode identity before counting progress.
+  dedupe by episode identity before counting progress. Rewatches are
+  separate canonical watch events: unique-title counts and viewing-event
+  counts are always distinct figures, never conflated.
 - Movie and episode watch events are private, user-owned data — every
   mutation's `WHERE` clause enforces ownership directly; never trust an
   event ID alone, never accept a caller-supplied user ID.
@@ -516,6 +580,22 @@ in the same change.
   that requires a confirmation step before running — every other
   tracking action commits immediately.
 
+## Opinions
+
+- MEDIO has no personal rating feature — no star rating, no numeric
+  score, anywhere in the product. See docs/opinions.md. The one opinion
+  primitive is a private per-title comment (`media_comments`,
+  `server/opinions/comments.ts`), one row per user+media, upserted in
+  place — never a rating, never one row per viewing event.
+- The Comment action (`MediaComment`) appears only once a title has
+  actually been watched, even partially (the same `hasWatched`/
+  unique-watched-aired-episode signal Tracking already computes — never
+  a separate check), and sits in the same action row as tracking/
+  planning/trailer, not a separate line below.
+- Comment content is private — never sent to logs, shared caches, or
+  used as a Stats/Taste/Pick for Me input (see "Stats"/"Taste Profile"/
+  "Pick for Me" above).
+
 ## Library
 
 - Library is an application read model composed from planning + tracking
@@ -533,9 +613,9 @@ in the same change.
 - Derived Show states — Caught up/Waiting/Completed — must never be
   copied into Library (or any) persistence, same rule as Tracking above.
 - Library UI must expose personal context (state, progress, planning
-  intent, personal rating) and must not simply reuse Discover's poster-
-  grid cards unchanged — personal context always takes priority over
-  generic provider metadata (popularity, genre lists, provider rating).
+  intent) and must not simply reuse Discover's poster-grid cards
+  unchanged — personal context always takes priority over generic
+  provider metadata (popularity, genre lists, provider rating).
 - Active Show items expose the exact next aired unwatched Episode
   (`LibraryNextEpisode`) and support the same quick-tracking actions as
   Show Details/Home — never require opening Show Details just to mark it
@@ -554,7 +634,7 @@ in the same change.
   client-side commit).
 - Library metadata hydration fetches one `ShowDetails`/`MovieDetails` per
   visible title, never every season/episode of every visible show, and
-  never a per-item query for personal state (planning/tracking/rating are
+  never a per-item query for personal state (planning/tracking are
   always batched) — this must hold at large collection sizes, not just
   small ones.
 - Mobile Library is independently composed (a compact row, not a poster
@@ -590,10 +670,8 @@ in the same change.
   Same-day same-show Episode session grouping is presentation-only: it
   must never collapse rewatches into each other, hide an ordinal, or
   lose access to any individual event's own Edit/Delete once expanded.
-- Current title-level ratings/reactions are never presented as
-  historical per-event data (no fabricated "you rated this 5/5 on
-  {date}") — this app has no historical rating-event data. Notes are not
-  Diary entries and never render in the timeline.
+- Personal comments (`docs/opinions.md`) are not Diary entries and never
+  render in the timeline.
 - Cross-type Diary pagination (Movie + Episode events) must be globally
   stable — one keyset/cursor query (`(watched_at, event_type, id)`),
   never fetch-N-of-each-then-concatenate.
@@ -626,69 +704,63 @@ in the same change.
 
 ## Stats
 
-- Stats is MEDIO's personal analytics/insight surface and must remain
-  editorial rather than a BI dashboard — see docs/stats.md. It is
-  derived from user-owned history/opinion + normalized provider
-  metadata; do not persist favorite genres/people, viewing-time totals,
-  computed ranges/comparisons, or any other analytical output as source
-  of truth.
+- Stats (`/stats`) is MEDIO's one personal analytics/insight
+  destination, with two tabs sharing one date-range control: **Overview**
+  (temporal viewing activity/rhythm) and **Taste** (genres, favorite
+  people, rewatch behavior, viewing preference) — see docs/stats.md and
+  docs/taste.md. Taste is not a Library destination; `LibrarySectionNav`
+  covers Library/Diary only, and `/library/taste` (its old route)
+  redirects to `/stats?tab=taste` rather than existing as a second
+  implementation. Both tabs are derived from one range-scoped
+  `StatsProfile` fetch; neither persists analytical output as source of
+  truth.
+- The date-range control sits above the Overview/Taste tabs because the
+  selected range applies to both — switching tabs never resets it, and
+  switching range never resets the selected tab. The range control
+  exposes only three static options, always in this order — All time,
+  This year, This month — no per-year-number chip, no overflow picker; a
+  specific past year stays reachable by direct URL only. Which one loads
+  by default is a real Settings preference (`statsDefaultRange`,
+  Settings → Defaults), defaulting to All time — never
+  hardcoded, and the control and the page's own default always resolve
+  from that same preference.
 - Unique-title counts and viewing-event counts are distinct and must
-  never be conflated — a Movie watched four times is one unique Movie
-  and four viewing events, three of them rewatches. Episode count must
-  never inflate a Show's title-level genre/People weight (a Show counts
-  once, like a Movie), and Movie-vs-TV comparisons must use comparable
-  units — never compare a unique Movie count directly against a raw
-  Episode count as if they were equivalent shares.
-- Genre/People "most watched" (exposure) and "highest rated"
-  (preference) are different questions — never collapse them into one
-  list, and prefer surfacing a real contrast between the two when one
-  exists over showing either alone.
-- Personal ratings count once per title regardless of rewatches.
-  Rewatches are a separate behavioral signal. Current title-level
-  ratings must never be presented as historical rating events — a
-  date-range insight includes a title because it was *watched* in that
-  range, but its rating is always the title's current one.
+  never be conflated. Episode count must never inflate a Show's
+  title-level genre/People weight (a Show counts once, like a Movie),
+  and Movie-vs-TV comparisons must use comparable units.
+- Rewatches are a separate behavioral signal from title-level exposure.
 - Do not declare favorite genres/actors/directors from tiny samples; use
   the explicit minimum-data thresholds in `server/stats/constants.ts`.
   A watch-time estimate may only render once measured runtime coverage
   clears its documented threshold — never invent a default runtime, and
-  never show false precision.
+  never show false precision. A weekday-rhythm insight requires its own
+  minimum event count and is only available for range kinds that already
+  fetch raw timestamps — never an unbounded "All time" timestamp pull
+  just to support it.
 - Public provider popularity must never substitute for personal taste.
 - Every visible personal insight must be directly supported by its
   calculation — no embellished interpretation, no AI-generated taste
-  personality copy, no note-text analysis (private notes are never
-  Stats input).
-- Provider hydration for Stats stays bounded (recency + always-rated-
-  titles selection, see docs/stats.md) regardless of total lifetime
-  history size; never one provider request per historical title/episode.
+  personality copy, no note-text analysis (private comments are never
+  taste input).
+- Provider hydration stays bounded (recency + must-include rewatch
+  titles, see docs/stats.md) regardless of total lifetime history size;
+  never one provider request per historical title/episode.
 - Date ranges reuse Diary 2.0's own half-open `[start, end)` UTC
-  boundary semantics (`server/stats/range.ts`) — never a second,
-  independent timezone interpretation. Range-scoped queries stay bounded
-  SQL aggregation, never an unbounded raw-event pull for "All time."
-- Show completion/TV Journey needs a defensible denominator (exclude
-  Caught Up/Waiting/On Hold/never-started shows from a naive ratio) —
-  omit the metric entirely rather than show a misleading percentage.
-- Comparison is opt-in and single-period by default; only show a
-  comparison fact where the two periods are genuinely, meaningfully
-  different, phrased in plain language — never a red/green up/down
-  judgment (watching more or less isn't inherently good or bad).
-- Sparse users see fewer, real insights, never filler placeholders — a
-  section omits itself entirely rather than rendering with too little
-  evidence to be meaningful.
+  boundary semantics (`server/stats/range.ts`).
+- Comparison is opt-in, Overview-only; only show a comparison fact where
+  the two periods are genuinely different, phrased in plain language —
+  never red/green up/down judgment.
 - Prefer a small number of useful insights over dashboard-style metric
-  overload; every visualization must answer a real question a screen
-  reader can also get as text — remove a chart that exists only for
-  decoration. Stats UI stays editorial/media-first, never analytics-
-  dashboard-like (no KPI cards, no rainbow chart palettes, no gamification).
-- Mobile Stats may simplify or replace a visualization entirely when
-  that improves comprehension — never just a shrunk desktop chart.
-- Stats (`/stats`) is a top-level primary destination, not part of
-  Library — `LibrarySectionNav` covers Library/Diary only.
-- Private Stats results (including any computed comparison) must never
-  enter shared/public caches.
-- Pick for Me may share Stats' pure ranking helpers, but must never
-  depend on a live Stats UI projection or its selected date range —
-  Pick always reasons over the user's entire history.
+  overload. Stats and Taste UI stay editorial/media-first, never
+  analytics-dashboard-like (no KPI cards, no gamification).
+- Private Stats and Taste results must never enter shared/public caches.
+- Pick for Me may share the pure ranking helpers in `server/stats/`, but
+  must never depend on a live Stats/Taste UI projection or its selected
+  date range — Pick always reasons over the user's entire history.
+- Analytics helpers in `server/stats/` should be reusable for future
+  Year in Review where naturally appropriate.
+- Do not add Taste widgets to Home or personalize Discover from Taste —
+  Taste is observational, contained on its own tab.
 
 ## Calendar
 
@@ -818,9 +890,9 @@ in the same change.
   real data (a structured `ReasonFact`, never a raw string built ad hoc)
   — no generic "we think you'll love this," no fabricated match
   percentage, ever.
-- Private note text, streaming-provider/"My Services" availability, and
-  collaborative filtering are never inputs to candidate generation or
-  ranking. If a future Where-to-Watch feature exists elsewhere in the
+- Private comment text, streaming-provider/"My Services" availability,
+  and collaborative filtering are never inputs to candidate generation
+  or ranking. If a future Where-to-Watch feature exists elsewhere in the
   product, it must not leak into Pick without a deliberate, separately
   reviewed decision.
 - "Not now" is a session-only hide — never a permanent dislike, never
@@ -957,10 +1029,10 @@ in the same change.
 - Never fabricate EpisodeWatchEvents from vague show-level completion
   data. Exact episode history is imported only when the source actually
   supplies season + episode + a watch date.
-- Never silently overwrite existing ratings or private notes. Existing
-  MEDIO state always wins over an imported value across every domain
-  (Planning/Ratings/Notes/Show tracking state) — import only ever fills
-  in what didn't already exist.
+- Never silently overwrite an existing private comment. Existing MEDIO
+  state always wins over an imported value across every domain
+  (Planning/Comments/Show tracking state) — import only ever fills in
+  what didn't already exist.
 - Preserve real rewatches; duplicate detection must not collapse
   distinct viewing events. Compare at the precision the source actually
   gave (exact instant vs. date-only), never invent finer precision than

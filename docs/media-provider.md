@@ -90,8 +90,10 @@ never a TMDB DTO.
   of…" section) — a movie can name a collection without every part of it
   needing to be fetched just to render the movie's own page.
 - TMDB's `vote_average` is exposed as `providerRating`, deliberately not
-  `rating` — a future personal/user rating is a different concept and must
-  never collide with this name.
+  `rating` — MEDIO has no personal rating feature (see
+  `docs/opinions.md`), and this name is reserved to keep the provider's
+  own popularity score from ever colliding with a real personal signal
+  if one is ever added later.
 - TMDB's numeric `id` is an **external provider ID**, not one of our own
   database IDs — see the comment on `MediaCommon.id`. No database table
   exists for media in this phase; a later tracking schema will reference

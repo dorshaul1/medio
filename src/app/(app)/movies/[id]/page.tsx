@@ -13,8 +13,7 @@ import {
   PartOfCollectionRowSkeleton,
 } from "@/features/movies/part-of-collection-row";
 import type { MovieCredits, MovieDetails, Trailer } from "@/server/media/types";
-import { getMediaOpinion } from "@/server/opinions/queries";
-import type { MediaOpinion } from "@/server/opinions/types";
+import { getMediaComment } from "@/server/opinions/comments";
 import { getPlanningState } from "@/server/planning/planning-items";
 import type { PlanningIntent } from "@/server/planning/types";
 import { getCurrentUserPreferences } from "@/server/preferences/queries";
@@ -50,7 +49,7 @@ export default async function MovieDetailsPage({ params }: PageProps<"/movies/[i
   const movieId = parseMovieId(id);
   if (movieId === null) notFound();
 
-  const { movie, credits, trailer, watchSummary, watchEvents, planningIntent, opinion } =
+  const { movie, credits, trailer, watchSummary, watchEvents, planningIntent, comment } =
     await fetchMoviePageData(movieId);
   const { defaultSaveIntent } = await getCurrentUserPreferences();
 
@@ -64,7 +63,7 @@ export default async function MovieDetailsPage({ params }: PageProps<"/movies/[i
           watchSummary={watchSummary}
           watchEvents={watchEvents}
           planningIntent={planningIntent}
-          opinion={opinion}
+          comment={comment}
           defaultSaveIntent={defaultSaveIntent}
         />
 
@@ -100,9 +99,9 @@ async function fetchMoviePageData(id: number): Promise<{
   watchSummary: MovieWatchSummary;
   watchEvents: readonly MovieWatchEvent[];
   planningIntent: PlanningIntent | null;
-  opinion: MediaOpinion;
+  comment: string | null;
 }> {
-  const [movie, credits, trailer, watchSummary, watchEvents, planningState, opinion] =
+  const [movie, credits, trailer, watchSummary, watchEvents, planningState, comment] =
     await Promise.all([
       fetchMovie(id),
       getMovieCredits(id).catch(() => null),
@@ -110,7 +109,7 @@ async function fetchMoviePageData(id: number): Promise<{
       getMovieWatchSummary(id),
       listMovieWatchEvents(id),
       getPlanningState("movie", id),
-      getMediaOpinion({ mediaType: "movie", mediaProviderId: id }),
+      getMediaComment({ mediaType: "movie", mediaProviderId: id }),
     ]);
   return {
     movie,
@@ -119,7 +118,7 @@ async function fetchMoviePageData(id: number): Promise<{
     watchSummary,
     watchEvents,
     planningIntent: planningState?.intent ?? null,
-    opinion,
+    comment: comment?.content ?? null,
   };
 }
 

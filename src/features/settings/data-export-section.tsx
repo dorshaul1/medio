@@ -71,7 +71,7 @@ export function DataExportSection() {
   return (
     <div className="flex flex-col gap-5">
       <p className="max-w-prose text-sm text-muted-foreground">
-        Exports can include private notes and your detailed viewing history — keep the file
+        Exports can include private comments and your detailed viewing history — keep the file
         somewhere only you can access. This data is never sent anywhere but your own download.
       </p>
 
@@ -94,7 +94,7 @@ export function DataExportSection() {
           </span>
         </div>
         <p className="text-xs text-muted-foreground">
-          A complete JSON backup — watch history, ratings, notes, and your Watchlist/Backlog.
+          A complete JSON backup — watch history, comments, and your Watchlist/Backlog.
         </p>
       </div>
 

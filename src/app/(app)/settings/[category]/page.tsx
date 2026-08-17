@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { AppearanceSettings } from "@/features/settings/appearance-settings";
 import { DataSettings } from "@/features/settings/data-settings";
+import { DefaultsSettings } from "@/features/settings/defaults-settings";
 import { DeveloperSettings } from "@/features/settings/developer-settings";
 import { GeneralSettings } from "@/features/settings/general-settings";
 import { HomeSettings } from "@/features/settings/home-settings";
@@ -27,6 +28,8 @@ export default async function SettingsCategoryPage({ params }: PageProps<"/setti
       return <SpoilerSettings preferences={preferences} />;
     case "home":
       return <HomeSettings preferences={preferences} />;
+    case "defaults":
+      return <DefaultsSettings preferences={preferences} />;
     case "data":
       return <DataSettings />;
     case "developer":

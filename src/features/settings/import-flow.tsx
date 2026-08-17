@@ -25,8 +25,7 @@ const SOURCE_OPTIONS: readonly { value: Source; label: string; description: stri
   {
     value: "letterboxd",
     label: "Letterboxd",
-    description:
-      "Your diary, ratings, and watchlist exports (Settings → Data → Export on Letterboxd).",
+    description: "Your diary and watchlist exports (Settings → Data → Export on Letterboxd).",
   },
   {
     value: "csv",
@@ -411,8 +410,7 @@ export function ImportFlow() {
           {result.created.showTrackingState > 0 ? (
             <li>{result.created.showTrackingState} show tracking states</li>
           ) : null}
-          {result.created.rating > 0 ? <li>{result.created.rating} ratings</li> : null}
-          {result.created.note > 0 ? <li>{result.created.note} notes</li> : null}
+          {result.created.comment > 0 ? <li>{result.created.comment} comments</li> : null}
         </ul>
         {result.failed.length > 0 ? (
           <p className="text-xs text-destructive">

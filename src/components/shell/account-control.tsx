@@ -4,6 +4,7 @@ import { LogOut, Settings } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { IconButton } from "@/components/ui/icon-button";
+import { clearRecentSearches } from "@/features/search/recent-searches";
 import { authClient } from "@/lib/auth-client";
 
 // The smallest useful identity treatment: name/email (truncated, no
@@ -39,6 +40,15 @@ export function AccountControl({ name, email }: { name: string; email: string })
     void authClient.signOut({
       fetchOptions: {
         onSuccess: () => {
+          // Recent Search terms are the one piece of personal state this
+          // app keeps in `localStorage` rather than the database (see
+          // features/search/recent-searches.ts) — everything else
+          // personalized is server-derived per request and is wiped by
+          // the hard navigation below, but this key would otherwise
+          // survive it and leak into a different account signing in on
+          // the same device/browser (see CLAUDE.md, "Logout/account
+          // switching must invalidate private client state").
+          clearRecentSearches();
           window.location.href = "/";
         },
       },

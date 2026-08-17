@@ -12,37 +12,39 @@ import {
 } from "@/components/ui/dialog";
 import { IconButton } from "@/components/ui/icon-button";
 import { Textarea } from "@/components/ui/textarea";
-import { clearMediaNoteAction, setMediaNoteAction } from "@/features/media/opinion-actions";
+import { clearMediaCommentAction, setMediaCommentAction } from "@/features/media/comment-actions";
 import type { OpinionMediaType } from "@/server/opinions/types";
-import { NOTE_MAX_LENGTH } from "@/server/opinions/types";
+import { COMMENT_MAX_LENGTH } from "@/server/opinions/types";
 
-// Movie/Show Details' private note. No permanent Textarea on the page —
-// unset shows a bare icon affordance ("Add a note"); set shows a quiet
-// truncated preview that opens the same editor (see docs/opinions.md,
-// "Note interaction"). Editing happens in a focused Dialog with an
-// explicit Save/Cancel — unlike Rating/Reactions, free text genuinely
-// benefits from a server-confirmed save rather than persisting on every
+// Movie/Show Details' private comment — gated on having actually watched
+// (even partially) the title, same as the rest of the tracking-adjacent
+// action row (see docs/opinions.md). No permanent Textarea on the page —
+// unset shows a bare icon affordance ("Add a comment"); set shows a
+// quiet truncated preview that opens the same editor (see
+// docs/opinions.md, "Comment interaction"). Editing happens in a focused
+// Dialog with an explicit Save/Cancel — free text genuinely benefits
+// from a server-confirmed save rather than persisting on every
 // keystroke (see docs/opinions.md, "Auto save vs explicit save"), so
 // this is the one place in the opinion layer a real text `Button` is
 // correct rather than icon-first.
-export function MediaNote({
+export function MediaComment({
   mediaType,
   mediaProviderId,
   title,
-  note,
+  comment,
 }: {
   mediaType: OpinionMediaType;
   mediaProviderId: number;
   title: string;
-  note: string | null;
+  comment: string | null;
 }) {
-  const [currentNote, setCurrentNote] = useState(note);
+  const [currentComment, setCurrentComment] = useState(comment);
   const [open, setOpen] = useState(false);
-  const [draft, setDraft] = useState(note ?? "");
+  const [draft, setDraft] = useState(comment ?? "");
   const [isPending, startTransition] = useTransition();
 
   function openEditor() {
-    setDraft(currentNote ?? "");
+    setDraft(currentComment ?? "");
     setOpen(true);
   }
 
@@ -51,7 +53,7 @@ export function MediaNote({
   // protection without a second custom confirmation surface (see
   // docs/opinions.md, "Unsaved changes").
   function handleOpenChange(next: boolean) {
-    if (!next && !isPending && draft.trim() !== (currentNote ?? "").trim()) {
+    if (!next && !isPending && draft.trim() !== (currentComment ?? "").trim()) {
       if (!window.confirm("Discard your changes?")) return;
     }
     setOpen(next);
@@ -59,33 +61,33 @@ export function MediaNote({
 
   function save() {
     startTransition(async () => {
-      const result = await setMediaNoteAction(mediaType, mediaProviderId, draft);
-      setCurrentNote(result?.content ?? null);
+      const result = await setMediaCommentAction(mediaType, mediaProviderId, draft);
+      setCurrentComment(result?.content ?? null);
       setOpen(false);
     });
   }
 
   function remove() {
     startTransition(async () => {
-      await clearMediaNoteAction(mediaType, mediaProviderId);
-      setCurrentNote(null);
+      await clearMediaCommentAction(mediaType, mediaProviderId);
+      setCurrentComment(null);
       setOpen(false);
     });
   }
 
   return (
     <>
-      {currentNote ? (
+      {currentComment ? (
         <button
           type="button"
           onClick={openEditor}
-          className="line-clamp-2 max-w-md rounded-md text-left text-sm text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+          className="w-full rounded-md text-left text-sm whitespace-pre-wrap text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 sm:max-w-md"
         >
-          {currentNote}
+          {currentComment}
         </button>
       ) : (
         <IconButton
-          aria-label={`Add a note about ${title}`}
+          aria-label={`Add a comment about ${title}`}
           variant="ghost"
           size="sm"
           onClick={openEditor}
@@ -97,28 +99,28 @@ export function MediaNote({
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{currentNote ? "Edit note" : "Add a note"}</DialogTitle>
+            <DialogTitle>{currentComment ? "Edit comment" : "Add a comment"}</DialogTitle>
           </DialogHeader>
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="media-note-content" className="sr-only">
-              Your note about {title}
+            <label htmlFor="media-comment-content" className="sr-only">
+              Your comment about {title}
             </label>
             <Textarea
-              id="media-note-content"
+              id="media-comment-content"
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
-              maxLength={NOTE_MAX_LENGTH}
+              maxLength={COMMENT_MAX_LENGTH}
               rows={6}
               placeholder="Private — only you can see this."
               autoFocus
               className="resize-none"
             />
             <p className="text-right text-xs text-muted-foreground">
-              {draft.length} / {NOTE_MAX_LENGTH}
+              {draft.length} / {COMMENT_MAX_LENGTH}
             </p>
           </div>
           <DialogFooter className="sm:justify-between">
-            {currentNote ? (
+            {currentComment ? (
               <Button
                 variant="destructive"
                 size="sm"

@@ -4,7 +4,7 @@ import { requireSession } from "@/server/auth/session";
 import { db } from "@/server/db";
 import type { ImportBatchStatusValue, ImportSourceValue } from "@/server/db/schema/import";
 import { importBatches } from "@/server/db/schema/import";
-import { mediaNotes, mediaRatings } from "@/server/db/schema/opinions";
+import { mediaComments } from "@/server/db/schema/opinions";
 import { mediaPlanningItems } from "@/server/db/schema/planning";
 import {
   episodeWatchEvents,
@@ -59,8 +59,7 @@ function emptyCounts(): Record<ImportRecordKind, number> {
     episodeWatch: 0,
     planningItem: 0,
     showTrackingState: 0,
-    rating: 0,
-    note: 0,
+    comment: 0,
   };
 }
 
@@ -113,14 +112,10 @@ export async function rollbackImportBatch(batchId: string): Promise<RollbackResu
         and(eq(showTrackingState.importBatchId, batchId), eq(showTrackingState.userId, user.id)),
       )
       .returning({ userId: showTrackingState.userId });
-    const ratings = await tx
-      .delete(mediaRatings)
-      .where(and(eq(mediaRatings.importBatchId, batchId), eq(mediaRatings.userId, user.id)))
-      .returning({ userId: mediaRatings.userId });
-    const notes = await tx
-      .delete(mediaNotes)
-      .where(and(eq(mediaNotes.importBatchId, batchId), eq(mediaNotes.userId, user.id)))
-      .returning({ userId: mediaNotes.userId });
+    const comments = await tx
+      .delete(mediaComments)
+      .where(and(eq(mediaComments.importBatchId, batchId), eq(mediaComments.userId, user.id)))
+      .returning({ userId: mediaComments.userId });
 
     await tx
       .update(importBatches)
@@ -133,8 +128,7 @@ export async function rollbackImportBatch(batchId: string): Promise<RollbackResu
         episodeWatch: episodes.length,
         planningItem: planning.length,
         showTrackingState: tracking.length,
-        rating: ratings.length,
-        note: notes.length,
+        comment: comments.length,
       },
     };
   });

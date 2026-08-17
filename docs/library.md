@@ -185,17 +185,6 @@ A search with no matches offers an explicit, opt-in path to global
 Search (`LibrarySearchEmptyState`, "Search MEDIO for "…"" linking to
 `/discover?q=...`) — scope is never silently widened to the TMDB catalog.
 
-## Rating display
-
-Personal ratings (`server/opinions/`) are batch-hydrated onto every page
-of `LibraryItem`s via the existing `listMediaRatings()` (one bounded query
-covering the user's entire rating set — never a per-item lookup), carried
-on every kind's `rating: number | null`. The UI only ever surfaces it for
-finished media (a watched movie, a completed show) — a quiet "· 4/5" text
-suffix, not a second star control (the app's `RatingControl` already
-avoids stars specifically because a *provider* rating already uses one)
-— since anywhere else a rating is rare and would just be clutter.
-
 ## Show derived state at Library scale — an approximation
 
 Show Details computes exact progress from real per-episode air dates (one
@@ -296,7 +285,7 @@ until Home personalization is an actual phase.
 Collections, custom lists, tags, richer planning intents (Soon/Someday/
 Weekend/With someone), Library-based recommendations, streaming-provider
 availability, notifications, or general bulk management (see CLAUDE.md,
-"Explicitly Out Of Scope" in the Library 2.0 phase). Notes, ratings, and
+"Explicitly Out Of Scope" in the Library 2.0 phase). Comments and
 import/export already exist as their own domains (`docs/opinions.md`,
 `docs/data-portability.md`) and Library search exists (see "Search"
 above) — none of those are missing, just not Library-specific inventions.

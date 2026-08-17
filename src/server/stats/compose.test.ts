@@ -5,9 +5,6 @@ vi.mock("server-only", () => ({}));
 const requireSession = vi.fn();
 vi.mock("@/server/auth/session", () => ({ requireSession: () => requireSession() }));
 
-const listMediaRatings = vi.fn();
-vi.mock("@/server/opinions/ratings", () => ({ listMediaRatings: () => listMediaRatings() }));
-
 const getPersonDetails = vi.fn();
 vi.mock("@/server/tmdb/queries", () => ({
   getPersonDetails: (...args: unknown[]) => getPersonDetails(...args),
@@ -52,7 +49,6 @@ beforeEach(() => {
   vi.clearAllMocks();
   requireSession.mockResolvedValue({ user: { id: "user-1" } });
   getTrackingStateCounts.mockResolvedValue({ watching: 0, onHold: 0, dropped: 0 });
-  listMediaRatings.mockResolvedValue([]);
   getMovieWatchAggregates.mockResolvedValue([]);
   getShowWatchAggregates.mockResolvedValue([]);
   hydrateTasteTitles.mockResolvedValue([]);
@@ -70,7 +66,7 @@ describe("getStatsProfile", () => {
     expect(profile.headline).toEqual({ kind: "sparse" });
     expect(profile.viewingRhythm).toBeNull();
     expect(profile.estimatedViewingTime).toBeNull();
-    expect(profile.genres).toEqual({ mostWatched: [], highestRated: [] });
+    expect(profile.genres).toEqual({ mostWatched: [] });
     expect(profile.directors).toEqual([]);
     expect(profile.rewatch).toEqual({
       mostRewatchedMovie: null,
@@ -127,7 +123,6 @@ describe("getStatsProfile", () => {
         poster: null,
         year: 1999,
         genres: [],
-        rating: null,
         lastActivityAt: new Date(),
         cast: [],
         watchCount: 1,
@@ -152,7 +147,6 @@ describe("getStatsProfile", () => {
         poster: { path: "/poster.jpg" },
         year: 1999,
         genres: [],
-        rating: null,
         lastActivityAt: new Date("2024-01-01"),
         cast: [],
         watchCount: 3,
@@ -171,22 +165,6 @@ describe("getStatsProfile", () => {
 
   it("hydrates director portraits after ranking, tolerating a lookup failure", async () => {
     getViewingVolume.mockResolvedValue({ ...EMPTY_VOLUME, uniqueMoviesWatched: 2 });
-    listMediaRatings.mockResolvedValue([
-      {
-        mediaType: "movie",
-        mediaProviderId: 1,
-        rating: 5,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-      {
-        mediaType: "movie",
-        mediaProviderId: 2,
-        rating: 4,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-    ]);
     getMovieWatchAggregates.mockResolvedValue([
       { movieProviderId: 1, watchCount: 1, lastWatchedAt: new Date() },
       { movieProviderId: 2, watchCount: 1, lastWatchedAt: new Date() },
@@ -200,7 +178,6 @@ describe("getStatsProfile", () => {
         poster: null,
         year: 2010,
         genres: [],
-        rating: 5,
         lastActivityAt: new Date(),
         cast: [],
         watchCount: 1,
@@ -213,7 +190,6 @@ describe("getStatsProfile", () => {
         poster: null,
         year: 2014,
         genres: [],
-        rating: 4,
         lastActivityAt: new Date(),
         cast: [],
         watchCount: 1,
@@ -226,33 +202,6 @@ describe("getStatsProfile", () => {
     expect(profile.directors).toHaveLength(1);
     expect(profile.directors[0]?.name).toBe("Christopher Nolan");
     expect(profile.directors[0]?.profile).toBeNull();
-  });
-
-  it("only counts a rating toward ratedTitleCount when its title was watched in range", async () => {
-    listMediaRatings.mockResolvedValue([
-      {
-        mediaType: "movie",
-        mediaProviderId: 1,
-        rating: 5,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-      {
-        mediaType: "movie",
-        mediaProviderId: 2, // never watched in this range — no aggregate row
-        rating: 3,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-    ]);
-    getViewingVolume.mockResolvedValue({ ...EMPTY_VOLUME, uniqueMoviesWatched: 1 });
-    getMovieWatchAggregates.mockResolvedValue([
-      { movieProviderId: 1, watchCount: 1, lastWatchedAt: new Date() },
-    ]);
-    hydrateTasteTitles.mockResolvedValue([]);
-
-    const profile = await getStatsProfile({ kind: "year", year: 2026 });
-    expect(profile.ratedTitleCount).toBe(1);
   });
 });
 
@@ -278,24 +227,6 @@ describe("getStatsComparison", () => {
 
   it("never hydrates director portraits for the lightweight previous profile", async () => {
     getViewingVolume.mockResolvedValue({ ...EMPTY_VOLUME, uniqueMoviesWatched: 2 });
-    // Two rated titles by the same director — clears
-    // MIN_RATED_TITLES_FOR_DIRECTOR (2), so a real Director stat exists.
-    listMediaRatings.mockResolvedValue([
-      {
-        mediaType: "movie",
-        mediaProviderId: 1,
-        rating: 5,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-      {
-        mediaType: "movie",
-        mediaProviderId: 2,
-        rating: 4,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-    ]);
     getMovieWatchAggregates.mockResolvedValue([
       { movieProviderId: 1, watchCount: 1, lastWatchedAt: new Date() },
       { movieProviderId: 2, watchCount: 1, lastWatchedAt: new Date() },
@@ -313,7 +244,6 @@ describe("getStatsComparison", () => {
         poster: null,
         year: 2010,
         genres: [],
-        rating: 5,
         lastActivityAt: new Date(),
         cast: [],
         watchCount: 1,
@@ -326,7 +256,6 @@ describe("getStatsComparison", () => {
         poster: null,
         year: 2014,
         genres: [],
-        rating: 4,
         lastActivityAt: new Date(),
         cast: [],
         watchCount: 1,

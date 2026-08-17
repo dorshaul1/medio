@@ -5,7 +5,7 @@
 // different kinds of fact, not the same shape with optional fields.
 import type { Genre, MediaImage } from "@/server/media/types";
 import type { PlanningIntent } from "@/server/planning/types";
-import type { GenreRatingStat } from "@/server/stats/types";
+import type { GenreExposureStat } from "@/server/stats/types";
 
 export type PickMediaType = "movie" | "show";
 
@@ -35,7 +35,7 @@ export type ReasonFact =
   | { kind: "highGenreAffinity"; genreName: string }
   | { kind: "directorAffinity"; directorName: string }
   | { kind: "timeFit"; minutes: number }
-  | { kind: "similarToHighlyRated"; title: string }
+  | { kind: "similarToWatched"; title: string }
   | { kind: "popularDiscovery" };
 
 // --- Candidates ---------------------------------------------------------
@@ -89,9 +89,9 @@ export type DiscoveryMovieCandidate = PickCandidateCommon & {
   kind: "discoveryMovie";
   mediaType: "movie";
   source: DiscoverySource;
-  // Only populated for `source: "recommendation"` — the rated title this
-  // candidate was recommended from, so the reason can name it (see
-  // scoring.ts, "similarToHighlyRated").
+  // Only populated for `source: "recommendation"` — the watched title
+  // this candidate was recommended from, so the reason can name it (see
+  // scoring.ts, "similarToWatched").
   seedTitle: string | null;
 };
 
@@ -143,9 +143,9 @@ export type PickResult = PickSelection & {
 
 // --- Taste summary --------------------------------------------------------
 
-// A rated title used to seed provider "more like this" discovery — just
-// enough to both request recommendations and name the seed in a reason
-// (see scoring.ts, "similarToHighlyRated").
+// A frequently (re)watched title used to seed provider "more like this"
+// discovery — just enough to both request recommendations and name the
+// seed in a reason (see scoring.ts, "similarToWatched").
 export type RecommendationSeed = { id: number; title: string };
 
 // Pick's own dedicated taste projection — deliberately smaller than
@@ -155,12 +155,13 @@ export type RecommendationSeed = { id: number; title: string };
 // (see docs/media-provider.md) — mixing them would risk sending a show
 // genre ID to the movie discovery endpoint or vice versa.
 export type RecommendationTasteSummary = {
-  // False for a brand-new/unrated account — discovery falls back to an
-  // honest "popular" source rather than fabricating personalization it
-  // doesn't have (see docs/recommendations.md, "New user fallback").
+  // False for a brand-new account with too little watch history —
+  // discovery falls back to an honest "popular" source rather than
+  // fabricating personalization it doesn't have (see
+  // docs/recommendations.md, "New user fallback").
   hasEnoughDataForPersonalization: boolean;
-  movieGenreAffinities: readonly GenreRatingStat[];
-  showGenreAffinities: readonly GenreRatingStat[];
+  movieGenreAffinities: readonly GenreExposureStat[];
+  showGenreAffinities: readonly GenreExposureStat[];
   topDirector: { id: number; name: string } | null;
   seedMovies: readonly RecommendationSeed[];
   seedShows: readonly RecommendationSeed[];

@@ -151,6 +151,9 @@ export const showTrackingState = pgTable(
       "show_tracking_state_status_check",
       sql`${table.status} in ('watching', 'on_hold', 'dropped')`,
     ),
+    // Rollback's own targeted delete — same reasoning as
+    // `movie_watch_events_import_batch_idx` above.
+    index("show_tracking_state_import_batch_idx").on(table.importBatchId),
   ],
 );
 

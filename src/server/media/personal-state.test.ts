@@ -17,11 +17,6 @@ vi.mock("@/server/tracking/show-state", () => ({
   getShowTrackingStatusesBatch: (...args: unknown[]) => getShowTrackingStatusesBatch(...args),
 }));
 
-const listMediaRatings = vi.fn();
-vi.mock("@/server/opinions/ratings", () => ({
-  listMediaRatings: (...args: unknown[]) => listMediaRatings(...args),
-}));
-
 const { getPersonalStates } = await import("./personal-state");
 
 describe("getPersonalStates", () => {
@@ -29,7 +24,6 @@ describe("getPersonalStates", () => {
     getPlanningIntentsBatch.mockReset().mockResolvedValue(new Map());
     getWatchedMovieIds.mockReset().mockResolvedValue(new Set());
     getShowTrackingStatusesBatch.mockReset().mockResolvedValue(new Map());
-    listMediaRatings.mockReset().mockResolvedValue([]);
   });
 
   it("returns an empty map without querying for an empty input", async () => {
@@ -38,29 +32,12 @@ describe("getPersonalStates", () => {
     expect(getPlanningIntentsBatch).not.toHaveBeenCalled();
   });
 
-  it("marks a watched movie, with its rating when one exists", async () => {
-    getWatchedMovieIds.mockResolvedValue(new Set([550]));
-    listMediaRatings.mockResolvedValue([
-      {
-        mediaType: "movie",
-        mediaProviderId: 550,
-        rating: 5,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-    ]);
-
-    const result = await getPersonalStates([{ mediaType: "movie", mediaProviderId: 550 }]);
-
-    expect(result.get("movie:550")).toEqual({ kind: "watched", rating: 5 });
-  });
-
-  it("marks a watched movie with no rating as null, not omitted", async () => {
+  it("marks a watched movie", async () => {
     getWatchedMovieIds.mockResolvedValue(new Set([550]));
 
     const result = await getPersonalStates([{ mediaType: "movie", mediaProviderId: 550 }]);
 
-    expect(result.get("movie:550")).toEqual({ kind: "watched", rating: null });
+    expect(result.get("movie:550")).toEqual({ kind: "watched" });
   });
 
   it("marks an explicitly tracked show by its raw status", async () => {

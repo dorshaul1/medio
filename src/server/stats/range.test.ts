@@ -3,6 +3,7 @@ import {
   formatStatsRangeLabel,
   formatStatsRangeParam,
   parseStatsRangeParam,
+  resolveDefaultStatsRange,
   resolvePreviousStatsRangeBounds,
   resolveStatsRangeBounds,
   statsRangeSupportsComparison,
@@ -82,6 +83,18 @@ describe("statsRangeSupportsComparison", () => {
   });
 });
 
+const ALL_TIME_DEFAULT = { kind: "all" } as const;
+
+describe("resolveDefaultStatsRange", () => {
+  it.each([
+    ["all", { kind: "all" }],
+    ["year", { kind: "year", year: 2026 }],
+    ["month", { kind: "month", year: 2026, month: 8 }],
+  ] as const)("resolves the %s preference against the current date", (preference, expected) => {
+    expect(resolveDefaultStatsRange(preference, NOW)).toEqual(expected);
+  });
+});
+
 describe("parseStatsRangeParam / formatStatsRangeParam", () => {
   it.each([
     [undefined, { kind: "all" }],
@@ -92,11 +105,24 @@ describe("parseStatsRangeParam / formatStatsRangeParam", () => {
     ["bogus", { kind: "all" }],
     ["2026-13", { kind: "all" }],
   ] as const)("parses %s", (input, expected) => {
-    expect(parseStatsRangeParam(input)).toEqual(expected);
+    expect(parseStatsRangeParam(input, ALL_TIME_DEFAULT)).toEqual(expected);
+  });
+
+  it("falls back to the caller-supplied default range when no range is given", () => {
+    const monthDefault = resolveDefaultStatsRange("month", NOW);
+    expect(parseStatsRangeParam(undefined, monthDefault)).toEqual({
+      kind: "month",
+      year: 2026,
+      month: 8,
+    });
+    expect(parseStatsRangeParam(undefined, ALL_TIME_DEFAULT)).toEqual({ kind: "all" });
   });
 
   it("uses the first value when given an array (repeated query param)", () => {
-    expect(parseStatsRangeParam(["2025", "2026"])).toEqual({ kind: "year", year: 2025 });
+    expect(parseStatsRangeParam(["2025", "2026"], ALL_TIME_DEFAULT)).toEqual({
+      kind: "year",
+      year: 2025,
+    });
   });
 
   it("round-trips every kind through format/parse", () => {
@@ -107,7 +133,7 @@ describe("parseStatsRangeParam / formatStatsRangeParam", () => {
       { kind: "month" as const, year: 2026, month: 8 },
     ];
     for (const range of ranges) {
-      expect(parseStatsRangeParam(formatStatsRangeParam(range))).toEqual(range);
+      expect(parseStatsRangeParam(formatStatsRangeParam(range), ALL_TIME_DEFAULT)).toEqual(range);
     }
   });
 });

@@ -15,18 +15,18 @@ describe("reasonCopy", () => {
     expect(reasonCopy({ kind: "backlogIntent" })).toBe("On your Backlog");
     expect(reasonCopy({ kind: "watchlistIntent" })).toBe("On your Watchlist");
     expect(reasonCopy({ kind: "highGenreAffinity", genreName: "Drama" })).toBe(
-      "You rate Drama highly",
+      "You watch a lot of Drama",
     );
     expect(reasonCopy({ kind: "directorAffinity", directorName: "Bong Joon-ho" })).toContain(
       "Bong Joon-ho",
     );
     expect(reasonCopy({ kind: "timeFit", minutes: 42 })).toBe("About 42 min");
-    expect(reasonCopy({ kind: "similarToHighlyRated", title: "Parasite" })).toContain("Parasite");
+    expect(reasonCopy({ kind: "similarToWatched", title: "Parasite" })).toContain("Parasite");
     expect(reasonCopy({ kind: "popularDiscovery" })).toBe("Popular right now");
   });
 
   it("never fabricates a match percentage or numeric score", () => {
-    const copy = reasonCopy({ kind: "similarToHighlyRated", title: "Parasite" });
+    const copy = reasonCopy({ kind: "similarToWatched", title: "Parasite" });
     expect(copy).not.toMatch(/%|\d+\s*\/\s*\d+/);
   });
 });

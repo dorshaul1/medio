@@ -302,7 +302,7 @@ export type MediaPersonalState =
   // never does for an N-result public browsing surface — see
   // docs/library.md, "Show derived state at Library scale". A show's
   // state here is only ever its *explicit* tracking status below.
-  | { kind: "watched"; rating: number | null }
+  | { kind: "watched" }
   | { kind: "watching" }
   | { kind: "on_hold" }
   | { kind: "dropped" };

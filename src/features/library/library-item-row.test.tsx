@@ -22,7 +22,6 @@ const BASE = {
   year: 1999,
   personalActivityAt: new Date("2024-01-01"),
   addedAt: new Date("2024-01-01"),
-  rating: null,
 };
 
 const NEXT_EPISODE: LibraryNextEpisode = {
@@ -244,19 +243,7 @@ describe("LibraryItemRow", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("shows a personal rating for a watched movie", () => {
-    renderInList({
-      ...BASE,
-      kind: "watched-movie",
-      mediaType: "movie",
-      watchCount: 1,
-      lastWatchedAt: new Date(),
-      rating: 4,
-    });
-    expect(screen.getByText("1999 · Watched · 4/5")).toBeInTheDocument();
-  });
-
-  it("shows no rating text for an unrated watched movie", () => {
+  it("shows watched status text for a watched movie", () => {
     renderInList({
       ...BASE,
       kind: "watched-movie",
@@ -267,7 +254,7 @@ describe("LibraryItemRow", () => {
     expect(screen.getByText("1999 · Watched")).toBeInTheDocument();
   });
 
-  it("shows a personal rating for a completed show", () => {
+  it("shows completed status text for a completed show", () => {
     renderInList({
       ...BASE,
       mediaType: "show",
@@ -277,24 +264,7 @@ describe("LibraryItemRow", () => {
       airedEpisodeCount: 10,
       watchedEpisodeCount: 10,
       nextEpisode: null,
-      rating: 5,
     });
-    expect(screen.getByText("Completed · 5/5")).toBeInTheDocument();
-  });
-
-  it("does not show a rating for a currently-watching show, even if one is set", () => {
-    renderInList({
-      ...BASE,
-      mediaType: "show",
-      kind: "tracked-show",
-      explicitState: "watching",
-      derivedState: "watching",
-      airedEpisodeCount: 10,
-      watchedEpisodeCount: 4,
-      nextEpisode: NEXT_EPISODE,
-      rating: 5,
-    });
-    expect(screen.getByText("S2 E4 next")).toBeInTheDocument();
-    expect(screen.queryByText(/5\/5/)).not.toBeInTheDocument();
+    expect(screen.getByText("Completed")).toBeInTheDocument();
   });
 });

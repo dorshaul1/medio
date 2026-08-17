@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { convertLetterboxdRating, parseLetterboxdFiles } from "./letterboxd";
+import { parseLetterboxdFiles } from "./letterboxd";
 
 describe("parseLetterboxdFiles — diary.csv", () => {
   it("parses watched films with real dates, including rewatches as separate rows", () => {
@@ -55,38 +55,12 @@ describe("parseLetterboxdFiles — diary.csv", () => {
 });
 
 describe("parseLetterboxdFiles — ratings.csv", () => {
-  it("parses ratings and converts the half-star scale, keeping the source label", () => {
+  it("reports honestly that ratings aren't imported, without failing the whole upload", () => {
     const ratings = ["Name,Year,Rating", "Fight Club,1999,4.5"].join("\n");
     const result = parseLetterboxdFiles([{ name: "ratings.csv", content: ratings }]);
-    expect(result.records).toEqual([
-      {
-        kind: "rating",
-        identity: { kind: "titleYear", mediaType: "movie", title: "Fight Club", year: 1999 },
-        rating: 5,
-        sourceRatingLabel: "4.5★ (Letterboxd)",
-      },
-    ]);
-  });
-
-  it("rejects an out-of-range rating", () => {
-    const ratings = ["Name,Rating", "Fight Club,7"].join("\n");
-    const result = parseLetterboxdFiles([{ name: "ratings.csv", content: ratings }]);
-    expect(result.errors).toHaveLength(1);
     expect(result.records).toEqual([]);
-  });
-});
-
-describe("convertLetterboxdRating", () => {
-  it.each([
-    [0.5, 1],
-    [1, 1],
-    [2.5, 3],
-    [3, 3],
-    [3.5, 4],
-    [4.5, 5],
-    [5, 5],
-  ])("rounds %s stars to %s", (raw, expected) => {
-    expect(convertLetterboxdRating(raw)).toBe(expected);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]?.reason).toMatch(/doesn't have a personal rating feature/);
   });
 });
 
@@ -116,12 +90,10 @@ describe("parseLetterboxdFiles — multiple files, auto-detected", () => {
       { name: "watchlist.csv", content: watchlist },
     ]);
 
-    expect(result.errors).toEqual([]);
-    expect(result.records.map((r) => r.kind).sort()).toEqual([
-      "movieWatch",
-      "planningItem",
-      "rating",
-    ]);
+    // ratings.csv produces one honest "not imported" error, never a record.
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]?.reason).toMatch(/doesn't have a personal rating feature/);
+    expect(result.records.map((r) => r.kind).sort()).toEqual(["movieWatch", "planningItem"]);
   });
 
   it("reports an unrecognized file without failing the whole upload", () => {

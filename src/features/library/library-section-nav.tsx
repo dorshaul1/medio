@@ -8,16 +8,18 @@ const SECTIONS = [
 
 // The one restrained signal that Library and Diary are the same personal
 // area serving different jobs — current state vs. chronological history
-// (see docs/diary.md, "Library vs Diary"). A small breadcrumb-style
-// overline above the page's own `<h1>`, not a second row of underline
-// tabs: both pages already have their own content filter tabs
-// (`LibraryTypeToggle`/Diary's own All·Movies·TV toggle), and stacking
-// two identically-styled tab rows would read as one confusing double tab
-// bar rather than two genuinely different jobs — a section switch versus
-// a content filter (see CLAUDE.md, "Diary"). A plain Server Component:
+// (see docs/diary.md). A small breadcrumb-style overline above the
+// page's own `<h1>`, not a second row of underline tabs: Library and
+// Diary already have their own content filter tabs
+// (`LibraryTypeToggle`/Diary's All·Movies·TV toggle), and stacking two
+// identically-styled tab rows would read as one confusing double tab bar
+// rather than two genuinely different jobs — a section switch versus a
+// content filter (see CLAUDE.md, "Diary"). A plain Server Component:
 // each caller already knows which section it is, so this needs no
-// `usePathname()`. Stats (`/stats`) is a separate, top-level primary
-// destination, not part of this switcher — see docs/stats.md.
+// `usePathname()`. Stats (`/stats`, with its own Overview/Taste tabs) is
+// a separate, top-level primary destination — not part of this
+// switcher, and personal taste insight lives there, not here (see
+// docs/stats.md).
 export function LibrarySectionNav({ active }: { active: "library" | "diary" }) {
   return (
     <nav aria-label="Library section" className="flex items-center gap-1.5 text-sm">

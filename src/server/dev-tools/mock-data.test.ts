@@ -13,7 +13,7 @@ vi.mock("@/server/tmdb/queries", () => ({
 const { createTestUser, deleteTestUser } = await import("@/server/test-support/test-db");
 const { seedMockData } = await import("./mock-data");
 const { getMovieWatchSummary } = await import("@/server/tracking/movie-events");
-const { getMediaRating } = await import("@/server/opinions/ratings");
+const { getMediaComment } = await import("@/server/opinions/comments");
 const { getPlanningState } = await import("@/server/planning/planning-items");
 
 function season(episodeCount: number) {
@@ -59,12 +59,14 @@ describe("seedMockData", () => {
     await expect(seedMockData()).rejects.toThrow();
   });
 
-  it("creates real movie watch events and ratings through the real domain functions", async () => {
+  it("creates real movie watch events and comments through the real domain functions", async () => {
     const result = await seedMockData();
 
     expect(result.movieEventsCreated).toBeGreaterThan(0);
     expect((await getMovieWatchSummary(550)).hasWatched).toBe(true); // Fight Club
-    expect((await getMediaRating({ mediaType: "movie", mediaProviderId: 550 }))?.rating).toBe(5);
+    expect(
+      (await getMediaComment({ mediaType: "movie", mediaProviderId: 550 }))?.content,
+    ).toBeTruthy();
   });
 
   it("records a rewatch for the one movie marked as rewatched", async () => {

@@ -1,0 +1,2 @@
+ALTER TABLE "user_preferences" ADD COLUMN "stats_default_range" text DEFAULT 'all' NOT NULL;--> statement-breakpoint
+ALTER TABLE "user_preferences" ADD CONSTRAINT "user_preferences_stats_default_range_check" CHECK ("user_preferences"."stats_default_range" in ('all', 'year', 'month'));

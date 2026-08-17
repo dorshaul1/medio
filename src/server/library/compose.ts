@@ -1,6 +1,5 @@
 import "server-only";
 import type { ShowDetails } from "@/server/media/types";
-import { listMediaRatings } from "@/server/opinions/ratings";
 import { getShowEpisodeProgress } from "@/server/shows/show-episode-progress";
 import { getMovieDetails, getShowDetails } from "@/server/tmdb/queries";
 import { resolveShowViewingState } from "@/server/tracking/derived-state";
@@ -10,10 +9,6 @@ import { approximateAiredEpisodeCount } from "./approximate-progress";
 import type { LibraryCandidate } from "./candidates";
 import { getWatchedEpisodeCountsByShow } from "./candidates";
 import type { LibraryItem, LibraryNextEpisode } from "./types";
-
-function ratingKey(mediaType: "movie" | "show", mediaProviderId: number): string {
-  return `${mediaType}:${mediaProviderId}`;
-}
 
 // Turns one page of personal-identity candidates into real Library view
 // models — the only place Planning/Tracking identity and TMDB provider
@@ -32,22 +27,13 @@ export async function composeLibraryItems(
   const showIds = deduped
     .filter((candidate) => candidate.mediaType === "show")
     .map((candidate) => candidate.mediaProviderId);
-  // Batched alongside the episode-count lookup below — one query for the
-  // user's entire rating set (inherently small/bounded, see
-  // `listMediaRatings`'s own comment), never a per-item rating query.
-  const [watchedEpisodeCounts, ratings] = await Promise.all([
-    getWatchedEpisodeCountsByShow(userId, showIds),
-    listMediaRatings(),
-  ]);
-  const ratingByKey = new Map(
-    ratings.map((rating) => [ratingKey(rating.mediaType, rating.mediaProviderId), rating.rating]),
-  );
+  const watchedEpisodeCounts = await getWatchedEpisodeCountsByShow(userId, showIds);
 
   // One provider fetch per visible title, in parallel — bounded by page
   // size (see `queries.ts`), never per-season/per-episode (see
   // docs/architecture.md).
   const items = await Promise.all(
-    deduped.map((candidate) => composeOne(candidate, watchedEpisodeCounts, ratingByKey)),
+    deduped.map((candidate) => composeOne(candidate, watchedEpisodeCounts)),
   );
 
   return items.filter((item): item is LibraryItem => item !== null);
@@ -70,7 +56,6 @@ function dedupeCandidates(candidates: readonly LibraryCandidate[]): readonly Lib
 async function composeOne(
   candidate: LibraryCandidate,
   watchedEpisodeCounts: ReadonlyMap<number, number>,
-  ratingByKey: ReadonlyMap<string, number>,
 ): Promise<LibraryItem | null> {
   try {
     if (candidate.mediaType === "movie") {
@@ -83,7 +68,6 @@ async function composeOne(
         year: movie.releaseYear,
         personalActivityAt: candidate.personalActivityAt,
         addedAt: candidate.addedAt,
-        rating: ratingByKey.get(ratingKey("movie", candidate.mediaProviderId)) ?? null,
       };
 
       if (candidate.kind === "watched-movie") {
@@ -107,7 +91,6 @@ async function composeOne(
       year: show.firstAirYear,
       personalActivityAt: candidate.personalActivityAt,
       addedAt: candidate.addedAt,
-      rating: ratingByKey.get(ratingKey("show", candidate.mediaProviderId)) ?? null,
     };
 
     if (candidate.kind === "planned-show") {

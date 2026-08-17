@@ -12,6 +12,7 @@ import type {
   HomeLayoutValue,
   MotionPreferenceValue,
   SpoilerProtectionValue,
+  StatsDefaultRangeValue,
   ThemePreferenceValue,
 } from "@/server/db/schema/preferences";
 
@@ -24,6 +25,9 @@ export type UserPreferences = {
   homeLayout: HomeLayoutValue;
   discoverDefaultType: DiscoverDefaultTypeValue;
   calendarDefaultView: CalendarDefaultViewValue;
+  // Which of Stats' three static range chips `/stats` opens to — see
+  // `resolveDefaultStatsRange` (server/stats/range.ts).
+  statsDefaultRange: StatsDefaultRangeValue;
   // Whether the Calendar Home layout's body shows the upcoming agenda or
   // the full calendar grid — only meaningful when `homeLayout ===
   // "calendar"`, but always a real, durable preference like every other

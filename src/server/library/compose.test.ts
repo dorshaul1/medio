@@ -16,11 +16,6 @@ vi.mock("./candidates", () => ({
   getWatchedEpisodeCountsByShow: (...args: unknown[]) => getWatchedEpisodeCountsByShow(...args),
 }));
 
-const listMediaRatings = vi.fn();
-vi.mock("@/server/opinions/ratings", () => ({
-  listMediaRatings: (...args: unknown[]) => listMediaRatings(...args),
-}));
-
 const listEpisodeWatchEventsForShow = vi.fn();
 vi.mock("@/server/tracking/episode-events", () => ({
   listEpisodeWatchEventsForShow: (...args: unknown[]) => listEpisodeWatchEventsForShow(...args),
@@ -117,7 +112,6 @@ describe("composeLibraryItems", () => {
     getWatchedEpisodeCountsByShow.mockReset().mockResolvedValue(new Map());
     listEpisodeWatchEventsForShow.mockReset().mockResolvedValue([]);
     getShowEpisodeProgress.mockReset();
-    listMediaRatings.mockReset().mockResolvedValue([]);
   });
 
   it("composes a planned movie", async () => {
@@ -221,30 +215,5 @@ describe("composeLibraryItems", () => {
     getMovieDetails.mockResolvedValue(movie());
     const items = await composeLibraryItems("user-1", [planningCandidate(), planningCandidate()]);
     expect(items).toHaveLength(1);
-  });
-
-  it("attaches the user's own rating for a matching title, from one batched lookup", async () => {
-    getMovieDetails.mockResolvedValue(movie());
-    listMediaRatings.mockResolvedValue([
-      {
-        mediaType: "movie",
-        mediaProviderId: 550,
-        rating: 4,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-    ]);
-
-    const items = await composeLibraryItems("user-1", [
-      planningCandidate({ kind: "watched-movie", intent: null, watchCount: 1 }),
-    ]);
-
-    expect(items[0]).toMatchObject({ rating: 4 });
-  });
-
-  it("leaves rating null for an unrated title", async () => {
-    getMovieDetails.mockResolvedValue(movie());
-    const items = await composeLibraryItems("user-1", [planningCandidate()]);
-    expect(items[0]).toMatchObject({ rating: null });
   });
 });

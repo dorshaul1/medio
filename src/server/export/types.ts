@@ -51,15 +51,7 @@ export type NativeExportShowTrackingState = {
   status: "watching" | "on_hold" | "dropped";
 };
 
-export type NativeExportRating = {
-  mediaType: "movie" | "show";
-  mediaProviderId: number;
-  title: string;
-  year: number | null;
-  rating: number;
-};
-
-export type NativeExportNote = {
+export type NativeExportComment = {
   mediaType: "movie" | "show";
   mediaProviderId: number;
   title: string;
@@ -89,8 +81,7 @@ export type NativeExportData = {
   episodeWatchEvents: readonly NativeExportEpisodeWatch[];
   planningItems: readonly NativeExportPlanningItem[];
   showTrackingState: readonly NativeExportShowTrackingState[];
-  ratings: readonly NativeExportRating[];
-  notes: readonly NativeExportNote[];
+  comments: readonly NativeExportComment[];
   preferences: NativeExportPreferences | null;
 };
 

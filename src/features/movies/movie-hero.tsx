@@ -1,15 +1,14 @@
 import { Fragment, type ReactNode } from "react";
 import { formatRuntime } from "@/features/media/format-runtime";
 import { hasReleased as checkHasReleased } from "@/features/media/has-released";
+import { MediaComment } from "@/features/media/media-comment";
 import { MediaDetailHero } from "@/features/media/media-detail-hero";
-import { MediaOpinionSection } from "@/features/media/media-opinion-section";
 import { MetadataLine, providerRatingPart } from "@/features/media/metadata-line";
 import { PersonLink } from "@/features/media/person-link";
 import { PlanningControl } from "@/features/media/planning-control";
 import { TrailerButton } from "@/features/media/trailer-button";
 import { MovieTrackingControl } from "@/features/movies/movie-tracking-control";
 import type { CreditedPerson, MovieDetails, Trailer } from "@/server/media/types";
-import type { MediaOpinion } from "@/server/opinions/types";
 import type { PlanningIntent } from "@/server/planning/types";
 import { backdropUrl, posterUrl } from "@/server/tmdb/images";
 import type { MovieWatchEvent, MovieWatchSummary } from "@/server/tracking/types";
@@ -25,7 +24,7 @@ export function MovieHero({
   watchSummary,
   watchEvents,
   planningIntent,
-  opinion,
+  comment,
   defaultSaveIntent,
 }: {
   movie: MovieDetails;
@@ -34,7 +33,7 @@ export function MovieHero({
   watchSummary: MovieWatchSummary;
   watchEvents: readonly MovieWatchEvent[];
   planningIntent: PlanningIntent | null;
-  opinion: MediaOpinion;
+  comment: string | null;
   defaultSaveIntent: PlanningIntent;
 }) {
   const backdrop = backdropUrl(movie.backdrop, "large");
@@ -87,24 +86,23 @@ export function MovieHero({
           />
         ) : null}
         {trailer ? <TrailerButton trailer={trailer} title={movie.title} /> : null}
-      </div>
-
-      {/* Rating/Reactions/Notes only become relevant once the movie has
-          actually been watched — see docs/opinions.md, "Eligibility".
-          Real watch history (an early/festival screening) always takes
-          priority over the release-date gate elsewhere on this control;
-          opinion follows the same `hasWatched` signal, not a separate
-          check. */}
-      {watchSummary.hasWatched ? (
-        <div className="mt-1 flex justify-center sm:justify-start">
-          <MediaOpinionSection
+        {/* The Comment action only becomes relevant once the movie has
+            actually been watched, even partially — see docs/opinions.md,
+            "Eligibility". Real watch history (an early/festival
+            screening) always takes priority over the release-date gate
+            elsewhere on this control; the comment follows the same
+            `hasWatched` signal, not a separate check. Sits in the same
+            action row as tracking/planning/trailer, not a separate line
+            below. */}
+        {watchSummary.hasWatched ? (
+          <MediaComment
             mediaType="movie"
             mediaProviderId={movie.id}
             title={movie.title}
-            opinion={opinion}
+            comment={comment}
           />
-        </div>
-      ) : null}
+        ) : null}
+      </div>
     </MediaDetailHero>
   );
 }

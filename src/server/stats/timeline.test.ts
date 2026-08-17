@@ -2,9 +2,17 @@ import { describe, expect, it } from "vitest";
 import {
   computeDailyActivity,
   computeMonthlyActivity,
+  computeWeekdayActivity,
   computeYearlyActivity,
   toActivityBuckets,
 } from "./timeline";
+
+// The nearest Monday at/before `date`, in UTC — avoids hardcoding a
+// fragile "August 10 2026 is a Monday" fact directly in test data.
+function mondayOnOrBefore(date: Date): Date {
+  const daysSinceMonday = (date.getUTCDay() + 6) % 7;
+  return new Date(date.getTime() - daysSinceMonday * 24 * 60 * 60 * 1000);
+}
 
 describe("computeMonthlyActivity", () => {
   it("always returns exactly `months` buckets, oldest first, even with no events", () => {
@@ -84,6 +92,49 @@ describe("computeDailyActivity", () => {
       month: 8,
     });
     expect(buckets.every((bucket) => bucket.eventCount === 0)).toBe(true);
+  });
+});
+
+describe("computeWeekdayActivity", () => {
+  it("returns null below the minimum event count", () => {
+    const timestamps = [new Date(Date.UTC(2026, 7, 10)), new Date(Date.UTC(2026, 7, 11))];
+    expect(computeWeekdayActivity(timestamps, 8)).toBeNull();
+  });
+
+  it("buckets Monday-first and names the most active day", () => {
+    const monday = mondayOnOrBefore(new Date(Date.UTC(2026, 7, 10)));
+    const wednesday = new Date(monday.getTime() + 2 * 24 * 60 * 60 * 1000);
+    const timestamps = [
+      wednesday,
+      wednesday,
+      wednesday,
+      new Date(monday.getTime()), // Monday
+      new Date(monday.getTime() + 24 * 60 * 60 * 1000), // Tuesday
+    ];
+    const result = computeWeekdayActivity(timestamps, 3);
+    expect(result).not.toBeNull();
+    expect(result?.buckets.map((bucket) => bucket.label)).toEqual([
+      "Mon",
+      "Tue",
+      "Wed",
+      "Thu",
+      "Fri",
+      "Sat",
+      "Sun",
+    ]);
+    expect(result?.buckets.find((bucket) => bucket.label === "Wed")?.eventCount).toBe(3);
+    expect(result?.mostActiveDay).toBe("Wed");
+  });
+
+  it("declares no single most-active day when every day is exactly tied", () => {
+    const monday = mondayOnOrBefore(new Date(Date.UTC(2026, 7, 10)));
+    const timestamps = Array.from(
+      { length: 7 },
+      (_, i) => new Date(monday.getTime() + i * 24 * 60 * 60 * 1000),
+    );
+    const result = computeWeekdayActivity(timestamps, 7);
+    expect(result?.mostActiveDay).toBeNull();
+    expect(result?.buckets.every((bucket) => bucket.eventCount === 1)).toBe(true);
   });
 });
 

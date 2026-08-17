@@ -13,8 +13,7 @@ function emptyState() {
     episodeWatchedAtByEpisode: new Map<string, Date[]>(),
     planningIntentByMedia: new Map<string, "watchlist" | "backlog">(),
     trackingStatusByShow: new Map<number, "watching" | "on_hold" | "dropped">(),
-    ratingByMedia: new Map<string, number>(),
-    hasNoteForMedia: new Set<string>(),
+    hasCommentForMedia: new Set<string>(),
   };
 }
 
@@ -180,40 +179,26 @@ describe("buildImportPlan — merge rules", () => {
     expect(plan.entries[0]?.status).toBe("conflict");
   });
 
-  it("Ratings: an existing rating always wins — import is a conflict, never a silent overwrite", () => {
+  it("Comments: an existing comment always wins — never concatenated or overwritten", () => {
     const existing = emptyState();
-    existing.ratingByMedia.set("movie:550", 3);
+    existing.hasCommentForMedia.add("movie:550");
     const record: ParsedImportRecord = {
-      kind: "rating",
+      kind: "comment",
       identity: { kind: "titleYear", mediaType: "movie", title: "Fight Club", year: 1999 },
-      rating: 5,
-      sourceRatingLabel: null,
+      content: "Imported comment",
     };
     const plan = buildImportPlan([{ record, resolved: RESOLVED_MOVIE }], existing);
     expect(plan.entries[0]?.status).toBe("conflict");
   });
 
-  it("Ratings: no existing rating creates one", () => {
+  it("Comments: no existing comment creates one", () => {
     const record: ParsedImportRecord = {
-      kind: "rating",
+      kind: "comment",
       identity: { kind: "titleYear", mediaType: "movie", title: "Fight Club", year: 1999 },
-      rating: 5,
-      sourceRatingLabel: null,
+      content: "Imported comment",
     };
     const plan = buildImportPlan([{ record, resolved: RESOLVED_MOVIE }], emptyState());
     expect(plan.entries[0]?.status).toBe("ready");
-  });
-
-  it("Notes: an existing note always wins — never concatenated or overwritten", () => {
-    const existing = emptyState();
-    existing.hasNoteForMedia.add("movie:550");
-    const record: ParsedImportRecord = {
-      kind: "note",
-      identity: { kind: "titleYear", mediaType: "movie", title: "Fight Club", year: 1999 },
-      content: "Imported note",
-    };
-    const plan = buildImportPlan([{ record, resolved: RESOLVED_MOVIE }], existing);
-    expect(plan.entries[0]?.status).toBe("conflict");
   });
 
   it("Show tracking: existing explicit state is kept over an imported one", () => {
@@ -236,10 +221,9 @@ describe("buildImportPlan — summary", () => {
         { record: movieWatch(new Date("2026-08-01T12:00:00Z")), resolved: RESOLVED_MOVIE },
         {
           record: {
-            kind: "rating",
+            kind: "comment",
             identity: { kind: "titleYear", mediaType: "movie", title: "Fight Club", year: 1999 },
-            rating: 5,
-            sourceRatingLabel: null,
+            content: "Loved it",
           },
           resolved: RESOLVED_MOVIE,
         },
@@ -247,8 +231,7 @@ describe("buildImportPlan — summary", () => {
       emptyState(),
     );
     expect(plan.summary.readyByKind.movieWatch).toBe(1);
-    expect(plan.summary.readyByKind.rating).toBe(1);
-    expect(plan.summary.readyByKind.note).toBe(0);
+    expect(plan.summary.readyByKind.comment).toBe(1);
   });
 
   it("is deterministic — the same input always produces the same plan", () => {

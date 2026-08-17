@@ -1,7 +1,5 @@
 import { Separator } from "@/components/ui/separator";
 import type { UserPreferences } from "@/server/preferences/types";
-import { CalendarDefaultSetting } from "./calendar-default-setting";
-import { DiscoverDefaultSetting } from "./discover-default-setting";
 import { FinishSoonSetting } from "./finish-soon-setting";
 import { HomeCalendarViewSetting } from "./home-calendar-view-setting";
 import { HomeLayoutSetting } from "./home-layout-setting";
@@ -14,14 +12,13 @@ import { ShowUpNextSetting } from "./show-up-next-setting";
 // "what should I watch right now" and appears above every layout when on;
 // Home layout answers "what fills the rest of the page". Kept visually
 // distinct (a VisualChoice row, then a plain Switch row) so Show Up Next
-// never reads as a fourth layout option.
+// never reads as a fourth layout option. Which view other destinations
+// (Discover, Calendar, Stats) open to lives on its own "Defaults"
+// category — see settings-params.ts — not here.
 export function HomeSettings({ preferences }: { preferences: UserPreferences }) {
   return (
     <div className="flex flex-col gap-2">
-      <SettingsCategoryHeader
-        title="Home & Discovery"
-        description="How much Home emphasizes your own viewing versus what's new."
-      />
+      <SettingsCategoryHeader title="Home" description="What Home shows and how it's laid out." />
       <Separator />
       <SettingRow
         title="Show Up Next"
@@ -40,7 +37,7 @@ export function HomeSettings({ preferences }: { preferences: UserPreferences }) 
       <Separator />
       <SettingRow
         title="Home calendar view"
-        comment="When Home layout is Calendar, show the upcoming agenda or the full calendar grid — separate from Calendar page view below, which is for the full Calendar page."
+        comment="When Home layout is Calendar, show the upcoming agenda or the full calendar grid — separate from Calendar page view in Defaults, which is for the full Calendar page."
       >
         <HomeCalendarViewSetting value={preferences.homeCalendarView} />
       </SettingRow>
@@ -51,20 +48,6 @@ export function HomeSettings({ preferences }: { preferences: UserPreferences }) 
         htmlFor="show-finish-soon"
       >
         <FinishSoonSetting value={preferences.showFinishSoon} />
-      </SettingRow>
-      <Separator />
-      <SettingRow
-        title="Default Discover view"
-        comment="Sets which tab — Movies or Shows — Discover opens to."
-      >
-        <DiscoverDefaultSetting value={preferences.discoverDefaultType} />
-      </SettingRow>
-      <Separator />
-      <SettingRow
-        title="Calendar page view"
-        comment="Sets which layout — the Upcoming agenda or the month grid — the full Calendar page opens to when you visit it directly. Separate from Home calendar view above."
-      >
-        <CalendarDefaultSetting value={preferences.calendarDefaultView} />
       </SettingRow>
     </div>
   );

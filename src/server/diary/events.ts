@@ -222,15 +222,18 @@ type ActivityRow = {
 // user has ever watched something in — a 20-year daily viewer is still
 // only a few hundred rows, not thousands/millions. Bucketed by UTC
 // calendar month, the same documented simplification `listDiaryEvents`'s
-// own `period` filter and `server/stats/timeline.ts` already use.
+// own `period` filter and `server/stats/timeline.ts` already use —
+// `at time zone 'UTC'` is explicit here rather than relying on the
+// database connection's own session timezone, so this can never
+// silently disagree with those UTC-boundary filters for the same events.
 export async function getDiaryActivityCalendar(
   userId: string,
 ): Promise<readonly DiaryMonthActivity[]> {
   const result = await db.execute<ActivityRow>(sql`
     with movie_counts as (
       select
-        extract(year from watched_at)::int as year,
-        extract(month from watched_at)::int as month,
+        extract(year from watched_at at time zone 'UTC')::int as year,
+        extract(month from watched_at at time zone 'UTC')::int as month,
         count(*)::int as movie_count
       from movie_watch_events
       where user_id = ${userId}
@@ -238,8 +241,8 @@ export async function getDiaryActivityCalendar(
     ),
     episode_counts as (
       select
-        extract(year from watched_at)::int as year,
-        extract(month from watched_at)::int as month,
+        extract(year from watched_at at time zone 'UTC')::int as year,
+        extract(month from watched_at at time zone 'UTC')::int as month,
         count(*)::int as episode_count
       from episode_watch_events
       where user_id = ${userId}

@@ -8,47 +8,67 @@ const OVERVIEW = {
   uniqueEpisodesWatched: 340,
   episodeWatchEventCount: 355,
   uniqueShowsWatched: 6,
-  watchedThisYearCount: 9,
 };
 
 describe("StatsHero", () => {
-  it("renders one grounded headline sentence, not fabricated copy", () => {
+  it("renders an all-time viewing headline", () => {
+    render(<StatsHero range={{ kind: "all" }} overview={OVERVIEW} estimatedViewingTime={null} />);
+    expect(screen.getByText("Your viewing history.")).toBeInTheDocument();
+  });
+
+  it("renders a range-specific headline for a selected year", () => {
     render(
       <StatsHero
-        headline={{ kind: "highest_rated_genre", genre: "Drama" }}
+        range={{ kind: "year", year: 2025 }}
         overview={OVERVIEW}
         estimatedViewingTime={null}
       />,
     );
-    expect(screen.getByText("Drama is your highest-rated genre.")).toBeInTheDocument();
+    expect(screen.getByText("What you watched in 2025.")).toBeInTheDocument();
   });
 
-  it("renders one restrained supporting line of counts, not four KPI cards", () => {
-    render(
-      <StatsHero headline={{ kind: "sparse" }} overview={OVERVIEW} estimatedViewingTime={null} />,
-    );
-    expect(screen.getByText(/12 movies/)).toBeInTheDocument();
-    expect(screen.getByText(/6 shows/)).toBeInTheDocument();
-    expect(screen.getByText(/340 episodes/)).toBeInTheDocument();
-    expect(screen.getAllByText(/movies|shows|episodes/).length).toBeGreaterThan(0);
+  it("renders large unique-count numbers, not KPI cards", () => {
+    render(<StatsHero range={{ kind: "all" }} overview={OVERVIEW} estimatedViewingTime={null} />);
+    expect(screen.getByText("12")).toBeInTheDocument();
+    expect(screen.getByText("Movies")).toBeInTheDocument();
+    expect(screen.getByText("6")).toBeInTheDocument();
+    expect(screen.getByText("Shows")).toBeInTheDocument();
+    expect(screen.getByText("340")).toBeInTheDocument();
+    expect(screen.getByText("Episodes")).toBeInTheDocument();
   });
 
-  it("appends a rounded, honestly-approximate viewing-time figure only when confident enough", () => {
+  it("distinguishes unique counts from viewing events and rewatches", () => {
+    render(<StatsHero range={{ kind: "all" }} overview={OVERVIEW} estimatedViewingTime={null} />);
+    // 14 + 355 = 369 total events; 369 - 12 - 340 = 17 rewatch events.
+    expect(screen.getByText(/369 viewing events, including 17 rewatches/)).toBeInTheDocument();
+  });
+
+  it("omits the rewatch line entirely when nothing was rewatched", () => {
     render(
       <StatsHero
-        headline={{ kind: "sparse" }}
+        range={{ kind: "all" }}
+        overview={{
+          uniqueMoviesWatched: 3,
+          movieWatchEventCount: 3,
+          uniqueEpisodesWatched: 10,
+          episodeWatchEventCount: 10,
+          uniqueShowsWatched: 1,
+        }}
+        estimatedViewingTime={null}
+      />,
+    );
+    expect(screen.queryByText(/rewatch/)).not.toBeInTheDocument();
+  });
+
+  it("appends a rounded viewing-time figure only when confident enough", () => {
+    render(
+      <StatsHero
+        range={{ kind: "all" }}
         overview={OVERVIEW}
         estimatedViewingTime={{ minutes: 38472, coverageRatio: 0.9 }}
       />,
     );
     expect(screen.getByText(/~641 hours watched/)).toBeInTheDocument();
     expect(screen.queryByText(/38,472 minutes/)).not.toBeInTheDocument();
-  });
-
-  it("omits the viewing-time figure entirely when confidence is too low", () => {
-    render(
-      <StatsHero headline={{ kind: "sparse" }} overview={OVERVIEW} estimatedViewingTime={null} />,
-    );
-    expect(screen.queryByText(/hours watched/)).not.toBeInTheDocument();
   });
 });

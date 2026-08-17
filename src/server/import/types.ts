@@ -64,18 +64,8 @@ export type ImportedShowTrackingState = ImportedRecordCommon & {
   status: "watching" | "on_hold" | "dropped";
 };
 
-export type ImportedRating = ImportedRecordCommon & {
-  kind: "rating";
-  rating: number;
-  // Set only when the source scale required a conversion (e.g.
-  // Letterboxd's 0.5–5 half-star scale rounded to MEDIO's 1–5 integer
-  // scale) — surfaced in the preview so the conversion is never silent
-  // (see docs/data-portability.md, "Letterboxd ratings").
-  sourceRatingLabel: string | null;
-};
-
-export type ImportedNote = ImportedRecordCommon & {
-  kind: "note";
+export type ImportedComment = ImportedRecordCommon & {
+  kind: "comment";
   content: string;
 };
 
@@ -84,8 +74,7 @@ export type ParsedImportRecord =
   | ImportedEpisodeWatch
   | ImportedPlanningItem
   | ImportedShowTrackingState
-  | ImportedRating
-  | ImportedNote;
+  | ImportedComment;
 
 export type ImportRecordKind = ParsedImportRecord["kind"];
 
@@ -152,7 +141,7 @@ export type PlanEntry = {
   resolved: ResolvedIdentity;
   status: PlanEntryStatus;
   // Plain-language explanation for `duplicate`/`conflict` entries — e.g.
-  // "Already watched on this date", "Rating already set" — never a
+  // "Already watched on this date", "Comment already exists" — never a
   // generic "skipped".
   reason: string | null;
 };
@@ -167,7 +156,7 @@ export type PlanSummary = {
   lookupFailed: number;
   // Per-kind counts of only the entries that would actually be created —
   // what the confirmation screen shows ("530 watch events, 24 Watchlist
-  // items, 18 ratings"), never a generic "Import 572 items?" total (see
+  // items, 18 comments"), never a generic "Import 572 items?" total (see
   // docs/data-portability.md, "Confirmation").
   readyByKind: Record<ImportRecordKind, number>;
 };

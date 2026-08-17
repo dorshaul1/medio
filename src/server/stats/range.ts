@@ -7,6 +7,7 @@
 // the same accepted, documented tradeoff `server/diary/events.ts`'s
 // `period` filter and `computeMonthlyActivity` already make.
 import { addMonths, formatMonthParam, parseMonthParam } from "@/lib/month";
+import type { StatsDefaultRangeValue } from "@/server/db/schema/preferences";
 
 export type StatsRange =
   | { kind: "all" }
@@ -93,9 +94,33 @@ export function formatStatsRangeLabel(range: StatsRange): string {
 // `YYYY-MM`, the same compact vocabulary the range control renders as
 // chips. An invalid/missing value always falls back to `"all"`, the same
 // convention every other `normalize*` URL param parser in this app uses.
-export function parseStatsRangeParam(raw: string | string[] | undefined): StatsRange {
+// Resolves the user's "Default Stats range" preference (Settings →
+// Defaults) against the current date — "year"/"month" are never
+// persisted as a specific year/month, only as which of the three static
+// chips to land on (see docs/stats.md, "Date ranges").
+export function resolveDefaultStatsRange(
+  preference: StatsDefaultRangeValue,
+  now: Date,
+): StatsRange {
+  switch (preference) {
+    case "all":
+      return { kind: "all" };
+    case "year":
+      return { kind: "year", year: now.getUTCFullYear() };
+    case "month":
+      return { kind: "month", year: now.getUTCFullYear(), month: now.getUTCMonth() + 1 };
+  }
+}
+
+// `defaultRange` resolves the case with no `?range=` at all — the
+// user's own "Default Stats range" preference, already resolved against
+// `now` by the caller (see `resolveDefaultStatsRange`).
+export function parseStatsRangeParam(
+  raw: string | string[] | undefined,
+  defaultRange: StatsRange,
+): StatsRange {
   const value = Array.isArray(raw) ? raw[0] : raw;
-  if (!value) return { kind: "all" };
+  if (!value) return defaultRange;
   if (value === "all") return { kind: "all" };
   if (value === "last12months") return { kind: "last12months" };
 

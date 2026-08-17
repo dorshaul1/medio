@@ -145,7 +145,7 @@ function scoreDiscovery(
     score += RECOMMENDATION_SOURCE_BONUS;
     reasons.push(
       candidate.seedTitle
-        ? { kind: "similarToHighlyRated", title: candidate.seedTitle }
+        ? { kind: "similarToWatched", title: candidate.seedTitle }
         : { kind: "popularDiscovery" },
     );
   } else if (candidate.source === "director" && taste.topDirector) {
@@ -163,8 +163,8 @@ function scoreDiscovery(
   score += time.bonus;
   if (time.reason) reasons.push(time.reason);
 
-  // A "genre" source with no matching affinity (e.g. the top genre by
-  // rating didn't end up on this particular title) would otherwise leave
+  // A "genre" source with no matching affinity (e.g. the top exposure
+  // genre didn't end up on this particular title) would otherwise leave
   // a recommendation with zero reasons — never present a pick with no
   // explanation at all.
   if (reasons.length === 0) reasons.push({ kind: "popularDiscovery" });

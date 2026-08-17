@@ -3,17 +3,22 @@ import { PageContainer } from "@/components/shell/page-container";
 import { LibraryEmptyState } from "@/features/library/library-empty-state";
 import { StatsComparisonSection } from "@/features/stats/stats-comparison";
 import { StatsHero } from "@/features/stats/stats-hero";
+import { StatsPatternsSection } from "@/features/stats/stats-patterns-section";
 import { StatsRangeControl } from "@/features/stats/stats-range-control";
+import type { StatsTab } from "@/features/stats/stats-tabs";
+import { StatsTabs } from "@/features/stats/stats-tabs";
 import { StatsTimeline } from "@/features/stats/stats-timeline";
-import { TasteGenreSection } from "@/features/stats/taste-genre-insights";
-import { TastePatternsSection } from "@/features/stats/taste-patterns-section";
-import { TastePeopleSection } from "@/features/stats/taste-people-section";
-import { TasteRatingsSection } from "@/features/stats/taste-ratings-section";
-import { TasteRewatchSection } from "@/features/stats/taste-rewatch-section";
+import { StatsWeekdaySection } from "@/features/stats/stats-weekday-section";
+import { TasteGenreSection } from "@/features/taste/taste-genre-insights";
+import { TasteHero } from "@/features/taste/taste-hero";
+import { TastePeopleSection } from "@/features/taste/taste-people-section";
+import { TasteRewatchSection } from "@/features/taste/taste-rewatch-section";
+import { getCurrentUserPreferences } from "@/server/preferences/queries";
 import { getStatsActiveYears, getStatsComparison, getStatsProfile } from "@/server/stats/compose";
 import {
   formatStatsRangeLabel,
   parseStatsRangeParam,
+  resolveDefaultStatsRange,
   statsRangeSupportsComparison,
 } from "@/server/stats/range";
 import type { StatsComparison, StatsProfile } from "@/server/stats/types";
@@ -22,19 +27,26 @@ export const metadata: Metadata = {
   title: "Stats",
 };
 
-// A top-level primary destination (see docs/stats.md) — "what does my own
-// watch history actually say about me?" — deliberately not part of
-// Library, and deliberately not an analytics dashboard: a compact date-
-// range control, one editorial opening statement, a restrained viewing-
-// rhythm chart, then curated Taste/People/Rewatch/Ratings insight
-// sections. Every section below omits itself entirely when the
-// underlying evidence is too thin to be meaningful — there is no "not
-// enough data" placeholder anywhere on this page (see docs/stats.md,
-// "Sparse data"). `?range=`/`?compare=` are real URL state, same
-// convention as every other filter/sort in this app.
+function parseStatsTabParam(value: string | string[] | undefined): StatsTab {
+  return value === "taste" ? "taste" : "overview";
+}
+
+// MEDIO's one personal analytics/insight destination — Overview
+// (temporal viewing activity) and Taste (genre/people/rewatch
+// preference) as two tabs sharing one date range, not two separate
+// routes (see docs/stats.md, "Information architecture"). Not an
+// analytics dashboard: a compact date-range control, an understated tab
+// switch, and each tab's own small set of curated, editorial insights.
+// `?range=`/`?compare=`/`?tab=` are all real URL state, same convention
+// as every other filter/sort in this app — switching tabs never loses
+// the selected range.
 export default async function StatsPage({ searchParams }: PageProps<"/stats">) {
   const params = await searchParams;
-  const range = parseStatsRangeParam(params.range);
+  const now = new Date();
+  const preferences = await getCurrentUserPreferences();
+  const defaultRange = resolveDefaultStatsRange(preferences.statsDefaultRange, now);
+  const range = parseStatsRangeParam(params.range, defaultRange);
+  const tab = parseStatsTabParam(params.tab);
   const compareRequested = params.compare === "1" && statsRangeSupportsComparison(range);
 
   const [activeYears, resolved] = await Promise.all([
@@ -51,7 +63,9 @@ export default async function StatsPage({ searchParams }: PageProps<"/stats">) {
     // Either comparison wasn't requested, or the range turned out not to
     // support one after all (defensive — `statsRangeSupportsComparison`
     // already guards `compareRequested` above) — either way, the plain
-    // single-range profile is the correct fallback.
+    // single-range profile is the correct fallback. One fetch serves
+    // both tabs: `StatsProfile` already carries every field Taste
+    // renders, so switching tabs never triggers a second query.
     stats = await getStatsProfile(range);
   }
 
@@ -68,35 +82,38 @@ export default async function StatsPage({ searchParams }: PageProps<"/stats">) {
         <h1 className="text-2xl font-medium tracking-tight sm:text-3xl">Stats</h1>
 
         {hasAnyHistoryEver ? (
-          <div className="flex flex-col gap-8">
-            <StatsRangeControl
-              activeRange={range}
-              activeYears={activeYears}
-              compare={compareRequested}
-              now={new Date()}
-            />
+          <div className="flex flex-col gap-6">
+            <StatsRangeControl activeRange={range} compare={compareRequested} />
+            <StatsTabs active={tab} range={range} compare={compareRequested} />
 
             {stats.hasAnyHistory ? (
-              <div className="flex flex-col gap-10">
-                <StatsHero
-                  headline={stats.headline}
-                  overview={stats.overview}
-                  estimatedViewingTime={stats.estimatedViewingTime}
-                />
-                {comparison ? <StatsComparisonSection comparison={comparison} /> : null}
-                <StatsTimeline rhythm={stats.viewingRhythm} />
-                <TasteGenreSection genres={stats.genres} />
-                <TastePeopleSection directors={stats.directors} actors={stats.actors} />
-                <TasteRewatchSection rewatch={stats.rewatch} />
-                <TastePatternsSection
-                  movieVsShow={stats.movieVsShow}
-                  completion={stats.completion}
-                />
-                <TasteRatingsSection
-                  distribution={stats.ratingDistribution}
-                  comparison={stats.ratingComparison}
-                />
-              </div>
+              tab === "overview" ? (
+                <div className="flex flex-col gap-10">
+                  <StatsHero
+                    range={stats.range}
+                    overview={stats.overview}
+                    estimatedViewingTime={stats.estimatedViewingTime}
+                  />
+                  {comparison ? <StatsComparisonSection comparison={comparison} /> : null}
+                  <StatsTimeline rhythm={stats.viewingRhythm} />
+                  <StatsWeekdaySection weekday={stats.weekdayRhythm} />
+                  <StatsPatternsSection
+                    movieVsShow={stats.movieVsShow}
+                    completion={stats.completion}
+                  />
+                </div>
+              ) : (
+                <div className="flex flex-col gap-10">
+                  <TasteHero
+                    headline={stats.headline}
+                    overview={stats.overview}
+                    estimatedViewingTime={stats.estimatedViewingTime}
+                  />
+                  <TasteGenreSection genres={stats.genres} />
+                  <TastePeopleSection directors={stats.directors} actors={stats.actors} />
+                  <TasteRewatchSection rewatch={stats.rewatch} />
+                </div>
+              )
             ) : (
               <LibraryEmptyState
                 heading={`Nothing watched in ${formatStatsRangeLabel(range)}.`}
@@ -107,7 +124,7 @@ export default async function StatsPage({ searchParams }: PageProps<"/stats">) {
         ) : (
           <LibraryEmptyState
             heading="No stats yet."
-            description="Watch and rate a few movies or shows to see your stats take shape."
+            description="Watch a few movies or shows to see your stats take shape."
             showDiscoverLink
           />
         )}

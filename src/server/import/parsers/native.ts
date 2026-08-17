@@ -40,15 +40,7 @@ const showTrackingStateSchema = z.object({
   status: z.enum(["watching", "on_hold", "dropped"]),
 });
 
-const ratingSchema = z.object({
-  mediaType: z.enum(["movie", "show"]),
-  mediaProviderId: z.number().int().positive(),
-  title: z.string(),
-  year: z.number().int().nullable().optional(),
-  rating: z.number().int().min(1).max(5),
-});
-
-const noteSchema = z.object({
+const commentSchema = z.object({
   mediaType: z.enum(["movie", "show"]),
   mediaProviderId: z.number().int().positive(),
   title: z.string(),
@@ -64,8 +56,7 @@ const nativeExportSchema = z.object({
     episodeWatchEvents: z.array(episodeWatchSchema).default([]),
     planningItems: z.array(planningItemSchema).default([]),
     showTrackingState: z.array(showTrackingStateSchema).default([]),
-    ratings: z.array(ratingSchema).default([]),
-    notes: z.array(noteSchema).default([]),
+    comments: z.array(commentSchema).default([]),
   }),
 });
 
@@ -159,20 +150,10 @@ export function parseNativeExport(raw: unknown): ParseResult {
     });
   }
 
-  for (const item of data.ratings) {
+  for (const item of data.comments) {
     row++;
     records.push({
-      kind: "rating",
-      identity: { kind: "known", mediaType: item.mediaType, providerId: item.mediaProviderId },
-      rating: item.rating,
-      sourceRatingLabel: null,
-    });
-  }
-
-  for (const item of data.notes) {
-    row++;
-    records.push({
-      kind: "note",
+      kind: "comment",
       identity: { kind: "known", mediaType: item.mediaType, providerId: item.mediaProviderId },
       content: item.content,
     });

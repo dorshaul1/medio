@@ -35,7 +35,6 @@ const WATCHLIST_ITEM: PlannedMovieLibraryItem = {
   intent: "watchlist",
   personalActivityAt: new Date(),
   addedAt: new Date(),
-  rating: null,
 };
 
 const BACKLOG_ITEM: PlannedMovieLibraryItem = { ...WATCHLIST_ITEM, intent: "backlog" };
@@ -95,7 +94,6 @@ describe("LibraryItemActions", () => {
           lastWatchedAt: new Date(),
           personalActivityAt: new Date(),
           addedAt: new Date(),
-          rating: null,
         }}
       />,
     );

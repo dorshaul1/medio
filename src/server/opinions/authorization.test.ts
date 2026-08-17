@@ -1,17 +1,16 @@
 import "@/server/test-support/test-env";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-// Opinion data (ratings, reactions, notes) is private, user-owned data —
-// these tests exist specifically to prove one user can never read or
-// mutate another user's rows, even when they know the exact media
-// identity. See docs/opinions.md, "Privacy / ownership".
+// Opinion data (private comments) is private, user-owned data — these
+// tests exist specifically to prove one user can never read or mutate
+// another user's rows, even when they know the exact media identity.
+// See docs/opinions.md, "Privacy / ownership".
 vi.mock("server-only", () => ({}));
 const requireSession = vi.fn();
 vi.mock("@/server/auth/session", () => ({ requireSession: () => requireSession() }));
 
 const { createTestUser, deleteTestUser } = await import("@/server/test-support/test-db");
-const { setMediaRating, getMediaRating } = await import("./ratings");
-const { setMediaNote, getMediaNote } = await import("./notes");
+const { setMediaComment, getMediaComment } = await import("./comments");
 
 const FIGHT_CLUB = 550;
 
@@ -32,26 +31,16 @@ afterEach(async () => {
   await deleteTestUser(userB);
 });
 
-describe("ratings", () => {
-  it("reads only return the current user's rating", async () => {
+describe("comments", () => {
+  it("reads only return the current user's comment", async () => {
     loginAs(userA);
-    await setMediaRating({ mediaType: "movie", mediaProviderId: FIGHT_CLUB, rating: 5 });
-
-    loginAs(userB);
-    expect(await getMediaRating({ mediaType: "movie", mediaProviderId: FIGHT_CLUB })).toBeNull();
-  });
-});
-
-describe("notes", () => {
-  it("reads only return the current user's note", async () => {
-    loginAs(userA);
-    await setMediaNote({
+    await setMediaComment({
       mediaType: "movie",
       mediaProviderId: FIGHT_CLUB,
-      content: "User A's note",
+      content: "User A's comment",
     });
 
     loginAs(userB);
-    expect(await getMediaNote({ mediaType: "movie", mediaProviderId: FIGHT_CLUB })).toBeNull();
+    expect(await getMediaComment({ mediaType: "movie", mediaProviderId: FIGHT_CLUB })).toBeNull();
   });
 });

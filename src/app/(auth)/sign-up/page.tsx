@@ -29,7 +29,7 @@ export default async function SignUpPage({ searchParams }: PageProps<"/sign-up">
         </>
       }
     >
-      <SignUpForm {...(next ? { next } : {})} />
+      <SignUpForm />
     </AuthScreen>
   );
 }

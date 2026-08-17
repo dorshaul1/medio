@@ -15,16 +15,14 @@ function profile(overrides: Partial<StatsProfile> = {}): StatsProfile {
     },
     headline: { kind: "sparse" },
     viewingRhythm: null,
+    weekdayRhythm: null,
     estimatedViewingTime: null,
-    genres: { mostWatched: [], highestRated: [] },
+    genres: { mostWatched: [] },
     directors: [],
     actors: [],
     rewatch: { mostRewatchedMovie: null, mostRevisitedShow: null, rewatchRatePercent: null },
     movieVsShow: null,
     completion: null,
-    ratingDistribution: null,
-    ratingComparison: null,
-    ratedTitleCount: 0,
     ...overrides,
   };
 }
@@ -66,16 +64,10 @@ describe("deriveStatsComparison", () => {
 
   it("notes a genre shift only when the top genre actually changed", () => {
     const current = profile({
-      genres: {
-        mostWatched: [{ genreId: 1, genreName: "Drama", titleCount: 5 }],
-        highestRated: [],
-      },
+      genres: { mostWatched: [{ genreId: 1, genreName: "Drama", titleCount: 5 }] },
     });
     const previous = profile({
-      genres: {
-        mostWatched: [{ genreId: 2, genreName: "Comedy", titleCount: 5 }],
-        highestRated: [],
-      },
+      genres: { mostWatched: [{ genreId: 2, genreName: "Comedy", titleCount: 5 }] },
     });
     const result = deriveStatsComparison(current, previous, "2025");
     expect(result?.facts).toContainEqual({
@@ -85,10 +77,7 @@ describe("deriveStatsComparison", () => {
   });
 
   it("stays silent about genre when the top genre is unchanged", () => {
-    const same = {
-      mostWatched: [{ genreId: 1, genreName: "Drama", titleCount: 5 }],
-      highestRated: [],
-    };
+    const same = { mostWatched: [{ genreId: 1, genreName: "Drama", titleCount: 5 }] };
     const current = profile({ genres: same });
     const previous = profile({ genres: same });
     expect(deriveStatsComparison(current, previous, "2025")).toBeNull();

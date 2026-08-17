@@ -117,16 +117,16 @@ describe("SearchResultRow", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows a quiet Watched state (with rating) and no Save control for a watched movie", () => {
+  it("shows a quiet Watched state and no Save control for a watched movie", () => {
     render(
       <SearchResultRow
         media={{ ...SHOW, mediaType: "movie", id: 550 }}
-        personalState={{ kind: "watched", rating: 4 }}
+        personalState={{ kind: "watched" }}
         defaultSaveIntent="watchlist"
       />,
     );
 
-    expect(screen.getByText("Watched · 4/5")).toBeInTheDocument();
+    expect(screen.getByText("Watched")).toBeInTheDocument();
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 

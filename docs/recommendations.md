@@ -130,15 +130,18 @@ candidate. MEDIO should never worsen backlog paralysis by defaulting to
 ## Discovery candidate generation
 
 `candidates-discovery.ts` never ranks the whole TMDB catalog. It gathers
-a small number of seeds (3–5 top-rated titles via
+a small number of seeds (2–3 of the user's most-(re)watched titles via
 `PICK_TASTE_SEED_MOVIE_LIMIT` / `PICK_TASTE_SEED_SHOW_LIMIT`, plus the
 user's favorite director's filmography when confident), merges and
 dedupes across sources (`mergeRaw`, first-seen source wins), and only
 then hydrates full details for the bounded, exclusion-filtered result
-(`PICK_DISCOVERY_RAW_CANDIDATE_LIMIT`). A user with no rating history
-falls back honestly to `getPopularMovies`/`getPopularShows` — the
-`popular` source, whose reason copy ("Popular right now") never claims
-personalization it doesn't have (see "New user fallback").
+(`PICK_DISCOVERY_RAW_CANDIDATE_LIMIT`). MEDIO has no personal rating
+feature (see `docs/opinions.md`) — every taste signal here is exposure-
+based (what's watched, how often, and rewatches). A user with too
+little watch history falls back honestly to
+`getPopularMovies`/`getPopularShows` — the `popular` source, whose
+reason copy ("Popular right now") never claims personalization it
+doesn't have (see "New user fallback").
 
 ### Discovery candidate exclusion
 
@@ -169,8 +172,8 @@ real, confident per-show creator/showrunner affinity signal exists.
 
 ### New user fallback
 
-A brand-new account (no ratings, no Watchlist/Backlog, no active shows)
-still gets a working, honestly-labeled experience:
+A brand-new account (too little watch history, no Watchlist/Backlog, no
+active shows) still gets a working, honestly-labeled experience:
 `hasEnoughDataForPersonalization` is `false`, Discovery falls back to
 `popular`, and every resulting reason is `popularDiscovery` — never a
 fabricated "Based on your taste."

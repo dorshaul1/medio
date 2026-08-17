@@ -12,6 +12,11 @@ vi.mock("@/lib/auth-client", () => ({
   authClient: { signOut: (...args: unknown[]) => signOut(...args) },
 }));
 
+const clearRecentSearches = vi.fn();
+vi.mock("@/features/search/recent-searches", () => ({
+  clearRecentSearches: () => clearRecentSearches(),
+}));
+
 // jsdom's real `window.location` throws "Not implemented: navigation" on
 // assignment — replaced with a plain writable stub so `handleSignOut`'s
 // hard navigation (see account-control.tsx for why it's a hard reload,
@@ -68,5 +73,28 @@ describe("AccountControl", () => {
 
     expect(signOut).toHaveBeenCalled();
     expect(window.location.href).toBe("/library");
+  });
+
+  it("clears locally-stored Recent Searches once sign-out succeeds, so a different account signing in on this device never sees them", async () => {
+    const user = userEvent.setup();
+    signOut.mockImplementation(({ fetchOptions }) => {
+      fetchOptions.onSuccess();
+      return Promise.resolve();
+    });
+
+    render(<AccountControl name="Dor" email="dor@example.com" />);
+    await user.click(screen.getByRole("button", { name: "Sign out" }));
+
+    expect(clearRecentSearches).toHaveBeenCalled();
+  });
+
+  it("never clears Recent Searches if sign-out never succeeds", async () => {
+    const user = userEvent.setup();
+    signOut.mockReturnValue(new Promise(() => {})); // never resolves
+
+    render(<AccountControl name="Dor" email="dor@example.com" />);
+    await user.click(screen.getByRole("button", { name: "Sign out" }));
+
+    expect(clearRecentSearches).not.toHaveBeenCalled();
   });
 });

@@ -20,8 +20,8 @@ durable preference table, keyed by `userId` (primary key, `ON DELETE
 CASCADE`). A row is created only on the first preference change ever made
 — "no row" and "every column at its default" are the same observable
 state (see `DEFAULT_PREFERENCES`, `src/server/preferences/queries.ts`),
-the same convention `media_notes` already uses for "only exists when it
-holds real content."
+the same convention `media_comments` already uses for "only exists when
+it holds real content."
 
 `getCurrentUserPreferences()` (memoized per request via `React.cache`) is
 the one read every server surface uses — safe to call from a public page
@@ -36,7 +36,7 @@ anywhere in the authenticated app.
 
 **"Reset preferences"** deletes the row entirely — the simplest correct
 implementation of "restore every default," and it never touches watch
-history, ratings, notes, or planning (none of which live in this table).
+history, comments, or planning (none of which live in this table).
 
 ## No competing preference sources
 
@@ -132,14 +132,15 @@ concentrated in TV episode progression, not movie identity/overview.
 | Appearance | Interface motion | `data-motion` on AppShell → `globals.css` transition override |
 | Tracking & Library | Default Save destination | `PlanningControl`'s one-click Save target (Movie/Show Details) |
 | Spoilers | Spoiler protection | `resolveEpisodeSpoilerDecision` → `EpisodeRow` rendering |
-| Home & Discovery | Show Up Next | `PersonalizedHomeSections`'s Up Next card visibility, in every layout — independent of Home layout (see "Home layout and Show Up Next") |
-| Home & Discovery | Home layout | `resolveHomeLayout` → Home's composition below Up Next (`src/server/home/layout.ts`; see "Home layout and Show Up Next") |
-| Home & Discovery | Home calendar view | Whether the Calendar layout's body is the agenda or the full month grid (`home-page.tsx`; see "Home layout and Show Up Next") |
-| Home & Discovery | Show Finish Soon | `PersonalizedHomeSections`'s Finish Soon row visibility |
-| Home & Discovery | Default Discover view | `normalizeDiscoverMediaType`'s fallback when `?type=` is absent |
-| Home & Discovery | Default Calendar view | `normalizeCalendarView`'s fallback when `?view=` is absent (see docs/calendar.md) |
+| Home | Show Up Next | `PersonalizedHomeSections`'s Up Next card visibility, in every layout — independent of Home layout (see "Home layout and Show Up Next") |
+| Home | Home layout | `resolveHomeLayout` → Home's composition below Up Next (`src/server/home/layout.ts`; see "Home layout and Show Up Next") |
+| Home | Home calendar view | Whether the Calendar layout's body is the agenda or the full month grid (`home-page.tsx`; see "Home layout and Show Up Next") |
+| Home | Show Finish Soon | `PersonalizedHomeSections`'s Finish Soon row visibility |
+| Defaults | Default Discover view | `normalizeDiscoverMediaType`'s fallback when `?type=` is absent |
+| Defaults | Calendar page view | `normalizeCalendarView`'s fallback when `?view=` is absent (see docs/calendar.md) |
+| Defaults | Default Stats range | `resolveDefaultStatsRange` → `StatsRangeControl`'s fallback when `?range=` is absent (see docs/stats.md) |
 | General | Reset preferences | Deletes the `user_preferences` row |
-| Developer (non-production only) | Add mock data | Seeds real watch/rating/planning rows via the real domain functions |
+| Developer (non-production only) | Add mock data | Seeds real watch/comment/planning rows via the real domain functions |
 | Developer (non-production only) | Reset all data | Wipes every table this user owns, except the account itself |
 
 ## Home layout and Show Up Next
@@ -213,18 +214,25 @@ deliberate cut for this phase — see "Settings considered and cut."
 
 ## Settings information architecture
 
-Six categories (`src/features/settings/settings-params.ts`), each real:
-General, Appearance, Tracking & Library, Spoilers, Home & Discovery,
+Seven categories (`src/features/settings/settings-params.ts`), each
+real: General, Appearance, Tracking & Library, Spoilers, Home, Defaults,
 Data. `/settings` redirects to `/settings/appearance`.
 `/settings/[category]` is real, URL-addressable, back/forward/
 refresh-safe — a `layout.tsx` renders the category rail (`SettingsNav`)
 beside the active category's content (`page.tsx`'s discriminated
 switch).
 
+**Home vs. Defaults** — Home is genuinely Home's own composition (Up
+Next, layout, Finish Soon, Home's own Calendar-layout view); Defaults is
+the separate, deliberately grouped set of "which view/tab does
+destination X open to" settings (Discover, Calendar, Stats) — kept apart
+so Home doesn't accumulate unrelated other pages' defaults just because
+they were the first ones added.
+
 **Data** (`src/features/settings/data-settings.tsx`) is the odd one out
 architecturally — every other category is a set of `UserPreferences`
 controls; Data is import/export actions and an import-history/rollback
-list, none of it a persisted preference. It's still one of the same six
+list, none of it a persisted preference. It's still one of the same
 categories in the same nav, not a separate surface — see
 `docs/data-portability.md` for the full domain.
 
@@ -236,10 +244,10 @@ focus — a real Radix RadioGroup (roving tabindex, one checked value, a
 real accessible name per option) with a miniature, decorative preview
 beside each option's text label. `TextChoice` is the equivalent for
 settings that change interaction behavior rather than layout (Default
-Save destination, Default Discover view), where a forced visual preview
-would be meaningless. Every visual choice is optimistic — the same
-"update immediately, roll back only on real failure" pattern
-`MediaRating` already established.
+Save destination, Default Discover view, Default Stats range), where a
+forced visual preview would be meaningless. Every visual choice is
+optimistic — updates immediately, rolling back only on a real write
+failure.
 
 `ThemeMiniPreview` is the one place literal, non-token colors are
 deliberately used — see its own comment: the point of that specific
@@ -257,16 +265,16 @@ product surface, and never reachable in a production build:
   and one real season each of a few real shows (fetched live, so
   `episodeProviderId`s always match what the real Season page renders —
   a fabricated id would desync watch state from real episodes), plus a
-  few ratings and two planning entries. Every write goes through the
+  few comments and two planning entries. Every write goes through the
   exact same domain functions a real user action calls
-  (`recordMovieWatch`, `recordEpisodeWatch`, `setMediaRating`,
+  (`recordMovieWatch`, `recordEpisodeWatch`, `setMediaComment`,
   `addToWatchlist`/`addToBacklog`) — this is realistic seed data, not a
   parallel shortcut into the database. One show's season fetch failing
   (e.g. TMDB unreachable) never blocks the rest of the seed.
 - **Reset all data** (`src/server/dev-tools/reset-all-data.ts`) — the
   one comprehensive wipe in the app: every table this user owns (watch
-  events, show tracking state, ratings, notes, planning items,
-  preferences), in one transaction, except the account/session itself.
+  events, show tracking state, comments, planning items, preferences),
+  in one transaction, except the account/session itself.
   Categorically more destructive than General's "Reset preferences"
   (which only ever touches `user_preferences`), so its control requires
   typing a literal confirmation word, not just a confirm dialog.

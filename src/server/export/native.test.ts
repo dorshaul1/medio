@@ -18,7 +18,7 @@ vi.mock("@/server/tmdb/queries", () => ({
 
 const { createTestUser, deleteTestUser } = await import("@/server/test-support/test-db");
 const { recordMovieWatch } = await import("@/server/tracking/movie-events");
-const { setMediaRating } = await import("@/server/opinions/ratings");
+const { setMediaComment } = await import("@/server/opinions/comments");
 const { addToWatchlist } = await import("@/server/planning/planning-items");
 const { buildNativeExport } = await import("./native");
 const { NATIVE_EXPORT_SCHEMA_VERSION } = await import("./types");
@@ -84,7 +84,7 @@ describe("buildNativeExport", () => {
       movieProviderId: FIGHT_CLUB,
       watchedAt: new Date("2026-08-01T10:00:00Z"),
     });
-    await setMediaRating({ mediaType: "movie", mediaProviderId: FIGHT_CLUB, rating: 5 });
+    await setMediaComment({ mediaType: "movie", mediaProviderId: FIGHT_CLUB, content: "Great." });
 
     await buildNativeExport();
     expect(getMovieDetails).toHaveBeenCalledTimes(1);

@@ -3,7 +3,7 @@ import { TastePersonTile } from "./taste-person-tile";
 
 // A small curated set of portraits — never a leaderboard table (see
 // docs/stats.md, "Person visualization"). Capped upstream at 3 directors
-// / 5 actors (server/taste/constants.ts), so a plain wrapping row is
+// / 5 actors (server/stats/constants.ts), so a plain wrapping row is
 // enough; no horizontal-scroll affordance is needed for a set this small.
 function PeopleRow({
   title,
@@ -22,7 +22,7 @@ function PeopleRow({
           <TastePersonTile
             key={person.personId}
             person={person}
-            accessibleContext={`your ${roleLabel}, ${person.averageRating.toFixed(1)} average rating across ${person.ratedTitleCount} rated ${person.ratedTitleCount === 1 ? "title" : "titles"}`}
+            accessibleContext={`your ${roleLabel}, in ${person.titleCount} ${person.titleCount === 1 ? "title" : "titles"} you've watched`}
           />
         ))}
       </div>

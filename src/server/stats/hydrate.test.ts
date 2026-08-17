@@ -91,11 +91,13 @@ beforeEach(() => {
 });
 
 describe("hydrateTasteTitles", () => {
-  it("fetches only details (no credits) for an unrated movie", async () => {
+  it("fetches only details (no credits) when fetchCredits is false", async () => {
     getMovieDetails.mockResolvedValue(movieDetails());
 
     const [title] = await hydrateTasteTitles({
-      movies: [{ movieProviderId: 550, watchCount: 1, lastWatchedAt: new Date(), rating: null }],
+      movies: [
+        { movieProviderId: 550, watchCount: 1, lastWatchedAt: new Date(), fetchCredits: false },
+      ],
       shows: [],
     });
 
@@ -109,12 +111,14 @@ describe("hydrateTasteTitles", () => {
     }
   });
 
-  it("also fetches credits for a rated movie, populating directors and cast", async () => {
+  it("also fetches credits when fetchCredits is true, populating directors and cast", async () => {
     getMovieDetails.mockResolvedValue(movieDetails());
     getMovieCredits.mockResolvedValue(movieCredits());
 
     const [title] = await hydrateTasteTitles({
-      movies: [{ movieProviderId: 550, watchCount: 1, lastWatchedAt: new Date(), rating: 5 }],
+      movies: [
+        { movieProviderId: 550, watchCount: 1, lastWatchedAt: new Date(), fetchCredits: true },
+      ],
       shows: [],
     });
 
@@ -137,7 +141,7 @@ describe("hydrateTasteTitles", () => {
           rewatchedEpisodeCount: 0,
           totalEpisodeEvents: 10,
           lastActivityAt: new Date(),
-          rating: null,
+          fetchCredits: false,
         },
       ],
     });
@@ -149,7 +153,7 @@ describe("hydrateTasteTitles", () => {
     }
   });
 
-  it("fetches aggregate cast credits only for a rated Show", async () => {
+  it("fetches aggregate cast credits only when fetchCredits is true for a Show", async () => {
     getShowDetails.mockResolvedValue(showDetails());
     getShowAggregateCredits.mockResolvedValue(showCredits());
 
@@ -162,7 +166,7 @@ describe("hydrateTasteTitles", () => {
           rewatchedEpisodeCount: 0,
           totalEpisodeEvents: 10,
           lastActivityAt: new Date(),
-          rating: 4,
+          fetchCredits: true,
         },
       ],
     });
@@ -177,7 +181,9 @@ describe("hydrateTasteTitles", () => {
     getMovieDetails.mockRejectedValue(new Error("TMDB unavailable"));
 
     const titles = await hydrateTasteTitles({
-      movies: [{ movieProviderId: 550, watchCount: 1, lastWatchedAt: new Date(), rating: null }],
+      movies: [
+        { movieProviderId: 550, watchCount: 1, lastWatchedAt: new Date(), fetchCredits: false },
+      ],
       shows: [],
     });
 

@@ -2,7 +2,7 @@ import "server-only";
 import { eq } from "drizzle-orm";
 import { requireSession } from "@/server/auth/session";
 import { db } from "@/server/db";
-import { mediaNotes, mediaRatings } from "@/server/db/schema/opinions";
+import { mediaComments } from "@/server/db/schema/opinions";
 import { mediaPlanningItems } from "@/server/db/schema/planning";
 import { userPreferences } from "@/server/db/schema/preferences";
 import {
@@ -27,8 +27,7 @@ export async function resetAllUserData(): Promise<void> {
     await tx.delete(movieWatchEvents).where(eq(movieWatchEvents.userId, user.id));
     await tx.delete(episodeWatchEvents).where(eq(episodeWatchEvents.userId, user.id));
     await tx.delete(showTrackingState).where(eq(showTrackingState.userId, user.id));
-    await tx.delete(mediaRatings).where(eq(mediaRatings.userId, user.id));
-    await tx.delete(mediaNotes).where(eq(mediaNotes.userId, user.id));
+    await tx.delete(mediaComments).where(eq(mediaComments.userId, user.id));
     await tx.delete(mediaPlanningItems).where(eq(mediaPlanningItems.userId, user.id));
     await tx.delete(userPreferences).where(eq(userPreferences.userId, user.id));
   });

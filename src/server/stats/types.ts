@@ -29,13 +29,11 @@ type TasteTitleCommon = {
   poster: MediaImage | null;
   year: number | null;
   genres: readonly Genre[];
-  // The user's current personal rating for this title, or null — never a
-  // provider rating (see docs/media-provider.md, `providerRating`).
-  rating: number | null;
   lastActivityAt: Date;
   // Top-billed cast (see TASTE_PRIMARY_CAST_LIMIT) — only ever populated
-  // when `rating !== null`; credit hydration is bounded to rated titles
-  // (see docs/stats.md).
+  // for the most-recently-active subset of hydrated titles; credit
+  // hydration is bounded independent of total lifetime history (see
+  // TASTE_CREDITS_HYDRATION_LIMIT, docs/stats.md).
   cast: readonly TasteCastCredit[];
 };
 
@@ -43,7 +41,8 @@ export type TasteMovieTitle = TasteTitleCommon & {
   mediaType: "movie";
   // Total viewing events, rewatches included.
   watchCount: number;
-  // Only populated when `rating !== null`, same reasoning as `cast`.
+  // Only populated for the credits-hydrated subset, same reasoning as
+  // `cast`.
   directors: readonly CreditedPerson[];
   // Minutes, or null — comes free from the same MovieDetails fetch used
   // for genres, no extra provider request. Used only for the bounded
@@ -84,16 +83,8 @@ export type GenreExposureStat = {
   titleCount: number;
 };
 
-export type GenreRatingStat = {
-  genreId: number;
-  genreName: string;
-  averageRating: number;
-  ratedTitleCount: number;
-};
-
 export type GenreInsights = {
   mostWatched: readonly GenreExposureStat[];
-  highestRated: readonly GenreRatingStat[];
 };
 
 // --- People insights ---------------------------------------------------
@@ -105,8 +96,10 @@ export type GenreInsights = {
 export type PersonTasteStat = {
   personId: number;
   name: string;
-  ratedTitleCount: number;
-  averageRating: number;
+  // How many of the user's hydrated, credits-eligible titles this person
+  // appears in — a pure exposure signal, ranked highest-first (see
+  // docs/stats.md, "Favorite people").
+  titleCount: number;
   profile: MediaImage | null;
 };
 
@@ -163,16 +156,6 @@ export type MovieVsShowInsight = {
   totalTitles: number;
 } | null;
 
-export type RatingDistribution = {
-  buckets: readonly { rating: number; count: number }[];
-  totalRatings: number;
-} | null;
-
-export type RatingComparison = {
-  movieAverage: number;
-  showAverage: number;
-} | null;
-
 // --- Viewing timeline ------------------------------------------------------
 
 // One calendar month's total viewing *events* (movies + episodes,
@@ -208,6 +191,17 @@ export type ViewingRhythm = {
   buckets: readonly ActivityBucket[];
 } | null;
 
+// Which day of the week the user tends to watch on — see docs/stats.md,
+// "Viewing rhythm and range". Only ever populated for range kinds that
+// already fetch raw timestamps ("month"/"year"/"last12months"); "All
+// time" omits it rather than pulling unbounded raw events just for this.
+// `mostActiveDay` is `null` when every day is exactly tied — the bar
+// breakdown still renders, but no single-day claim is made.
+export type WeekdayRhythm = {
+  mostActiveDay: string | null;
+  buckets: readonly ActivityBucket[];
+} | null;
+
 // Minutes estimated across every hydrated title (movie runtime × movie
 // watch events; a show's typical episode runtime × its episode watch
 // events — see docs/stats.md, "Viewing time"). Only ever produced when
@@ -221,10 +215,9 @@ export type ViewingTimeEstimate = {
 // --- Headline --------------------------------------------------------------
 
 export type TasteHeadline =
-  | { kind: "contrast"; mostWatchedGenre: string; highestRatedGenre: string }
-  | { kind: "highest_rated_genre"; genre: string }
   | { kind: "most_watched_genre"; genre: string }
   | { kind: "favorite_director"; name: string }
+  | { kind: "favorite_actor"; name: string }
   | { kind: "sparse" };
 
 // --- Overview (viewing volume) --------------------------------------------
@@ -255,6 +248,7 @@ export type StatsProfile = {
   // Oldest-to-newest, granularity depends on the selected range — null
   // only when there is no history in range at all (see docs/stats.md).
   viewingRhythm: ViewingRhythm;
+  weekdayRhythm: WeekdayRhythm;
   estimatedViewingTime: ViewingTimeEstimate | null;
   genres: GenreInsights;
   directors: readonly PersonTasteStat[];
@@ -262,9 +256,6 @@ export type StatsProfile = {
   rewatch: RewatchInsights;
   movieVsShow: MovieVsShowInsight;
   completion: CompletionInsight;
-  ratingDistribution: RatingDistribution;
-  ratingComparison: RatingComparison;
-  ratedTitleCount: number;
 };
 
 // --- Comparison --------------------------------------------------------

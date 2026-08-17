@@ -3,8 +3,7 @@ import { eq } from "drizzle-orm";
 import { requireSession } from "@/server/auth/session";
 import { db } from "@/server/db";
 import { importBatches } from "@/server/db/schema/import";
-import { setMediaNote } from "@/server/opinions/notes";
-import { setMediaRating } from "@/server/opinions/ratings";
+import { setMediaComment } from "@/server/opinions/comments";
 import { addToBacklog, addToWatchlist } from "@/server/planning/planning-items";
 import { getSeasonDetails } from "@/server/tmdb/queries";
 import { recordEpisodeWatch } from "@/server/tracking/episode-events";
@@ -29,8 +28,7 @@ function emptyCounts(): Record<ImportRecordKind, number> {
     episodeWatch: 0,
     planningItem: 0,
     showTrackingState: 0,
-    rating: 0,
-    note: 0,
+    comment: 0,
   };
 }
 
@@ -133,17 +131,8 @@ async function persistOne(entry: PlanEntry, batchId: string): Promise<void> {
       else await dropShow(providerId, batchId);
       return;
 
-    case "rating":
-      await setMediaRating({
-        mediaType: resolved.mediaType,
-        mediaProviderId: providerId,
-        rating: record.rating,
-        importBatchId: batchId,
-      });
-      return;
-
-    case "note":
-      await setMediaNote({
+    case "comment":
+      await setMediaComment({
         mediaType: resolved.mediaType,
         mediaProviderId: providerId,
         content: record.content,

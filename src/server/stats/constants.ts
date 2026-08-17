@@ -8,21 +8,28 @@
 // --- Bounded provider hydration ---------------------------------------
 
 // The most-recently-active unique movies/shows (by latest watch/activity)
-// considered for genre/taste analysis, on top of every *rated* title
-// (always included regardless of recency — ratings are the strongest,
-// most bounded taste signal; see docs/stats.md, "Provider metadata
-// strategy"). This keeps hydration bounded no matter how many titles a
-// user has watched over the app's lifetime; a long-unrated title outside
-// this window simply doesn't contribute to genre-exposure ranking. Set
+// considered for genre/taste analysis, plus every explicitly must-include
+// title (e.g. the most-rewatched movie, so it can always be displayed
+// with real artwork — see docs/stats.md, "Provider metadata strategy").
+// This keeps hydration bounded no matter how many titles a user has
+// watched over the app's lifetime; a long-inactive title outside this
+// window simply doesn't contribute to genre-exposure ranking. Set
 // generously — almost every real account's full history fits inside it.
 export const TASTE_RECENT_MOVIE_HYDRATION_LIMIT = 150;
 export const TASTE_RECENT_SHOW_HYDRATION_LIMIT = 150;
 
+// Credits (director/cast) are the most expensive provider component, so
+// they're fetched for a smaller, most-recently-active subset of the
+// titles selected above — never every hydrated title, and never gated
+// on a rating that no longer exists (see docs/stats.md, "People
+// credits"). Bounds Favorite Directors/Actors' ranking pool independent
+// of total lifetime history size.
+export const TASTE_CREDITS_HYDRATION_LIMIT = 60;
+
 // Top-billed cast members considered per title for actor taste — mirrors
 // the display convention MovieCastRow/ShowCastRow already use (TMDB
 // returns cast pre-sorted by billing order); this is a smaller slice
-// since it's a ranking signal, not a display list, and credits are only
-// ever fetched for *rated* titles (see docs/stats.md).
+// since it's a ranking signal, not a display list.
 export const TASTE_PRIMARY_CAST_LIMIT = 10;
 
 // A show counts as "meaningfully watched" for title-level taste once at
@@ -34,31 +41,26 @@ export const MIN_REGULAR_EPISODES_FOR_SHOW_TASTE_ELIGIBILITY = 1;
 
 // --- Sample-size thresholds ---------------------------------------------
 
-// A genre needs at least this many *rated* titles before its average
-// rating is treated as meaningful (see docs/stats.md, "Statistical
-// reliability").
-export const MIN_RATED_TITLES_FOR_GENRE = 2;
-// A genre needs at least this many watched titles (rated or not) before
-// it's surfaced as a "most-watched" genre.
+// A genre needs at least this many watched titles before it's surfaced
+// as a "most-watched" genre — one watch is evidence of one title, not a
+// genre preference (see docs/stats.md, "Statistical reliability").
 export const MIN_WATCHED_TITLES_FOR_GENRE = 2;
 // The user needs at least this many total distinct watched titles before
-// "most/highest-rated genre" is attempted at all.
+// "most-watched genre" is attempted at all.
 export const MIN_TOTAL_TITLES_FOR_GENRE_INSIGHT = 3;
 
 export const MAX_GENRE_INSIGHTS = 5;
 
-// A director/actor needs at least this many *rated* titles before being
-// declared a favorite — one great rating is evidence of one great movie,
-// not a favorite creative person (see docs/stats.md, "Director/actor
-// minimum threshold").
-export const MIN_RATED_TITLES_FOR_DIRECTOR = 2;
-export const MIN_RATED_TITLES_FOR_ACTOR = 2;
+// A director/actor needs at least this many watched titles (within the
+// credits-hydration window — see TASTE_CREDITS_HYDRATION_LIMIT) before
+// being declared a favorite — one watch is evidence of one movie, not a
+// favorite creative person (see docs/stats.md, "Director/actor minimum
+// threshold").
+export const MIN_TITLES_FOR_DIRECTOR = 2;
+export const MIN_TITLES_FOR_ACTOR = 2;
 
 export const MAX_FAVORITE_DIRECTORS = 3;
 export const MAX_FAVORITE_ACTORS = 5;
-
-export const MIN_RATINGS_FOR_DISTRIBUTION = 5;
-export const MIN_RATINGS_FOR_TYPE_AVERAGE = 2;
 
 export const MIN_TRACKED_SHOWS_FOR_COMPLETION_TENDENCY = 3;
 // At or below this dropped-show ratio, the user "usually finishes what
@@ -77,6 +79,12 @@ export const MIN_WATCH_COUNT_FOR_MOST_REWATCHED_MOVIE = 2;
 export const MIN_REWATCH_INSTANCES_FOR_MOST_REVISITED_SHOW = 2;
 
 export const MIN_UNIQUE_TITLES_FOR_MOVIE_VS_SHOW = 4;
+
+// A weekday breakdown needs at least this many viewing events (within
+// the selected range) before "you watch most on Fridays" means anything
+// — a handful of events scattered across a week is coincidence, not a
+// rhythm (see docs/stats.md, "Viewing rhythm and range").
+export const MIN_EVENTS_FOR_WEEKDAY_INSIGHT = 8;
 
 // --- Viewing timeline ----------------------------------------------------
 

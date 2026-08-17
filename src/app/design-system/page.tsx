@@ -1,7 +1,6 @@
 import { MoreHorizontal, Pencil, Settings, Trash2 } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { RatingControlDemo } from "@/app/design-system/_components/rating-control-demo";
 import { Row, Section } from "@/app/design-system/_components/section";
 import { TableOfContents } from "@/app/design-system/_components/toc";
 import { Badge } from "@/components/ui/badge";
@@ -315,10 +314,6 @@ export default function DesignSystemPage() {
             <Switch aria-label="Off" />
             <Switch aria-label="On" defaultChecked />
             <Switch aria-label="Disabled" disabled />
-          </Row>
-          <Row label="Rating control — a restrained 1-5 selector, deliberately not stars (see docs/opinions.md)">
-            <RatingControlDemo initial={null} />
-            <RatingControlDemo initial={4} />
           </Row>
           <Row label="Tabs">
             <Tabs defaultValue="overview" className="w-full">

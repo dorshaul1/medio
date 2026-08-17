@@ -7,8 +7,7 @@ function person(overrides: Partial<PersonTasteStat> = {}): PersonTasteStat {
   return {
     personId: 525,
     name: "Christopher Nolan",
-    ratedTitleCount: 3,
-    averageRating: 4.7,
+    titleCount: 3,
     profile: null,
     ...overrides,
   };
@@ -26,7 +25,7 @@ describe("TastePeopleSection", () => {
     const link = screen.getByRole("link", { name: /Christopher Nolan/ });
     expect(link).toHaveAttribute("href", "/people/525");
     expect(link).toHaveAccessibleName(/favorite director/);
-    expect(link).toHaveAccessibleName(/4.7 average rating/);
+    expect(link).toHaveAccessibleName(/3 titles/);
   });
 
   it("renders Directors and Actors as independent rows", () => {

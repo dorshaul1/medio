@@ -163,9 +163,7 @@ describe("scoreCandidate — saved", () => {
   it("adds a genre-affinity bonus when a genre matches the taste summary", () => {
     const taste: RecommendationTasteSummary = {
       ...EMPTY_TASTE,
-      movieGenreAffinities: [
-        { genreId: 28, genreName: "Action", averageRating: 4.5, ratedTitleCount: 3 },
-      ],
+      movieGenreAffinities: [{ genreId: 28, genreName: "Action", titleCount: 5 }],
     };
     const result = scoreCandidate(savedMovie({ genres: [{ id: 28, name: "Action" }] }), ANY, taste);
     expect(result.score).toBe(WATCHLIST_BASE_SCORE + GENRE_AFFINITY_BONUS);
@@ -175,9 +173,7 @@ describe("scoreCandidate — saved", () => {
   it("never applies a show's genre affinities to a movie candidate", () => {
     const taste: RecommendationTasteSummary = {
       ...EMPTY_TASTE,
-      showGenreAffinities: [
-        { genreId: 28, genreName: "Action", averageRating: 4.5, ratedTitleCount: 3 },
-      ],
+      showGenreAffinities: [{ genreId: 28, genreName: "Action", titleCount: 5 }],
     };
     const result = scoreCandidate(savedMovie({ genres: [{ id: 28, name: "Action" }] }), ANY, taste);
     expect(result.score).toBe(WATCHLIST_BASE_SCORE);
@@ -192,7 +188,7 @@ describe("scoreCandidate — discovery", () => {
       EMPTY_TASTE,
     );
     expect(result.score).toBe(DISCOVERY_BASE_SCORE + RECOMMENDATION_SOURCE_BONUS);
-    expect(result.reasons).toContainEqual({ kind: "similarToHighlyRated", title: "Fight Club" });
+    expect(result.reasons).toContainEqual({ kind: "similarToWatched", title: "Fight Club" });
   });
 
   it("credits the favorite director for a director-sourced pick", () => {

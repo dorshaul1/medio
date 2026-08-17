@@ -90,9 +90,18 @@ same-origin relative path — a full external URL, a protocol-relative
 `//evil.com`, a backslash-prefixed `/\evil.com` (some browsers treat that
 as protocol-relative too), or a loop back to `/sign-in`/`/sign-up` itself.
 An invalid/missing `next` silently falls back to `/`, never a 400 and never
-a redirect to somewhere an attacker chose. Both `resolveAuthPageNext` (the
-"already authenticated" redirect) and the two forms' own post-auth
-`router.push` go through this validation before it's ever used.
+a redirect to somewhere an attacker chose. `resolveAuthPageNext` (the
+"already authenticated" redirect) and Sign In's own post-auth
+`router.push` both go through this validation before it's ever used.
+
+**Sign In honors `next`; Sign Up never does.** A returning user's `next`
+genuinely means "take me back to where I was" — Sign In's form pushes to
+the validated `next` on success. A brand-new account has no "where I
+was" to return to, so `SignUpForm` always pushes to `/` (Home)
+regardless of `next`; the sign-up page still resolves and validates
+`next` for one narrower purpose — carrying it through the "Already have
+an account? Log in" switch link, so *that* flow (which goes through Sign
+In) still honors it.
 
 ### Logout destination
 
@@ -100,9 +109,21 @@ Logging out always returns to the public Landing page (`/`), never back to
 `/sign-in` — see `src/components/shell/account-control.tsx`. `authClient.
 signOut` uses Better Auth's `fetchOptions.onSuccess` callback (not a bare
 `.then()`, which would leave the button looking like it did nothing if the
-request ever failed) to navigate, then `router.refresh()` so no stale
-authenticated shell can flash before the next render picks up the cleared
-session.
+request ever failed) to navigate via a hard `window.location.href = "/"`,
+not `router.push`/`router.refresh()` — being already on `/` (the single
+most common place to click Sign out from) would make a client-side push to
+the same URL a no-op, leaving the stale authenticated shell on screen even
+though the session was genuinely cleared server-side. A full reload has no
+such edge case: every bit of client state is wiped and `/` is re-requested
+from the server fresh.
+
+That hard reload clears everything held in memory (React state/Context),
+but the one thing that survives a page reload — `localStorage` — needs an
+explicit clear: `onSuccess` also calls `clearRecentSearches()`
+(`src/features/search/recent-searches.ts`), the one piece of personal
+state this app keeps client-side rather than in the database. Without it,
+GlobalSearch's recent search terms would otherwise leak from one account
+into a different account signing in on the same device/browser.
 
 ## Schema & migrations
 

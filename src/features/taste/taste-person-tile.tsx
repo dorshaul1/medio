@@ -7,11 +7,11 @@ import { profileUrl } from "@/server/tmdb/images";
 
 // A curated portrait tile for a Favorite Director/Actor — deliberately
 // not `CastMemberTile` reused as-is: the supporting fact here is the
-// user's own rating evidence ("4.8 avg · 3 movies"), never a character
-// name, so this is its own small composition (see docs/stats.md,
-// "Person visualization"). The whole tile links to `/people/[id]` — the
-// same real navigation every other actor/director credit in this app
-// uses, never a separate Taste-person page.
+// user's own exposure evidence ("in 4 titles you've watched"), never a
+// character name, so this is its own small composition (see
+// docs/stats.md, "Person visualization"). The whole tile links to
+// `/people/[id]` — the same real navigation every other actor/director
+// credit in this app uses, never a separate Taste-person page.
 export function TastePersonTile({
   person,
   accessibleContext,
@@ -51,8 +51,7 @@ export function TastePersonTile({
           {person.name}
         </p>
         <p className="line-clamp-1 text-xs text-muted-foreground" aria-hidden="true">
-          {person.averageRating.toFixed(1)} avg · {person.ratedTitleCount}{" "}
-          {person.ratedTitleCount === 1 ? "title" : "titles"}
+          {person.titleCount} {person.titleCount === 1 ? "title" : "titles"}
         </p>
       </div>
     </Link>

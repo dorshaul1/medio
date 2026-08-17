@@ -13,7 +13,6 @@ function movie(overrides: Partial<TasteMovieTitle> = {}): TasteMovieTitle {
     poster: null,
     year: 2020,
     genres: [],
-    rating: null,
     lastActivityAt: new Date("2024-01-01"),
     cast: [],
     watchCount: 1,
@@ -32,7 +31,6 @@ function show(overrides: Partial<TasteShowTitle> = {}): TasteShowTitle {
     poster: null,
     year: 2020,
     genres: [],
-    rating: null,
     lastActivityAt: new Date("2024-01-01"),
     cast: [],
     watchedEpisodeCount: 5,
@@ -50,83 +48,71 @@ const ACTOR_A = { id: 819, name: "Actor A", profile: null };
 const ACTOR_B = { id: 287, name: "Actor B", profile: null };
 
 describe("computeFavoriteDirectors", () => {
-  it("requires at least two rated titles by the same director", () => {
-    const titles: readonly TasteTitle[] = [movie({ directors: [NOLAN], rating: 5 })];
+  it("requires at least two titles by the same director", () => {
+    const titles: readonly TasteTitle[] = [movie({ directors: [NOLAN] })];
     expect(computeFavoriteDirectors(titles)).toEqual([]);
   });
 
-  it("surfaces a director with two or more rated titles, averaging their ratings", () => {
+  it("surfaces a director with two or more titles, counting appearances", () => {
     const titles: readonly TasteTitle[] = [
-      movie({ directors: [NOLAN], rating: 5 }),
-      movie({ directors: [NOLAN], rating: 3 }),
+      movie({ directors: [NOLAN] }),
+      movie({ directors: [NOLAN] }),
     ];
     const [director] = computeFavoriteDirectors(titles);
     expect(director?.personId).toBe(NOLAN.id);
-    expect(director?.ratedTitleCount).toBe(2);
-    expect(director?.averageRating).toBe(4);
+    expect(director?.titleCount).toBe(2);
   });
 
-  it("ranks by average rating first, with rated-title count as a deterministic tie-breaker", () => {
+  it("ranks by title count first, with name as a deterministic tie-breaker", () => {
     const titles: readonly TasteTitle[] = [
-      movie({ directors: [NOLAN], rating: 4 }),
-      movie({ directors: [NOLAN], rating: 4 }),
-      movie({ directors: [FINCHER], rating: 5 }),
-      movie({ directors: [FINCHER], rating: 3 }),
+      movie({ directors: [NOLAN] }),
+      movie({ directors: [NOLAN] }),
+      movie({ directors: [NOLAN] }),
+      movie({ directors: [FINCHER] }),
+      movie({ directors: [FINCHER] }),
     ];
-    // Both average 4 — Nolan has more rated titles, so wins the tie.
     const [top] = computeFavoriteDirectors(titles);
     expect(top?.personId).toBe(NOLAN.id);
   });
 
-  it("never uses an unrated title's director", () => {
-    const titles: readonly TasteTitle[] = [
-      movie({ directors: [NOLAN], rating: 5 }),
-      movie({ directors: [NOLAN], rating: null }),
-    ];
-    expect(computeFavoriteDirectors(titles)).toEqual([]);
-  });
-
   it("ignores Show director-shaped data — directors are Movie-focused this phase", () => {
     const titles: readonly TasteTitle[] = [
-      show({ creators: [NOLAN], rating: 5 }),
-      show({ creators: [NOLAN], rating: 5 }),
+      show({ creators: [NOLAN] }),
+      show({ creators: [NOLAN] }),
     ];
     expect(computeFavoriteDirectors(titles)).toEqual([]);
   });
 });
 
 describe("computeFavoriteActors", () => {
-  it("requires at least two rated titles featuring the same actor", () => {
-    const titles: readonly TasteTitle[] = [movie({ cast: [ACTOR_A], rating: 5 })];
+  it("requires at least two titles featuring the same actor", () => {
+    const titles: readonly TasteTitle[] = [movie({ cast: [ACTOR_A] })];
     expect(computeFavoriteActors(titles)).toEqual([]);
   });
 
   it("combines Movie and Show participation for the same actor", () => {
-    const titles: readonly TasteTitle[] = [
-      movie({ cast: [ACTOR_A], rating: 4 }),
-      show({ cast: [ACTOR_A], rating: 5 }),
-    ];
+    const titles: readonly TasteTitle[] = [movie({ cast: [ACTOR_A] }), show({ cast: [ACTOR_A] })];
     const [actor] = computeFavoriteActors(titles);
     expect(actor?.personId).toBe(ACTOR_A.id);
-    expect(actor?.ratedTitleCount).toBe(2);
+    expect(actor?.titleCount).toBe(2);
   });
 
   it("counts a duplicate cast credit within one title only once", () => {
     const titles: readonly TasteTitle[] = [
-      movie({ cast: [ACTOR_A, ACTOR_A], rating: 5 }),
-      movie({ cast: [ACTOR_A], rating: 3 }),
+      movie({ cast: [ACTOR_A, ACTOR_A] }),
+      movie({ cast: [ACTOR_A] }),
     ];
     const [actor] = computeFavoriteActors(titles);
-    expect(actor?.ratedTitleCount).toBe(2);
-    expect(actor?.averageRating).toBe(4);
+    expect(actor?.titleCount).toBe(2);
   });
 
-  it("does not let TMDB popularity influence ranking — only ratings/exposure decide order", () => {
+  it("does not let TMDB popularity influence ranking — only exposure decides order", () => {
     const titles: readonly TasteTitle[] = [
-      movie({ cast: [ACTOR_A], rating: 3 }),
-      movie({ cast: [ACTOR_A], rating: 3 }),
-      movie({ cast: [ACTOR_B], rating: 5 }),
-      movie({ cast: [ACTOR_B], rating: 5 }),
+      movie({ cast: [ACTOR_A] }),
+      movie({ cast: [ACTOR_A] }),
+      movie({ cast: [ACTOR_B] }),
+      movie({ cast: [ACTOR_B] }),
+      movie({ cast: [ACTOR_B] }),
     ];
     const [top] = computeFavoriteActors(titles);
     expect(top?.personId).toBe(ACTOR_B.id);

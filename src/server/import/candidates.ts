@@ -2,7 +2,7 @@ import "server-only";
 import { eq } from "drizzle-orm";
 import { requireSession } from "@/server/auth/session";
 import { db } from "@/server/db";
-import { mediaNotes, mediaRatings } from "@/server/db/schema/opinions";
+import { mediaComments } from "@/server/db/schema/opinions";
 import type { PlanningIntentValue } from "@/server/db/schema/planning";
 import { mediaPlanningItems } from "@/server/db/schema/planning";
 import type { ShowTrackingStatusValue } from "@/server/db/schema/tracking";
@@ -34,14 +34,13 @@ export type ExistingUserState = {
   episodeWatchedAtByEpisode: ReadonlyMap<string, readonly Date[]>;
   planningIntentByMedia: ReadonlyMap<string, PlanningIntentValue>;
   trackingStatusByShow: ReadonlyMap<number, ShowTrackingStatusValue>;
-  ratingByMedia: ReadonlyMap<string, number>;
-  hasNoteForMedia: ReadonlySet<string>;
+  hasCommentForMedia: ReadonlySet<string>;
 };
 
 export async function getExistingUserState(): Promise<ExistingUserState> {
   const { user } = await requireSession();
 
-  const [movies, episodes, planning, tracking, ratings, notes] = await Promise.all([
+  const [movies, episodes, planning, tracking, comments] = await Promise.all([
     db
       .select({
         movieProviderId: movieWatchEvents.movieProviderId,
@@ -75,16 +74,11 @@ export async function getExistingUserState(): Promise<ExistingUserState> {
       .where(eq(showTrackingState.userId, user.id)),
     db
       .select({
-        mediaType: mediaRatings.mediaType,
-        mediaProviderId: mediaRatings.mediaProviderId,
-        rating: mediaRatings.rating,
+        mediaType: mediaComments.mediaType,
+        mediaProviderId: mediaComments.mediaProviderId,
       })
-      .from(mediaRatings)
-      .where(eq(mediaRatings.userId, user.id)),
-    db
-      .select({ mediaType: mediaNotes.mediaType, mediaProviderId: mediaNotes.mediaProviderId })
-      .from(mediaNotes)
-      .where(eq(mediaNotes.userId, user.id)),
+      .from(mediaComments)
+      .where(eq(mediaComments.userId, user.id)),
   ]);
 
   const movieWatchedAtByMovie = new Map<number, Date[]>();
@@ -109,9 +103,8 @@ export async function getExistingUserState(): Promise<ExistingUserState> {
       planning.map((row) => [mediaKey(row.mediaType, row.mediaProviderId), row.intent]),
     ),
     trackingStatusByShow: new Map(tracking.map((row) => [row.showProviderId, row.status])),
-    ratingByMedia: new Map(
-      ratings.map((row) => [mediaKey(row.mediaType, row.mediaProviderId), row.rating]),
+    hasCommentForMedia: new Set(
+      comments.map((row) => mediaKey(row.mediaType, row.mediaProviderId)),
     ),
-    hasNoteForMedia: new Set(notes.map((row) => mediaKey(row.mediaType, row.mediaProviderId))),
   };
 }

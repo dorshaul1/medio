@@ -10,7 +10,9 @@
 // of them the user uploaded and auto-detects which is which by column
 // shape, rather than making the user categorize each file themselves —
 // see docs/data-portability.md, "Import UX must not feel like a
-// developer/admin tool".
+// developer/admin tool". MEDIO has no personal rating feature (see
+// docs/opinions.md) — a recognized ratings.csv is reported honestly
+// rather than silently ignored or treated as an unrecognized file.
 import { findColumn, hasColumn } from "../csv-headers";
 import { parseCsv } from "../csv-parse";
 import { parseDateOnly } from "../date";
@@ -20,20 +22,6 @@ export type LetterboxdFile = {
   name: string;
   content: string;
 };
-
-// Letterboxd's own rating scale is 0.5–5 in half-star steps; MEDIO's is
-// a 1–5 integer scale (see docs/opinions.md, "Rating scale") — there is
-// no half-step support to preserve, and silently truncating/flooring
-// would understate real enthusiasm (a 4.5★ Letterboxd rating is much
-// closer to "5" than "4"). Standard round-half-up, clamped to MEDIO's
-// range — the least destructive of the documented options (see
-// docs/data-portability.md, "Letterboxd ratings"). Never silent: the
-// caller always keeps `sourceRatingLabel` alongside the converted value
-// so the import preview can show the exact conversion.
-export function convertLetterboxdRating(raw: number): number {
-  const rounded = Math.round(raw);
-  return Math.min(5, Math.max(1, rounded));
-}
 
 function parseYear(row: Record<string, string>): number | null {
   const raw = findColumn(row, "Year", "Release Year");
@@ -101,29 +89,15 @@ export function parseLetterboxdFiles(files: readonly LetterboxdFile[]): ParseRes
     }
 
     if (isRatingsFile(headers)) {
-      for (const csvRow of rows) {
-        row++;
-        const title = findColumn(csvRow, "Name", "Title", "Film Title");
-        const ratingRaw = findColumn(csvRow, "Rating");
-        if (!title || !ratingRaw) {
-          errors.push({ row, reason: `${file.name}: row is missing a title or rating.` });
-          continue;
-        }
-        const ratingValue = Number.parseFloat(ratingRaw);
-        if (!Number.isFinite(ratingValue) || ratingValue < 0.5 || ratingValue > 5) {
-          errors.push({
-            row,
-            reason: `${file.name}: "${title}" has an unrecognized rating value.`,
-          });
-          continue;
-        }
-        records.push({
-          kind: "rating",
-          identity: { kind: "titleYear", mediaType: "movie", title, year: parseYear(csvRow) },
-          rating: convertLetterboxdRating(ratingValue),
-          sourceRatingLabel: `${ratingValue}★ (Letterboxd)`,
-        });
-      }
+      // A recognized Letterboxd file with nothing importable — MEDIO has
+      // no personal rating feature, so this is reported once, honestly,
+      // rather than as a per-row parse failure or a confusing "file not
+      // recognized" error.
+      row++;
+      errors.push({
+        row,
+        reason: `${file.name}: MEDIO doesn't have a personal rating feature, so ratings from this file weren't imported.`,
+      });
       continue;
     }
 

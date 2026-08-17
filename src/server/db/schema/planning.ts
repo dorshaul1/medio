@@ -70,6 +70,9 @@ export const mediaPlanningItems = pgTable(
     index("media_planning_items_user_intent_idx").on(table.userId, table.intent),
     // Library's default "recently active" ordering.
     index("media_planning_items_user_updated_at_idx").on(table.userId, table.updatedAt),
+    // Rollback's own targeted delete — same reasoning as
+    // `movie_watch_events_import_batch_idx` (schema/tracking.ts).
+    index("media_planning_items_import_batch_idx").on(table.importBatchId),
   ],
 );
 

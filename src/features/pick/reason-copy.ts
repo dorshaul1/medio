@@ -21,13 +21,13 @@ export function reasonCopy(reason: ReasonFact): string {
     case "watchlistIntent":
       return "On your Watchlist";
     case "highGenreAffinity":
-      return `You rate ${reason.genreName} highly`;
+      return `You watch a lot of ${reason.genreName}`;
     case "directorAffinity":
       return `From ${reason.directorName}, one of your favorite directors`;
     case "timeFit":
       return `About ${reason.minutes} min`;
-    case "similarToHighlyRated":
-      return `Because you liked ${reason.title}`;
+    case "similarToWatched":
+      return `More like ${reason.title}`;
     case "popularDiscovery":
       return "Popular right now";
   }

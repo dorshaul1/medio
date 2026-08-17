@@ -7,7 +7,10 @@ function completionCopy(completion: NonNullable<CompletionInsight>): string {
     : "You try a lot of shows, and stick with the ones that click.";
 }
 
-export function TastePatternsSection({
+// Overview's Movies-vs-Shows/completion summary — see docs/stats.md.
+// Deliberately unit-honest: the split is always unique titles, labeled
+// as such, never unique Movies compared against a raw Episode count.
+export function StatsPatternsSection({
   movieVsShow,
   completion,
 }: {
@@ -17,8 +20,8 @@ export function TastePatternsSection({
   if (!movieVsShow && !completion) return null;
 
   return (
-    <section aria-labelledby="taste-patterns" className="flex flex-col gap-5">
-      <h2 id="taste-patterns" className="text-lg font-medium tracking-tight">
+    <section aria-labelledby="stats-patterns" className="flex flex-col gap-5">
+      <h2 id="stats-patterns" className="text-lg font-medium tracking-tight">
         Viewing patterns
       </h2>
 

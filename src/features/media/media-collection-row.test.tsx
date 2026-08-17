@@ -48,7 +48,7 @@ describe("MediaCollectionRow", () => {
         id="row"
         title="Trending"
         items={[MOVIE]}
-        personalStates={new Map([["movie:550", { kind: "watched", rating: null }]])}
+        personalStates={new Map([["movie:550", { kind: "watched" }]])}
       />,
     );
     expect(screen.getByRole("link", { name: "Fight Club, watched" })).toBeInTheDocument();

@@ -9,7 +9,7 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { authClient } from "@/lib/auth-client";
 import { type AuthErrorField, mapAuthError } from "@/lib/auth-errors";
 
-export function SignUpForm({ next }: { next?: string }) {
+export function SignUpForm() {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
@@ -35,7 +35,12 @@ export function SignUpForm({ next }: { next?: string }) {
         return;
       }
 
-      router.push((next ?? "/") as Route);
+      // A brand-new account has nothing to "return to" — `next` only
+      // exists here to carry through to the "Log in" switch link (see
+      // sign-up/page.tsx) for someone who already has an account.
+      // Creating a real account always lands on Home, never a
+      // pre-signup destination.
+      router.push("/" as Route);
       router.refresh();
     });
   }

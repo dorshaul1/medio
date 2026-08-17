@@ -40,8 +40,7 @@ export function buildImportPlan(
   );
   const planningIntent = new Map(existing.planningIntentByMedia);
   const trackingStatus = new Map(existing.trackingStatusByShow);
-  const rating = new Map(existing.ratingByMedia);
-  const hasNote = new Set(existing.hasNoteForMedia);
+  const hasComment = new Set(existing.hasCommentForMedia);
 
   const entries: PlanEntry[] = [];
 
@@ -134,32 +133,17 @@ export function buildImportPlan(
         }
         break;
       }
-      case "rating": {
+      case "comment": {
         const key = `${resolved.mediaType}:${providerId}`;
-        if (rating.has(key)) {
+        if (hasComment.has(key)) {
           entries.push({
             record,
             resolved,
             status: "conflict",
-            reason: "Rating already set — your existing rating was kept.",
+            reason: "Comment already exists — your existing comment was kept.",
           });
         } else {
-          rating.set(key, record.rating);
-          entries.push({ record, resolved, status: "ready", reason: null });
-        }
-        break;
-      }
-      case "note": {
-        const key = `${resolved.mediaType}:${providerId}`;
-        if (hasNote.has(key)) {
-          entries.push({
-            record,
-            resolved,
-            status: "conflict",
-            reason: "Note already exists — your existing note was kept.",
-          });
-        } else {
-          hasNote.add(key);
+          hasComment.add(key);
           entries.push({ record, resolved, status: "ready", reason: null });
         }
         break;
@@ -176,8 +160,7 @@ function summarize(entries: readonly PlanEntry[]): PlanSummary {
     episodeWatch: 0,
     planningItem: 0,
     showTrackingState: 0,
-    rating: 0,
-    note: 0,
+    comment: 0,
   };
 
   const summary: PlanSummary = {

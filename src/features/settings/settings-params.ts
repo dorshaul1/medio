@@ -3,7 +3,12 @@
 // only because it holds settings that actually exist. "General" is
 // deliberately thin (just Reset — see docs/settings.md, "Settings
 // considered and cut") rather than padded with settings that don't yet
-// have a real, unambiguous product behavior to attach to.
+// have a real, unambiguous product behavior to attach to. "Home" is
+// genuinely Home's own composition (layout, Up Next, Finish Soon);
+// "Defaults" is the separate, deliberately grouped set of "which view/
+// tab does destination X open to" settings (Discover, Calendar, Stats)
+// — kept apart from Home so Home doesn't accumulate unrelated other
+// pages' defaults just because they were the first settings added.
 //
 // "Developer" is a special case: real local-testing tooling (seed mock
 // data, wipe an account's data, inspect environment config), never
@@ -18,6 +23,7 @@ export const SETTINGS_CATEGORIES = [
   "tracking",
   "spoilers",
   "home",
+  "defaults",
   "data",
   "developer",
 ] as const;
@@ -28,7 +34,8 @@ export const SETTINGS_CATEGORY_LABEL: Record<SettingsCategory, string> = {
   appearance: "Appearance",
   tracking: "Tracking & Library",
   spoilers: "Spoilers",
-  home: "Home & Discovery",
+  home: "Home",
+  defaults: "Defaults",
   data: "Data",
   developer: "Developer",
 };

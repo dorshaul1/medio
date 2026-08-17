@@ -1,45 +1,39 @@
 // Pure People (director/actor) ranking — no I/O, no provider popularity.
 // See docs/stats.md, "Favorite directors"/"Favorite actors". Ranking is
-// deterministic: average personal rating (desc), then rated-title count
-// (desc) as a tie-breaker, then name (asc) as the final deterministic
+// deterministic: how many of the user's own hydrated titles this person
+// appears in (desc), then name (asc) as the final deterministic
 // fallback. A person's TMDB popularity is never a signal here — only the
-// user's own rated viewing history is.
+// user's own watch history is.
 import type { MediaImage } from "@/server/media/types";
 import {
   MAX_FAVORITE_ACTORS,
   MAX_FAVORITE_DIRECTORS,
-  MIN_RATED_TITLES_FOR_ACTOR,
-  MIN_RATED_TITLES_FOR_DIRECTOR,
+  MIN_TITLES_FOR_ACTOR,
+  MIN_TITLES_FOR_DIRECTOR,
 } from "./constants";
 import type { PersonTasteStat, TasteTitle } from "./types";
 
 type PersonCredit = { id: number; name: string; profile: MediaImage | null };
 
-type PersonPool = Map<number, { name: string; profile: MediaImage | null; ratings: number[] }>;
+type PersonPool = Map<number, { name: string; profile: MediaImage | null; titleCount: number }>;
 
-function rankPool(pool: PersonPool, minRatedTitles: number, max: number): PersonTasteStat[] {
+function rankPool(pool: PersonPool, minTitles: number, max: number): PersonTasteStat[] {
   return [...pool.entries()]
     .map(([personId, value]) => ({
       personId,
       name: value.name,
       profile: value.profile,
-      ratedTitleCount: value.ratings.length,
-      averageRating: value.ratings.reduce((sum, rating) => sum + rating, 0) / value.ratings.length,
+      titleCount: value.titleCount,
     }))
-    .filter((person) => person.ratedTitleCount >= minRatedTitles)
-    .sort(
-      (a, b) =>
-        b.averageRating - a.averageRating ||
-        b.ratedTitleCount - a.ratedTitleCount ||
-        a.name.localeCompare(b.name),
-    )
+    .filter((person) => person.titleCount >= minTitles)
+    .sort((a, b) => b.titleCount - a.titleCount || a.name.localeCompare(b.name))
     .slice(0, max);
 }
 
-// Only rated titles ever reach this function's callers with non-empty
-// `directors`/`cast` (see hydrate.ts) — but this also guards against a
-// title carrying credits without a rating, so the "counted once per
-// rated title" invariant holds regardless of what upstream provides.
+// Only credits-hydrated titles ever carry non-empty `directors`/`cast`
+// (see hydrate.ts, TASTE_CREDITS_HYDRATION_LIMIT) — titles outside that
+// window simply contribute nothing here, which is exactly the intended
+// bounding behavior.
 function collectPeople(
   titles: readonly TasteTitle[],
   extractPeople: (title: TasteTitle) => readonly PersonCredit[],
@@ -47,20 +41,17 @@ function collectPeople(
   const pool: PersonPool = new Map();
 
   for (const title of titles) {
-    if (title.rating === null) continue;
-    const rating = title.rating;
-
     // Dedupe within one title first — a title crediting the same person
     // twice (e.g. duplicate cast rows) must still only count once for
-    // that title's rating contribution.
+    // that title's exposure contribution.
     const seen = new Set<number>();
     for (const person of extractPeople(title)) {
       if (seen.has(person.id)) continue;
       seen.add(person.id);
 
       const existing = pool.get(person.id);
-      if (existing) existing.ratings.push(rating);
-      else pool.set(person.id, { name: person.name, profile: person.profile, ratings: [rating] });
+      if (existing) existing.titleCount += 1;
+      else pool.set(person.id, { name: person.name, profile: person.profile, titleCount: 1 });
     }
   }
 
@@ -78,7 +69,7 @@ export function computeFavoriteDirectors(titles: readonly TasteTitle[]): PersonT
       ? title.directors.map((director) => ({ ...director, profile: null }))
       : [],
   );
-  return rankPool(pool, MIN_RATED_TITLES_FOR_DIRECTOR, MAX_FAVORITE_DIRECTORS);
+  return rankPool(pool, MIN_TITLES_FOR_DIRECTOR, MAX_FAVORITE_DIRECTORS);
 }
 
 // Movies and Shows both contribute — see docs/stats.md, "Favorite
@@ -87,5 +78,5 @@ export function computeFavoriteDirectors(titles: readonly TasteTitle[]): PersonT
 // needed here.
 export function computeFavoriteActors(titles: readonly TasteTitle[]): PersonTasteStat[] {
   const pool = collectPeople(titles, (title) => title.cast);
-  return rankPool(pool, MIN_RATED_TITLES_FOR_ACTOR, MAX_FAVORITE_ACTORS);
+  return rankPool(pool, MIN_TITLES_FOR_ACTOR, MAX_FAVORITE_ACTORS);
 }

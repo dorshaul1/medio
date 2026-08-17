@@ -1,7 +1,7 @@
 // Personal Settings persistence — see docs/settings.md. One row per user,
 // created only once the user changes their first preference away from
 // its default (same "a row only exists when it holds real, non-default
-// content" convention `opinions.ts`'s `media_notes` already uses) —
+// content" convention `opinions.ts`'s `media_comments` already uses) —
 // `getCurrentUserPreferences` returns hardcoded defaults when no row
 // exists, so "no row" and "every column at its default" are the same
 // state. "Reset preferences" is therefore just deleting the row.
@@ -34,6 +34,15 @@ export type DiscoverDefaultTypeValue = (typeof discoverDefaultTypeValues)[number
 export const calendarDefaultViewValues = ["upcoming", "calendar"] as const;
 export type CalendarDefaultViewValue = (typeof calendarDefaultViewValues)[number];
 
+// Which of Stats' three static range chips (`server/stats/range.ts`'s
+// `StatsRange`) `/stats` opens to when no `?range=` is in the URL — same
+// "sets which default view a destination opens to" shape as
+// `discoverDefaultType`/`calendarDefaultView`. "year"/"month" are
+// resolved against the current date at request time (see
+// `resolveDefaultStatsRange`), never persisted as a specific year/month.
+export const statsDefaultRangeValues = ["all", "year", "month"] as const;
+export type StatsDefaultRangeValue = (typeof statsDefaultRangeValues)[number];
+
 export const userPreferences = pgTable(
   "user_preferences",
   {
@@ -64,6 +73,9 @@ export const userPreferences = pgTable(
     calendarDefaultView: text("calendar_default_view", { enum: calendarDefaultViewValues })
       .notNull()
       .default("upcoming"),
+    statsDefaultRange: text("stats_default_range", { enum: statsDefaultRangeValues })
+      .notNull()
+      .default("all"),
     // Which of Calendar's two layouts the Calendar Home layout's body
     // shows — the same "upcoming"/"calendar" choice as
     // `calendarDefaultView`, reused for a different destination (Home's
@@ -111,6 +123,10 @@ export const userPreferences = pgTable(
     check(
       "user_preferences_calendar_default_view_check",
       sql`${table.calendarDefaultView} in ('upcoming', 'calendar')`,
+    ),
+    check(
+      "user_preferences_stats_default_range_check",
+      sql`${table.statsDefaultRange} in ('all', 'year', 'month')`,
     ),
     check(
       "user_preferences_home_calendar_view_check",

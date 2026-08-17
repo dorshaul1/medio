@@ -11,9 +11,8 @@ import { cn } from "@/lib/utils";
 // Radix RadioGroup semantics underneath (roving tabindex, one checked
 // value, a real accessible name per option); the miniature preview is
 // decorative and lives beside/above the option's own text label, never
-// as the only accessible information. Optimistic, same pattern
-// `MediaRating` already established: the visible selection updates
-// immediately, rolling back only if the write actually fails.
+// as the only accessible information. Optimistic — the visible selection
+// updates immediately, rolling back only if the write actually fails.
 export function VisualChoice<T extends string>({
   value,
   options,

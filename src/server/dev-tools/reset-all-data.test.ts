@@ -14,8 +14,7 @@ const { resetAllUserData } = await import("./reset-all-data");
 const { recordMovieWatch, getMovieWatchSummary } = await import("@/server/tracking/movie-events");
 const { recordEpisodeWatch } = await import("@/server/tracking/episode-events");
 const { startWatchingShow, getShowTrackingState } = await import("@/server/tracking/show-state");
-const { setMediaRating, getMediaRating } = await import("@/server/opinions/ratings");
-const { setMediaNote, getMediaNote } = await import("@/server/opinions/notes");
+const { setMediaComment, getMediaComment } = await import("@/server/opinions/comments");
 const { addToWatchlist, getPlanningState } = await import("@/server/planning/planning-items");
 const { updatePreferences } = await import("@/server/preferences/mutations");
 const { fetchUserPreferences } = await import("@/server/preferences/queries");
@@ -51,8 +50,7 @@ describe("resetAllUserData", () => {
       episodeProviderId: 1001,
     });
     await startWatchingShow(1399);
-    await setMediaRating({ mediaType: "movie", mediaProviderId: 550, rating: 5 });
-    await setMediaNote({ mediaType: "movie", mediaProviderId: 550, content: "Great movie." });
+    await setMediaComment({ mediaType: "movie", mediaProviderId: 550, content: "Great movie." });
     await addToWatchlist("movie", 155);
     await updatePreferences({ theme: "dark" });
 
@@ -60,8 +58,7 @@ describe("resetAllUserData", () => {
 
     expect((await getMovieWatchSummary(550)).hasWatched).toBe(false);
     expect(await getShowTrackingState(1399)).toBeNull();
-    expect(await getMediaRating({ mediaType: "movie", mediaProviderId: 550 })).toBeNull();
-    expect(await getMediaNote({ mediaType: "movie", mediaProviderId: 550 })).toBeNull();
+    expect(await getMediaComment({ mediaType: "movie", mediaProviderId: 550 })).toBeNull();
     expect(await getPlanningState("movie", 155)).toBeNull();
     expect((await fetchUserPreferences()).theme).toBe("system");
   });

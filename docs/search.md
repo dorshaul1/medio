@@ -97,11 +97,10 @@ shared, batched "does the user already have a relationship with this
 title" projection Search results, GlobalSearch's suggestions, Discover's
 genre rows/pages, and Discover's editorial collections all call. Three
 small, independently-indexed queries in parallel (planning intent, movie
-watch history, show tracking status) plus the user's rating set — never
-one query per visible item.
+watch history, show tracking status) — never one query per visible item.
 
 `MediaPersonalState` is a flat discriminated union (`none` / `watchlist`
-/ `backlog` / `watched` (+ rating) / `watching` / `on_hold` / `dropped`),
+/ `backlog` / `watched` / `watching` / `on_hold` / `dropped`),
 not several optional booleans — Planning and Tracking are already
 mutually exclusive per title (see `docs/library.md`), so at most one of
 these is ever true. Deliberately lives in `server/media/types.ts` (no

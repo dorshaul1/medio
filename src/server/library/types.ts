@@ -17,14 +17,6 @@ type LibraryItemBase = {
   personalActivityAt: Date;
   // Drives the "Recently added" sort.
   addedAt: Date;
-  // The user's own personal rating (1-5), batch-hydrated alongside the
-  // rest of the page — never a per-item query (see compose.ts). `null`
-  // for the common case of no rating. Carried on every kind (rating
-  // isn't state-gated in the domain — see docs/opinions.md), but only
-  // surfaced in the UI for finished media, where it's actually useful
-  // recognition context rather than clutter — see docs/library.md,
-  // "Rating display".
-  rating: number | null;
 };
 
 export type PlannedMovieLibraryItem = LibraryItemBase & {

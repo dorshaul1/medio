@@ -13,7 +13,6 @@ function movie(overrides: Partial<TasteMovieTitle> = {}): TasteMovieTitle {
     poster: null,
     year: 2020,
     genres: [],
-    rating: null,
     lastActivityAt: new Date("2024-01-01"),
     cast: [],
     watchCount: 1,
@@ -32,7 +31,6 @@ function show(overrides: Partial<TasteShowTitle> = {}): TasteShowTitle {
     poster: null,
     year: 2020,
     genres: [],
-    rating: null,
     lastActivityAt: new Date("2024-01-01"),
     cast: [],
     watchedEpisodeCount: 5,
@@ -46,17 +44,12 @@ function show(overrides: Partial<TasteShowTitle> = {}): TasteShowTitle {
 
 const DRAMA = { id: 1, name: "Drama" };
 const THRILLER = { id: 2, name: "Thriller" };
-const SCI_FI = { id: 3, name: "Sci-Fi" };
 
 describe("computeGenreInsights", () => {
   it("returns nothing at all when the user has too few total titles", () => {
-    const titles: readonly TasteTitle[] = [
-      movie({ genres: [DRAMA], rating: 5 }),
-      movie({ genres: [DRAMA], rating: 5 }),
-    ];
+    const titles: readonly TasteTitle[] = [movie({ genres: [DRAMA] }), movie({ genres: [DRAMA] })];
     const insights = computeGenreInsights(titles);
     expect(insights.mostWatched).toEqual([]);
-    expect(insights.highestRated).toEqual([]);
   });
 
   it("counts a title with multiple genres toward each genre", () => {
@@ -97,44 +90,16 @@ describe("computeGenreInsights", () => {
     expect(insights.mostWatched.some((g) => g.genreId === THRILLER.id)).toBe(true);
   });
 
-  it("requires a minimum rated-title sample before ranking a highest-rated genre", () => {
-    // One 5-star Sci-Fi title must not beat a well-established genre —
-    // see docs/stats.md, "Statistical reliability".
+  it("ranks most-watched genres by title count, highest first", () => {
     const titles: readonly TasteTitle[] = [
-      movie({ genres: [SCI_FI], rating: 5 }),
-      movie({ genres: [DRAMA], rating: 4 }),
-      movie({ genres: [DRAMA], rating: 4 }),
-      movie({ genres: [DRAMA], rating: 4 }),
-      movie({ genres: [THRILLER] }), // unrated, keeps total-title threshold satisfied
+      movie({ genres: [THRILLER] }),
+      movie({ genres: [THRILLER] }),
+      movie({ genres: [DRAMA] }),
+      movie({ genres: [DRAMA] }),
+      movie({ genres: [DRAMA] }),
     ];
     const insights = computeGenreInsights(titles);
-    expect(insights.highestRated.some((g) => g.genreId === SCI_FI.id)).toBe(false);
-    expect(insights.highestRated[0]?.genreId).toBe(DRAMA.id);
-  });
-
-  it("ranks highest-rated genres by average rating, not appearance count", () => {
-    const titles: readonly TasteTitle[] = [
-      movie({ genres: [SCI_FI], rating: 5 }),
-      movie({ genres: [SCI_FI], rating: 5 }),
-      movie({ genres: [DRAMA], rating: 2 }),
-      movie({ genres: [DRAMA], rating: 3 }),
-      movie({ genres: [DRAMA], rating: 3 }),
-      movie({ genres: [DRAMA], rating: 2 }),
-    ];
-    const insights = computeGenreInsights(titles);
-    expect(insights.highestRated[0]?.genreId).toBe(SCI_FI.id);
-  });
-
-  it("counts a title's rating once per genre it carries, never doubled within one genre", () => {
-    const titles: readonly TasteTitle[] = [
-      movie({ genres: [DRAMA, THRILLER], rating: 5 }),
-      movie({ genres: [DRAMA], rating: 5 }),
-      movie({ genres: [THRILLER], rating: 1 }),
-    ];
-    const insights = computeGenreInsights(titles);
-    const drama = insights.highestRated.find((g) => g.genreId === DRAMA.id);
-    expect(drama?.ratedTitleCount).toBe(2);
-    expect(drama?.averageRating).toBe(5);
+    expect(insights.mostWatched[0]?.genreId).toBe(DRAMA.id);
   });
 
   it("handles a title with a missing genre gracefully", () => {

@@ -37,7 +37,7 @@ the durable rules this expands on.
 
 Every source parser maps its raw rows into one shared intermediate
 representation (`ParsedImportRecord` — `movieWatch` / `episodeWatch` /
-`planningItem` / `showTrackingState` / `rating` / `note`) before
+`planningItem` / `showTrackingState` / `comment`) before
 matching, planning, or persistence ever sees it. Source-specific logic
 never leaks past its own parser file — see `CLAUDE.md`, "No import
 source in core WatchEvent semantics".
@@ -113,15 +113,13 @@ Duplicate/conflict rules, by domain:
   tracked. Never a downgrade of a stronger existing intent.
 - **Show tracking state** — `conflict` if any explicit tracking state
   already exists for the show.
-- **Ratings** — `conflict` if a rating already exists. Existing value
-  always wins; import is never a silent overwrite.
-- **Notes** — `conflict` if a note already exists. Same rule — existing
-  note always wins, an imported one is never concatenated or merged in.
+- **Comments** — `conflict` if a comment already exists. Existing value
+  always wins; import is never a silent overwrite or concatenation.
 
 ## Merge semantics
 
 Import always merges into existing MEDIO data, never replaces it. The
-one rule, applied uniformly across Planning/Ratings/Notes/Show tracking
+one rule, applied uniformly across Planning/Comments/Show tracking
 state: **existing MEDIO state always wins.** An import only ever fills
 in something that didn't already exist; it never overwrites, downgrades,
 or silently changes a value the user already set. This was chosen over
@@ -201,14 +199,14 @@ independently meaningful since.
 **Mechanism — batch attribution with ownership transfer on edit.** Every
 domain table that Import can create a row in (`movie_watch_events`,
 `episode_watch_events`, `media_planning_items`, `show_tracking_state`,
-`media_ratings`, `media_notes`) carries a nullable `import_batch_id`.
+`media_comments`) carries a nullable `import_batch_id`.
 The import persistence layer (`persist.ts`) sets it when it creates a
 row. Every *real* product mutation — `recordMovieWatch`/
 `recordEpisodeWatch`'s own creation, `updateMovieWatchedAt`/
 `updateEpisodeWatchedAt`'s date edits, `upsertShowStatus`
 (`startWatchingShow`/`putShowOnHold`/`dropShow`), `upsertPlanningIntent`
 (`addToWatchlist`/`addToBacklog`/`changePlanningIntent`),
-`setMediaRating`, `setMediaNote` — unconditionally clears it back to
+`setMediaComment` — unconditionally clears it back to
 `null` whenever it's called the normal way (i.e., without an explicit
 `importBatchId`, which only the import layer itself ever passes). A
 later, genuine user action on an imported row therefore always detaches
@@ -256,7 +254,7 @@ current user's own data:
 ```
 
 Included: movie/episode watch events, planning items (Watchlist/
-Backlog), show tracking state, ratings, notes, and — only when the user
+Backlog), show tracking state, comments, and — only when the user
 explicitly opts in via the "Include preferences" toggle — preferences.
 Media history is always the primary export value; preferences are
 additive, never bundled in silently.
@@ -338,12 +336,11 @@ user to categorize them):
   with a real date; multiple rows for the same film **are** Letterboxd's
   own representation of a rewatch, imported as separate
   `MovieWatchEvent`s, never collapsed.
-- **`ratings.csv`** (a `Rating` column, no `Watched Date`) — the
-  authoritative source for MEDIO ratings. Letterboxd's diary-entry
-  rating field is deliberately **not** used for this (a real,
-  documented Letterboxd quirk: a film's diary rating and its `ratings.csv`
-  rating can diverge, since they're stored separately) — `ratings.csv`
-  is the more intentional, single "this is my rating" signal.
+- **`ratings.csv`** (a `Rating` column, no `Watched Date`) — recognized
+  but not imported: MEDIO has no personal rating feature (see
+  `docs/opinions.md`). The parser reports this honestly, once per file
+  (`server/import/parsers/letterboxd.ts`), rather than silently dropping
+  it or treating it as an unrecognized file.
 - **`watchlist.csv`** (`Name`/`Title`, no `Rating`/`Watched Date`) —
   maps to MEDIO's **Watchlist** intent only, never Backlog. Letterboxd
   has no stronger-intent concept to map Backlog from.
@@ -351,19 +348,8 @@ user to categorize them):
 **Not imported from Letterboxd in this phase**: `watched.csv` (films
 marked watched with no diary date — there is no reliable watched date to
 import, so importing it would mean fabricating a timestamp, which this
-domain never does), reviews, likes, or any TV/episode data (Letterboxd
-tracks films only).
-
-#### Letterboxd ratings
-
-Letterboxd uses a 0.5–5 half-star scale; MEDIO uses a 1–5 integer scale
-with no half-step support (`server/opinions/`, "Rating scale — no half
-ratings"). `convertLetterboxdRating` rounds to the nearest whole star
-(0.5→1, 3.5→4, 4.5→5, standard round-half-up), clamped to 1–5 — the
-least destructive of the documented options, and never silent: every
-converted rating keeps its original `sourceRatingLabel` (e.g. "4.5★
-(Letterboxd)") through the plan, so the conversion is visible before
-the user confirms.
+domain never does), reviews, likes, ratings (see above), or any TV/
+episode data (Letterboxd tracks films only).
 
 ### Generic CSV
 
@@ -380,15 +366,11 @@ case-insensitive header name, in any order:
 | `season` | no | Required alongside `episode` for a Show watch |
 | `episode` | no | Required alongside `season` for a Show watch |
 | `watched_at` | no | `YYYY-MM-DD` — creates a watch event |
-| `rating` | no | `1`–`5` — creates a rating |
 | `list` | no | `watchlist` or `backlog` — creates a planning item |
 
-One row can produce more than one record — a row with both `watched_at`
-and `rating` filled in creates a watch event *and* a rating, since that's
-an entirely ordinary shape for a real "I watched and rated this"
-spreadsheet row. A `show` row with `watched_at` but no `season`/`episode`
-is skipped with a real, visible reason (see "Episode history" above) —
-never silently converted into a fabricated episode watch.
+A `show` row with `watched_at` but no `season`/`episode` is skipped with
+a real, visible reason (see "Episode history" above) — never silently
+converted into a fabricated episode watch.
 
 A downloadable template (`GENERIC_CSV_TEMPLATE`) is offered directly in
 the CSV upload step.
@@ -410,15 +392,16 @@ Every uploaded file is treated as untrusted input:
   handles quoted fields, escaped quotes, and embedded commas/newlines,
   so a maliciously or accidentally malformed cell can't desynchronize
   column alignment for the rest of the file.
-- **No embedded content execution** — imported titles/notes are always
-  rendered as plain text through this app's existing UI components;
-  nothing from an import is ever interpreted as HTML or executed.
+- **No embedded content execution** — imported titles/comments are
+  always rendered as plain text through this app's existing UI
+  components; nothing from an import is ever interpreted as HTML or
+  executed.
 - **No raw file retention** — an uploaded file is parsed, then
   discarded; only the normalized `ParsedImportRecord`s (and, once
   confirmed, the resulting domain rows) persist. The raw upload itself
   is never written to disk or logged.
-- **No analytics/logging of personal content** — imported title/note/
-  rating content is never sent to logs or any third-party service.
+- **No analytics/logging of personal content** — imported title/comment
+  content is never sent to logs or any third-party service.
 
 ## Provider failure vs. genuinely not found
 

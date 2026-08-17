@@ -10,16 +10,6 @@ import { showViewingStateLabel } from "@/features/shows/show-viewing-state-label
 import type { LibraryItem } from "@/server/library/types";
 import { posterUrl } from "@/server/tmdb/images";
 
-// A quiet "· 4/5" — plain text, not a second star control (the app's own
-// `RatingControl` deliberately avoids stars specifically because a
-// provider-rating star already exists elsewhere — see its own comment)
-// and not shown at all when unset, so an unrated title's row stays
-// exactly as quiet as it is today (see docs/library.md, "Rating
-// display").
-function ratingSuffix(rating: number | null): string {
-  return rating !== null ? ` · ${rating}/5` : "";
-}
-
 // One shared row shell (poster, title/link, trailing actions) with
 // kind-specific personal-context content in the middle — a discriminated
 // switch, not one prop-monster card with a flag per possible state (see
@@ -110,7 +100,6 @@ function LibraryItemDetail({ item }: { item: LibraryItem }) {
         <p className="text-xs text-muted-foreground">
           {item.year ? `${item.year} · ` : ""}
           {item.watchCount > 1 ? `Watched ${item.watchCount}×` : "Watched"}
-          {ratingSuffix(item.rating)}
         </p>
       );
     case "tracked-show": {
@@ -131,17 +120,10 @@ function LibraryItemDetail({ item }: { item: LibraryItem }) {
           : nextEpisodeText
             ? `${label} · ${nextEpisodeText}`
             : label;
-      // Rating only once a show is genuinely finished — anywhere else
-      // it's rarely set yet and would just be clutter (see
-      // docs/library.md, "Rating display").
-      const ratingText = item.derivedState === "completed" ? ratingSuffix(item.rating) : "";
 
       return (
         <div className="flex flex-wrap items-center gap-2 animate-[library-detail-advance_260ms_ease-out]">
-          <span className="text-xs text-muted-foreground">
-            {primaryText}
-            {ratingText}
-          </span>
+          <span className="text-xs text-muted-foreground">{primaryText}</span>
           {item.airedEpisodeCount > 0 ? (
             <>
               <Progress value={ratio} className="w-16" />

@@ -7,7 +7,6 @@
 // (see hydrate.ts), so this file never has to know about episodes at all.
 import {
   MAX_GENRE_INSIGHTS,
-  MIN_RATED_TITLES_FOR_GENRE,
   MIN_TOTAL_TITLES_FOR_GENRE_INSIGHT,
   MIN_WATCHED_TITLES_FOR_GENRE,
 } from "./constants";
@@ -15,7 +14,7 @@ import type { GenreInsights, TasteTitle } from "./types";
 
 export function computeGenreInsights(titles: readonly TasteTitle[]): GenreInsights {
   if (titles.length < MIN_TOTAL_TITLES_FOR_GENRE_INSIGHT) {
-    return { mostWatched: [], highestRated: [] };
+    return { mostWatched: [] };
   }
 
   const exposure = new Map<number, { name: string; count: number }>();
@@ -33,35 +32,5 @@ export function computeGenreInsights(titles: readonly TasteTitle[]): GenreInsigh
     .sort((a, b) => b.titleCount - a.titleCount || a.genreName.localeCompare(b.genreName))
     .slice(0, MAX_GENRE_INSIGHTS);
 
-  const ratingTotals = new Map<number, { name: string; sum: number; count: number }>();
-  for (const title of titles) {
-    if (title.rating === null) continue;
-    for (const genre of title.genres) {
-      const existing = ratingTotals.get(genre.id);
-      if (existing) {
-        existing.sum += title.rating;
-        existing.count += 1;
-      } else {
-        ratingTotals.set(genre.id, { name: genre.name, sum: title.rating, count: 1 });
-      }
-    }
-  }
-
-  const highestRated = [...ratingTotals.entries()]
-    .map(([genreId, value]) => ({
-      genreId,
-      genreName: value.name,
-      averageRating: value.sum / value.count,
-      ratedTitleCount: value.count,
-    }))
-    .filter((genre) => genre.ratedTitleCount >= MIN_RATED_TITLES_FOR_GENRE)
-    .sort(
-      (a, b) =>
-        b.averageRating - a.averageRating ||
-        b.ratedTitleCount - a.ratedTitleCount ||
-        a.genreName.localeCompare(b.genreName),
-    )
-    .slice(0, MAX_GENRE_INSIGHTS);
-
-  return { mostWatched, highestRated };
+  return { mostWatched };
 }

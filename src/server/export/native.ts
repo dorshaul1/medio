@@ -2,7 +2,7 @@ import "server-only";
 import { eq } from "drizzle-orm";
 import { requireSession } from "@/server/auth/session";
 import { db } from "@/server/db";
-import { mediaNotes, mediaRatings } from "@/server/db/schema/opinions";
+import { mediaComments } from "@/server/db/schema/opinions";
 import { mediaPlanningItems } from "@/server/db/schema/planning";
 import {
   episodeWatchEvents,
@@ -49,27 +49,24 @@ async function hydrateTitles<T>(
 export async function buildNativeExport(includePreferences = false): Promise<NativeExport> {
   const { user } = await requireSession();
 
-  const [movies, episodes, planning, tracking, ratings, notes] = await Promise.all([
+  const [movies, episodes, planning, tracking, comments] = await Promise.all([
     db.select().from(movieWatchEvents).where(eq(movieWatchEvents.userId, user.id)),
     db.select().from(episodeWatchEvents).where(eq(episodeWatchEvents.userId, user.id)),
     db.select().from(mediaPlanningItems).where(eq(mediaPlanningItems.userId, user.id)),
     db.select().from(showTrackingState).where(eq(showTrackingState.userId, user.id)),
-    db.select().from(mediaRatings).where(eq(mediaRatings.userId, user.id)),
-    db.select().from(mediaNotes).where(eq(mediaNotes.userId, user.id)),
+    db.select().from(mediaComments).where(eq(mediaComments.userId, user.id)),
   ]);
 
   const movieIds = [
     ...movies.map((row) => row.movieProviderId),
     ...planning.filter((row) => row.mediaType === "movie").map((row) => row.mediaProviderId),
-    ...ratings.filter((row) => row.mediaType === "movie").map((row) => row.mediaProviderId),
-    ...notes.filter((row) => row.mediaType === "movie").map((row) => row.mediaProviderId),
+    ...comments.filter((row) => row.mediaType === "movie").map((row) => row.mediaProviderId),
   ];
   const showIds = [
     ...episodes.map((row) => row.showProviderId),
     ...tracking.map((row) => row.showProviderId),
     ...planning.filter((row) => row.mediaType === "show").map((row) => row.mediaProviderId),
-    ...ratings.filter((row) => row.mediaType === "show").map((row) => row.mediaProviderId),
-    ...notes.filter((row) => row.mediaType === "show").map((row) => row.mediaProviderId),
+    ...comments.filter((row) => row.mediaType === "show").map((row) => row.mediaProviderId),
   ];
 
   const [movieTitles, showTitles] = await Promise.all([
@@ -122,14 +119,7 @@ export async function buildNativeExport(includePreferences = false): Promise<Nat
         title: showTitle(row.showProviderId),
         status: row.status,
       })),
-      ratings: ratings.map((row) => ({
-        mediaType: row.mediaType,
-        mediaProviderId: row.mediaProviderId,
-        title: mediaTitle(row.mediaType, row.mediaProviderId),
-        year: mediaYear(row.mediaType, row.mediaProviderId),
-        rating: row.rating,
-      })),
-      notes: notes.map((row) => ({
+      comments: comments.map((row) => ({
         mediaType: row.mediaType,
         mediaProviderId: row.mediaProviderId,
         title: mediaTitle(row.mediaType, row.mediaProviderId),

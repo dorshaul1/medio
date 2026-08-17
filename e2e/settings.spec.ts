@@ -16,7 +16,7 @@ test.describe
       await page.goto("/");
       await page.getByRole("link", { name: "Settings" }).click();
 
-      await expect(page).toHaveURL(/\/settings\/appearance$/);
+      await expect(page).toHaveURL("/settings");
       await expect(page.getByRole("heading", { level: 1, name: "Settings" })).toBeVisible();
       await expect(page.getByRole("link", { name: "Settings" })).toHaveAttribute(
         "aria-current",
@@ -134,7 +134,33 @@ test.describe("mobile viewport", () => {
     await expect(bottomNav.getByRole("link")).toHaveCount(4);
 
     await page.getByRole("link", { name: "Settings" }).click();
-    await expect(page).toHaveURL(/\/settings\/appearance$/);
+    await expect(page).toHaveURL("/settings");
+    await expect(page.getByRole("heading", { level: 1, name: "Settings" })).toBeVisible();
+  });
+
+  test("the index page shows a plain category list, no category content", async ({ page }) => {
+    await page.goto("/settings");
+
+    const categoryNav = page.getByRole("navigation", { name: "Settings categories" });
+    await expect(categoryNav.getByRole("link", { name: /Appearance/ })).toBeVisible();
+    await expect(categoryNav.getByRole("link", { name: /Spoilers/ })).toBeVisible();
+    await expect(page.getByText("Theme")).toHaveCount(0);
+  });
+
+  test("opening a category shows only its content, with a back link to the list", async ({
+    page,
+  }) => {
+    await page.goto("/settings");
+    await page.getByRole("link", { name: /Spoilers/ }).click();
+
+    await expect(page).toHaveURL("/settings/spoilers");
+    await expect(page.getByRole("heading", { level: 2, name: "Spoilers" })).toBeVisible();
+    // The category list is gone — genuinely not shown, not just styled quiet.
+    await expect(page.getByRole("navigation", { name: "Settings categories" })).toHaveCount(0);
+    await expect(page.getByRole("heading", { level: 1, name: "Settings" })).toHaveCount(0);
+
+    await page.getByRole("link", { name: "Settings" }).click();
+    await expect(page).toHaveURL("/settings");
     await expect(page.getByRole("heading", { level: 1, name: "Settings" })).toBeVisible();
   });
 });

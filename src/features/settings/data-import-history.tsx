@@ -91,8 +91,8 @@ export function DataImportHistory({
               import?
             </DialogTitle>
             <DialogDescription>
-              Removes exactly what this import created. Anything you've changed since — a rating you
-              corrected, a title you moved to Backlog — is kept, never touched.
+              Removes exactly what this import created. Anything you've changed since — a comment
+              you edited, a title you moved to Backlog — is kept, never touched.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

@@ -87,6 +87,49 @@ Resolution order:
 "next episode to air" field, when a future product surface fetches one) —
 the pure resolver never fetches anything itself.
 
+## Canonical domain ownership
+
+One function owns each concept; no consumer surface recomputes it
+independently:
+
+- **Aired-episode filtering, "next unwatched episode"** —
+  `server/tracking/progress.ts`.
+- **Derived viewing state** (`watching`/`caught_up`/`waiting`/`completed`)
+  — `resolveShowViewingState`, above.
+- **Composed `ShowProgress`** (counts + next episode + derived state in
+  one call) — `computeShowProgress`
+  (`server/tracking/compute-show-progress.ts`).
+- **Fetch-and-compute exact progress for one show** (the one place an
+  N-season TMDB fetch happens) — `getShowEpisodeProgress`
+  (`server/shows/show-episode-progress.ts`). Show Details, Home
+  (`server/home/queries.ts`), and Calendar (`server/calendar/compose.ts`)
+  all call this same function with the same effective inputs — Calendar
+  additionally threads an explicit `asOf` (see that function's own
+  comment for why), which is the only difference in how the three callers
+  use it.
+- **Home's Up Next/Finish Soon/Continue Watching precedence** —
+  `classifyActiveShows` (`server/home/classify.ts`). Pick for Me
+  (`server/pick/candidates-continue.ts`) reuses Home's own
+  `getPersonalHome()` output directly rather than re-deriving eligibility.
+
+**Library's one deliberate, documented exception:** Library classifies a
+show's state from an *approximate* season-level aired-episode count
+(`approximate-progress.ts`) rather than the exact per-episode count the
+functions above use, to avoid an N-season provider fetch for every visible
+Library row. This can occasionally make Library show a title as
+"Watching" a few episodes later than Home would (see docs/library.md,
+"Show derived state at Library scale") — an accepted Library-scale
+tradeoff, not a bug, but the one place two surfaces can genuinely disagree
+about a show's labeled state for the same underlying data.
+
+`server/tracking/cross-product-consistency.test.ts` is the regression
+suite protecting this: it records real watch events through the real
+tracking domain, then asserts Home, Library, Diary, Calendar, and Pick for
+Me all agree, across episode-progression, rewatch, exact-event-deletion,
+and show-state-transition scenarios (first episode, season finale, next
+season already aired, Waiting, Completed, Specials, rewatching an
+already-watched episode).
+
 ## Progress excludes Specials and future episodes
 
 `computeShowProgress` (`src/server/tracking/compute-show-progress.ts`) is
@@ -206,6 +249,34 @@ This is private, user-owned data: it must never be placed in a
 shared/public cache (TMDB's own responses are cached and can be shared
 across users; anything that reads tracking data must stay request/user
 scoped) and must never be logged.
+
+## Mutation architecture
+
+Every tracking and planning Server Action (`features/shows/show-tracking-actions.ts`,
+`features/movies/movie-tracking-actions.ts`, `features/media/planning-actions.ts`)
+calls one shared function, `revalidateTrackingSurfaces`
+(`server/mutations/revalidate-tracking-surfaces.ts`), instead of hand-rolling
+its own `revalidatePath` list. This exists because that hand-rolling had
+already drifted: a hardening audit found several nearly-identical actions
+silently revalidating different subsets of the app — putting a show On
+Hold didn't refresh Library, marking an episode watched didn't refresh
+Diary, marking a movie watched (which clears its planning entry) didn't
+refresh Home or Calendar. None of these were deliberate; they were the
+predictable result of N call sites each remembering their own list by
+hand.
+
+The shared function always revalidates Home (`/`), Calendar, Library,
+Stats, and Pick for Me — every one of them composes personalized state
+from the same canonical watch-event/planning tables at request time, so
+any write that reaches this function can plausibly affect all five.
+`/library/diary` is the one conditional surface (`affectsDiary`), since
+planning-only writes never touch a Diary-visible event row. Over-
+revalidating a route a specific write didn't actually touch is harmless
+(Next.js just refetches on the next visit, and none of these routes are
+ever statically/shared-cached in the first place — see "Ownership and
+privacy" above); silently under-revalidating one is the real, demonstrated
+bug class this replaces. A new tracking/planning mutation should call this
+function rather than adding its own `revalidatePath` calls.
 
 ## Query shape: summaries vs. full history
 

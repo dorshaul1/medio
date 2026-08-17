@@ -23,9 +23,18 @@ export const PICK_DISCOVERY_RAW_CANDIDATE_LIMIT = 12;
 // --- Taste summary bounds (mirrors server/stats/constants.ts) -----------
 
 export const PICK_TASTE_HYDRATION_LIMIT = 60;
+// Credits (director) are only fetched for a smaller, most-recently-active
+// subset of the hydrated titles above — same reasoning as Stats' own
+// TASTE_CREDITS_HYDRATION_LIMIT.
+export const PICK_TASTE_CREDITS_LIMIT = 20;
 export const PICK_TASTE_GENRE_LIMIT = 3;
 export const PICK_TASTE_SEED_MOVIE_LIMIT = 3;
 export const PICK_TASTE_SEED_SHOW_LIMIT = 2;
+// The user needs at least this many total distinct watched titles before
+// Pick attempts any personalization at all — mirrors Stats' own
+// MIN_TOTAL_TITLES_FOR_GENRE_INSIGHT reasoning: a couple of watches isn't
+// evidence of a real taste yet (see docs/recommendations.md).
+export const PICK_TASTE_MIN_TITLES_FOR_PERSONALIZATION = 3;
 
 // --- Time presets ----------------------------------------------------------
 //

@@ -75,8 +75,7 @@ export type TrackingStateCounts = { watching: number; onHold: number; dropped: n
 // hydration this domain avoids at Taste's scale (see docs/stats.md,
 // "Completion behavior"). Deliberately never range-scoped: tracking
 // state describes a show's *current* status, not a dated event, so it
-// reflects "right now" regardless of the selected Stats range — the same
-// reasoning current ratings are never treated as historical (see
+// reflects "right now" regardless of the selected Stats range (see
 // docs/stats.md, "Date ranges and current-state sections").
 export async function getTrackingStateCounts(userId: string): Promise<TrackingStateCounts> {
   const rows = await db
@@ -124,10 +123,13 @@ type ActiveYearRow = { year: number };
 // powers the range control's year chips (see docs/stats.md, "Historical
 // years"). Bounded by the number of distinct active years, never by
 // event count. Same UTC-bucketing basis as every other range boundary in
-// this domain.
+// this domain — `at time zone 'UTC'` is explicit rather than relying on
+// the database connection's own session timezone, so this can never
+// silently disagree with `resolveStatsRangeBounds`'s own `Date.UTC(...)`
+// boundaries for the same events.
 export async function getActiveStatsYears(userId: string): Promise<readonly number[]> {
   const result = await db.execute<ActiveYearRow>(sql`
-    select distinct extract(year from watched_at)::int as year
+    select distinct extract(year from watched_at at time zone 'UTC')::int as year
     from (
       select watched_at from movie_watch_events where user_id = ${userId}
       union all
@@ -149,7 +151,7 @@ export async function getYearlyActivityCounts(
   userId: string,
 ): Promise<readonly { year: number; eventCount: number }[]> {
   const result = await db.execute<YearlyActivityRow>(sql`
-    select extract(year from watched_at)::int as year, count(*)::int as event_count
+    select extract(year from watched_at at time zone 'UTC')::int as year, count(*)::int as event_count
     from (
       select watched_at from movie_watch_events where user_id = ${userId}
       union all

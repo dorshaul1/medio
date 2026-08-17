@@ -1,16 +1,16 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { TastePatternsSection } from "./taste-patterns-section";
+import { StatsPatternsSection } from "./stats-patterns-section";
 
-describe("TastePatternsSection", () => {
+describe("StatsPatternsSection", () => {
   it("renders nothing when neither pattern is eligible", () => {
-    const { container } = render(<TastePatternsSection movieVsShow={null} completion={null} />);
+    const { container } = render(<StatsPatternsSection movieVsShow={null} completion={null} />);
     expect(container).toBeEmptyDOMElement();
   });
 
   it("labels the Movie vs Show split with its comparable unit — unique titles", () => {
     render(
-      <TastePatternsSection
+      <StatsPatternsSection
         movieVsShow={{ moviePercent: 75, showPercent: 25, totalTitles: 8 }}
         completion={null}
       />,
@@ -22,7 +22,7 @@ describe("TastePatternsSection", () => {
 
   it("renders a neutral 'finishes' sentence, never a shaming one", () => {
     render(
-      <TastePatternsSection
+      <StatsPatternsSection
         movieVsShow={null}
         completion={{
           tendency: "finishes",
@@ -37,7 +37,7 @@ describe("TastePatternsSection", () => {
 
   it("renders a neutral 'explores' sentence for a high dropped ratio", () => {
     render(
-      <TastePatternsSection
+      <StatsPatternsSection
         movieVsShow={null}
         completion={{
           tendency: "explores",

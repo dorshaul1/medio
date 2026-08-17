@@ -3,8 +3,11 @@
 `/stats` is a top-level primary destination — "what does my own viewing
 history and taste actually say about me?" — deliberately separate from
 Library (`/library`, "what's my current state with each title?") and Diary
-(`/library/diary`, "what have I actually watched and when?"). This document
-covers the domain model and architecture behind it.
+(`/library/diary`, "what have I actually watched and when?"). It has two
+tabs: **Overview** ("how have I been watching?" — viewing activity/
+rhythm) and **Taste** ("what do I tend to watch and enjoy?" — genres,
+favorite people, rewatches). This document covers the domain model and
+architecture behind both.
 
 ## Stats is derived, not a new source of truth
 
@@ -15,8 +18,11 @@ request time from:
 - watch history (`movie_watch_events` / `episode_watch_events` —
   see `docs/tracking.md`)
 - explicit Show Tracking State (`show_tracking_state`)
-- personal ratings (`media_ratings` — see `src/server/opinions/`)
 - normalized TMDB metadata (genres, credits, runtime)
+
+MEDIO has no personal rating feature (see `docs/opinions.md`) — every
+taste signal below is derived from real watch behavior (what's watched,
+how often, and rewatches), never a star rating.
 
 `getStatsProfile()` (`src/server/stats/compose.ts`) is the one server
 entrypoint. It owns the session boundary; every lower-level query in
@@ -25,54 +31,85 @@ itself — the same layering `getLibraryPage`/`getDiaryPage` already use.
 
 ## Information architecture
 
-Conceptually, Stats covers: a date-range control, Overview, Viewing
-rhythm, Taste (genres), People (directors/actors), Rewatching, and
-Viewing patterns (Movie vs Show, Show completion tendency) — but this is
-**not** implemented as tabs or mechanically-boxed sections. `/stats` is
-one page, composed editorially: a compact range control
-(`StatsRangeControl`), an opening headline + count line (`StatsHero`),
-an optional Compare summary (`StatsComparisonSection`), a viewing-rhythm
-chart (`StatsTimeline`), then curated Genre, People, Rewatch, Patterns,
-and Ratings sections. Every section omits itself entirely when its
-underlying evidence is too thin to be meaningful — there is no "not
-enough data" placeholder anywhere on this page.
+One route, one date range, two tabs (`StatsTabs` — `?tab=overview`, the
+default, or `?tab=taste`). The date-range control
+(`StatsRangeControl`) sits above the tabs because it governs both:
+switching tabs never changes or resets the selected range, and switching
+range never changes the selected tab — both are independent, real URL
+state (`?range=`, `?compare=`, `?tab=`) read once at the top of
+`app/(app)/stats/page.tsx`.
+
+The page fetches exactly one `StatsProfile` (or one
+`{ current, previous }` pair when Compare is on) for the selected range
+— `StatsProfile` already carries every field either tab renders (see
+"The composed projection" via `server/stats/types.ts`), so switching
+tabs is a pure rendering choice, never a second query. This is why Taste
+moved here rather than staying a separate `/library/taste` route: it was
+always the same `buildStatsProfile` projection under a different URL,
+computed with `{ kind: "all" }` regardless of what a user actually
+wanted to look at. As a tab, Taste now shares Overview's real selected
+range — "genres/people/rewatches for 2026" is a meaningfully different,
+now-supported answer from "genres/people/rewatches all time".
+
+- **Overview** — an opening volume statement (`StatsHero`), an optional
+  Compare summary (`StatsComparisonSection`), the viewing-rhythm chart
+  (`StatsTimeline`), the weekday breakdown (`StatsWeekdaySection`), and
+  Movie-vs-Show/completion (`StatsPatternsSection`).
+- **Taste** — a taste headline (`TasteHero`), genre exposure
+  (`TasteGenreSection`), favorite people (`TastePeopleSection`), and
+  rewatch highlights (`TasteRewatchSection`) — all from `features/taste/`.
+
+Every section on either tab omits itself when evidence is too thin — see
+"Statistical reliability" below.
 
 ## Date ranges
 
 `?range=` is real URL state (`server/stats/range.ts`'s
-`parseStatsRangeParam`/`formatStatsRangeParam`) — `all` (the default),
-a specific year (`2025`), `last12months`, or a specific month
-(`2026-08`). `StatsRange` is resolved to a half-open `[start, end)` UTC
-bound (`resolveStatsRangeBounds`) — reusing Diary 2.0's own month-
-scoping convention exactly (see docs/diary.md, "Month navigation and
-timezone") rather than inventing a second timezone interpretation: the
-server can't know the viewer's real local timezone, so a period edge can
-be off by at most a few hours, an accepted documented tradeoff at this
-granularity. A `null` bound means "all time," unbounded.
+`parseStatsRangeParam`/`formatStatsRangeParam`) — `all`, the current
+calendar year, the current calendar month, `last12months`, a specific
+year (`2025`), or a specific month (`2026-08`). `StatsRangeControl`
+only ever exposes three static chips, always in this order — **All
+time**, **This year**, **This month** — no year-number chip, no
+overflow "More" picker; a specific past year stays reachable by direct
+URL (`?range=2025`) without being promoted in the UI.
+
+When `?range=` is absent entirely, the landing range comes from the
+user's own **Default Stats range** preference (Settings → Defaults;
+`statsDefaultRange` — `all`/`year`/`month`, defaulting to `all`)
+resolved against the current date (`resolveDefaultStatsRange`) —
+never hardcoded to one specific range for every user. `StatsRangeControl`
+and the page's own default always agree because both read the same
+resolved value; the control never has its own separate notion of
+"default." `StatsRange` is resolved to a half-open `[start, end)` UTC
+bound (`resolveStatsRangeBounds`) — reusing Diary 2.0's own month-scoping
+convention exactly (see docs/diary.md, "Month navigation and timezone")
+rather than inventing a second timezone interpretation: the server can't
+know the viewer's real local timezone, so a period edge can be off by at
+most a few hours, an accepted documented tradeoff at this granularity. A
+`null` bound means "all time," unbounded.
 
 Every range-aware query (`getViewingVolume`, `getMovieWatchAggregates`,
 `getShowWatchAggregates`) takes this bound as a plain parameter and adds
 `and watched_at >= start and watched_at < end` only when it's non-null —
 the exact same shape `server/diary/events.ts`'s own `period` filter
 uses. The pure insight-computation layer (genres/people/rewatch/movie-vs-
-show/rating-summary/headline/viewing-time) is completely unaware ranges
-exist at all — it only ever sees whatever titles/aggregates the range-
-scoped queries already produced, so none of those files changed for
-Stats 2.0.
+show/headline/viewing-time) is completely unaware ranges exist at all —
+it only ever sees whatever titles/aggregates the range-scoped queries
+already produced, so none of those files changed for Stats 2.0.
 
 **Show Tracking State counts** (`getTrackingStateCounts`, feeding
 Completion/TV Journey) are deliberately **never** range-scoped — a
 show's `watching`/`on_hold`/`dropped` status describes its *current*
 state, not a dated event, so it reflects "right now" regardless of the
-selected range (the same reasoning current ratings are never treated as
-historical — see "Date-range rating semantics" below).
+selected range.
 
 ### Historical years
 
 `getActiveStatsYears`/`getStatsActiveYears` (`aggregates.ts`/
 `compose.ts`) return only years with real watch history, newest first —
-the range control's year chips never offer a guaranteed-empty year. A
-brand-new account (no active years at all) sees Stats' one true empty
+used only to decide whether the page has *any* history at all (see
+below), since the range control itself no longer exposes per-year chips.
+A brand-new account (no active years at all) sees Stats' one true empty
 state ("No stats yet.") with no range control at all; an account with
 real history elsewhere but nothing in the *selected* range sees a
 sparse-range message ("Nothing watched in {range}.") with the range
@@ -101,13 +138,14 @@ period, so Compare is hidden entirely for it
 The previous period's profile is built via the same `buildStatsProfile`
 path as the current one — never a second, parallel computation — with a
 `lightweight` flag that skips work Comparison's own UI never renders
-(director-portrait hydration, the rhythm chart), saving real provider
-requests rather than doubling them.
+(director-portrait hydration, the rhythm/weekday charts), saving real
+provider requests rather than doubling them. Compare is Overview-only —
+Taste has no comparison UI of its own.
 
-`src/features/stats/` files prefixed `taste-*` are specifically the
-Taste (genre/people) part of that composition — kept as their own
-vocabulary since they represent a distinct analytical concept, not
-because Taste is a separate product surface anymore.
+`src/features/taste/` owns Taste's own section components (rendered from
+the Taste tab); `src/features/stats/` owns Overview's section components
+plus the shared range/tab controls. Pure analytics helpers live in
+`src/server/stats/` — shared by both tabs and by Pick for Me.
 
 ## Title-level vs viewing-event semantics
 
@@ -136,23 +174,22 @@ mirrors the catalog into Postgres. But historical analytics can
 reference years of provider IDs, so hydration is deliberately bounded in
 two ways:
 
-1. **Recency + rating bound.** `selectHydrationIds`
-   (`hydration-selection.ts`) always includes every *rated* title
-   (ratings are the strongest, most bounded taste signal — a user's
-   rating count is inherently small relative to total watch history)
-   plus every explicit "must include" title (the single most-rewatched
-   Movie / most-revisited Show, computed cheaply from SQL aggregates, so
-   it can always be displayed with real artwork). Remaining slots up to
-   `TASTE_RECENT_MOVIE_HYDRATION_LIMIT` / `TASTE_RECENT_SHOW_HYDRATION_LIMIT`
-   (150 each) go to the most recently active unrated titles. This keeps
-   provider hydration bounded regardless of total lifetime watch count —
-   a title outside this window and never rated simply doesn't contribute
-   to genre-exposure ranking.
-2. **Credits only for rated titles.** People (director/actor) ranking
-   needs credits (`getMovieCredits`/`getShowAggregateCredits`) — the most
-   expensive provider component — so credits are fetched only for
-   titles the user has actually rated, a strictly smaller set than the
-   hydration bound above.
+1. **Recency bound.** `selectHydrationIds` (`hydration-selection.ts`)
+   always includes every explicit "must include" title (the single
+   most-rewatched Movie / most-revisited Show, computed cheaply from SQL
+   aggregates, so it can always be displayed with real artwork); the
+   remaining slots up to `TASTE_RECENT_MOVIE_HYDRATION_LIMIT` /
+   `TASTE_RECENT_SHOW_HYDRATION_LIMIT` (150 each) go to the most
+   recently active titles. This keeps provider hydration bounded
+   regardless of total lifetime watch count — a title outside this
+   window simply doesn't contribute to genre-exposure ranking.
+2. **Credits only for a smaller, most-recently-active subset.** People
+   (director/actor) ranking needs credits (`getMovieCredits`/
+   `getShowAggregateCredits`) — the most expensive provider component —
+   so a second, smaller `selectHydrationIds` pass (bounded by
+   `TASTE_CREDITS_HYDRATION_LIMIT`, 60) picks which of the already-
+   selected titles above actually get a credits fetch, independent of
+   total lifetime history size.
 
 Show creators (for the "Created by" concept) and a show's typical
 episode runtime come free from the same `getShowDetails` fetch already
@@ -175,57 +212,30 @@ report a count or grouping. Result-set size for the grouped queries is
 bounded by the user's number of *unique* titles, not their event count —
 cheap even for a user with thousands of rewatches of a handful of shows.
 
-## Rating semantics
-
-A title's current personal rating counts **once**, regardless of
-rewatch count — a Movie watched four times with a 5-star rating
-contributes one `5`, not four, to any genre/director/actor average
-(rewatches are a separate behavioral signal — see "Rewatch insights"
-below). Clearing a rating removes it from every rating-based
-calculation immediately (nothing is cached beyond the request).
-
-### Date-range rating semantics
-
-A rating-based insight for a selected range includes a title because it
-was **watched** during that range — `ratedTitleCount`/rating
-distribution/Movie-vs-Show rating comparison are all filtered to the
-titles present in that range's own watch aggregates
-(`buildStatsProfile`'s `inRangeRatings`). The rating **value** shown is
-always the title's *current* rating, never a historical one — this app
-has no historical rating-event data (see CLAUDE.md, "Stats"). Section
-copy stays deliberately range-neutral ("You rate the highest," not
-"Movies you rated highest in 2026") specifically so it never *implies*
-the rating itself happened during the selected range — a real, safer
-simplification than trying to phrase every section's heading per range,
-left as a documented opportunity rather than built out this phase.
-
 ### Statistical reliability
 
-Every rating-based insight has an explicit minimum-sample threshold
+Every exposure-based insight has an explicit minimum-sample threshold
 (`src/server/stats/constants.ts`) — never a guess from one data point:
 
-- a genre needs ≥2 rated titles before its average is shown
-  (`MIN_RATED_TITLES_FOR_GENRE`)
-- a director/actor needs ≥2 rated titles before being called a favorite
-  (`MIN_RATED_TITLES_FOR_DIRECTOR`/`_ACTOR`)
-- a rating distribution needs ≥5 ratings (`MIN_RATINGS_FOR_DISTRIBUTION`)
-- a Movie/Show rating comparison needs ≥2 ratings on *each* side
-  (`MIN_RATINGS_FOR_TYPE_AVERAGE`) — one side is never rendered as zero
-  for lack of data; the whole comparison is omitted instead.
+- a genre needs ≥2 watched titles before it's surfaced as "most watched"
+  (`MIN_WATCHED_TITLES_FOR_GENRE`), and the user needs ≥3 total distinct
+  watched titles before genre insight is attempted at all
+  (`MIN_TOTAL_TITLES_FOR_GENRE_INSIGHT`)
+- a director/actor needs ≥2 titles (within the credits-hydrated subset)
+  before being called a favorite (`MIN_TITLES_FOR_DIRECTOR`/`_ACTOR`)
 
 ## People ranking
 
-Directors and Actors are ranked purely from the user's own rated
-viewing history — average personal rating (desc), then rated-title
-count (desc) as a tie-breaker, then name (asc) as the final
-deterministic fallback. **TMDB popularity is never a signal.** Directors
-are Movie-focused this phase (a Show's per-episode directors are noisy,
-not a meaningful "favorite director" signal); Actors combine Movie and
-Show participation. Actor ranking uses only the top-billed cast per
-title (`TASTE_PRIMARY_CAST_LIMIT`, 10 — mirrors the existing
-`MovieCastRow`/`ShowCastRow` display convention of trusting TMDB's own
-billing order), so a tiny cameo never carries the same weight as a
-primary role.
+Directors and Actors are ranked purely from how many of the user's own
+hydrated, credits-eligible titles they appear in (desc), then name (asc)
+as the final deterministic fallback. **TMDB popularity is never a
+signal.** Directors are Movie-focused this phase (a Show's per-episode
+directors are noisy, not a meaningful "favorite director" signal);
+Actors combine Movie and Show participation. Actor ranking uses only the
+top-billed cast per title (`TASTE_PRIMARY_CAST_LIMIT`, 10 — mirrors the
+existing `MovieCastRow`/`ShowCastRow` display convention of trusting
+TMDB's own billing order), so a tiny cameo never carries the same weight
+as a primary role.
 
 ## Rewatch insights
 
@@ -306,8 +316,24 @@ than needing Diary's pre/post-mount reconciliation.
 `getViewingTimestampsInRange`/`getYearlyActivityCounts` (`aggregates.ts`)
 are the only two places this domain ever fetches/aggregates timestamps
 for the chart — always bounded to the selected range, never the user's
-unbounded lifetime. Weekday/time-of-day viewing patterns remain
-deliberately deferred (see "Deferred" below).
+unbounded lifetime.
+
+### Weekday rhythm
+
+`computeWeekdayActivity` (`timeline.ts`) reuses the exact same
+`timestamps` array already fetched for the rhythm chart above — never a
+second query — so it's only available for range kinds that fetch raw
+timestamps at all ("month"/"year"/"last12months"); **"All time" omits
+it** rather than pulling an unbounded lifetime timestamp set just for
+this one insight. Bucketed by UTC day-of-week, the same documented
+simplification the monthly chart already uses. Requires
+`MIN_EVENTS_FOR_WEEKDAY_INSIGHT` (8) events in range before rendering —
+a handful of events scattered across a week is coincidence, not a
+rhythm — and states no single "most active day" when every day is
+exactly tied, though the bar breakdown itself still renders. Time-of-day
+(clock-hour) patterns remain deliberately deferred — see "Deferred"
+below; a date-only imported event has no real time to bucket by, and
+this domain never fabricates one.
 
 ### Stats + Diary
 
@@ -340,11 +366,13 @@ The UI never shows raw minutes ("38,472 minutes") — only a rounded
 
 ## Navigation
 
-`Stats` is a primary destination (`src/config/navigation.ts`), not part
-of Library's `LibrarySectionNav` (Library/Diary only). Its icon is
-`ChartNoAxesColumn` — a plain column shape with no axis lines, chosen to
-read as "insight/visualization" without the corporate-dashboard
-connotation a gauge/speedometer icon would carry.
+`Stats` is a primary destination (`src/config/navigation.ts`), covering
+both tabs — Taste is not a separate nav entry and is not part of
+`LibrarySectionNav` (which now covers Library/Diary only). Stats' icon is
+`ChartNoAxesColumn` — a plain column shape with no axis lines.
+`/library/taste` (the old Taste route) redirects to `/stats?tab=taste`
+rather than 404ing for anyone with the old URL bookmarked or linked —
+there is exactly one canonical Taste implementation.
 
 ## Privacy / caching
 
@@ -378,11 +406,12 @@ own explicit instruction.
 
 ## Deliberately deferred
 
-- **Weekday / time-of-day patterns** — would need either per-event
-  local-timezone bucketing (raising the same "how many raw rows do we
-  pull" question the range-scoped rhythm chart already manages
-  carefully) or an assumption about backdated entries' synthetic times
-  that isn't safe to make. Omitted rather than guessed.
+- **Time-of-day (clock-hour) patterns** — would need either per-event
+  local-timezone bucketing (a different, harder problem than the
+  weekday breakdown's UTC-day approximation) or an assumption about
+  date-only/backdated entries' synthetic times that isn't safe to make.
+  Omitted rather than guessed. (Weekday rhythm itself is implemented —
+  see "Weekday rhythm" above.)
 - **Exact Show completion count** — see "Show completion behavior"
   above.
 - **A custom, arbitrary date-range picker** — the four preset ranges
@@ -390,11 +419,6 @@ own explicit instruction.
   cover every range described in this phase's scope without an
   enterprise date-range control; a custom picker was judged not to
   clearly earn its complexity yet and was cut, not merely missed.
-- **Range-aware section copy** (e.g. "Highest-rated Movies you watched
-  in 2026" instead of the current range-neutral "You rate the highest")
-  — see "Date-range rating semantics" above; every section's *data* is
-  already correctly range-scoped, only the heading text isn't yet
-  range-specific.
 - **Standout/highlight titles with artwork**, a **reactions insight**,
   and a **tiny day-by-day activity strip independent of the rhythm
   chart** — each considered, none judged to clearly earn its place this

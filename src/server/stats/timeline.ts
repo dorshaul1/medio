@@ -98,6 +98,48 @@ export function computeDailyActivity(
   return buckets;
 }
 
+const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
+
+// Which day of the week the user actually watches on — see docs/stats.md,
+// "Viewing rhythm and range". Reuses the same timestamps already fetched
+// for the main rhythm chart (never a second query), so this is only ever
+// available for range kinds that fetch raw timestamps ("month"/"year"/
+// "last12months") — "All time" would need an unbounded raw-event pull to
+// support it, which this domain never does (see CLAUDE.md, "Stats"), so
+// it's simply omitted there. Bucketed by UTC day-of-week, the same
+// documented simplification `computeMonthlyActivity` already uses — a
+// timezone-driven shift only ever matters for events within a few hours
+// of midnight, not a systematic error. `null` below `minEvents`: one or
+// two data points is a coincidence, not a rhythm.
+export function computeWeekdayActivity(
+  timestamps: readonly Date[],
+  minEvents: number,
+): { mostActiveDay: string | null; buckets: readonly ActivityBucket[] } | null {
+  if (timestamps.length < minEvents) return null;
+
+  const counts = WEEKDAY_LABELS.map(() => 0);
+  for (const timestamp of timestamps) {
+    // getUTCDay(): 0 (Sun) - 6 (Sat) — rotate so the week starts Monday,
+    // matching every other weekday-ordered UI in this app.
+    const index = (timestamp.getUTCDay() + 6) % 7;
+    counts[index] = (counts[index] ?? 0) + 1;
+  }
+
+  const buckets = WEEKDAY_LABELS.map((label, index) => ({
+    key: label,
+    label,
+    eventCount: counts[index] ?? 0,
+  }));
+
+  const busiest = [...buckets].sort((a, b) => b.eventCount - a.eventCount)[0];
+  // All-tied (e.g. exactly one event per day so far) isn't a real "most
+  // active day" claim — omit the headline day rather than pick one
+  // arbitrarily, though the bar breakdown itself still renders.
+  const isTie = buckets.filter((bucket) => bucket.eventCount === busiest?.eventCount).length > 1;
+
+  return { mostActiveDay: isTie ? null : (busiest?.label ?? null), buckets };
+}
+
 // All time's viewing rhythm, bucketed by real calendar year — see
 // docs/stats.md, "Viewing rhythm and range": never a 10-year, 120-column
 // monthly chart. `yearlyCounts` already comes from a bounded SQL

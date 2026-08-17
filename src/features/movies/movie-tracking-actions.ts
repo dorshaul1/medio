@@ -1,32 +1,33 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import {
   recordMovieWatch,
   removeMovieWatchEvent,
   updateMovieWatchedAt,
 } from "@/server/tracking/movie-events";
 import type { MovieWatchEvent } from "@/server/tracking/types";
+import { revalidateTrackingSurfaces } from "@/server/mutations/revalidate-tracking-surfaces";
 
 // Thin Server Action wrappers around the tracking domain
 // (src/server/tracking/movie-events.ts) — the domain functions already
 // authenticate/authorize themselves via `requireSession()`, so these only
-// add the one thing a Server Action needs to add: revalidating the movie
-// page so the UI reflects the new state in the same round trip (see
-// docs/tracking.md). Reads don't need a Server Action at all — Movie
-// Details (a Server Component) calls `getMovieWatchSummary`/
-// `listMovieWatchEvents` directly.
+// add the one thing a Server Action needs to add: revalidation, via the
+// one shared `revalidateTrackingSurfaces` (see that module's own
+// comment). Reads don't need a Server Action at all — Movie Details (a
+// Server Component) calls `getMovieWatchSummary`/`listMovieWatchEvents`
+// directly.
 
 export async function markMovieWatchedAction(
   movieProviderId: number,
   watchedAt?: Date,
 ): Promise<MovieWatchEvent> {
   const event = await recordMovieWatch({ movieProviderId, ...(watchedAt ? { watchedAt } : {}) });
-  revalidatePath(`/movies/${movieProviderId}`);
   // Also called as Library's own "Mark watched" quick action for a
   // planned movie (see features/library/library-movie-quick-action.tsx)
-  // — clears its planning entry, so Library's own page needs to refresh.
-  revalidatePath("/library");
+  // — clears its planning entry, so Home's Backlog row and Calendar's
+  // planned-release candidates need refreshing too, same as starting to
+  // watch a show does.
+  revalidateTrackingSurfaces({ movieProviderId, affectsDiary: true });
   return event;
 }
 
@@ -35,13 +36,9 @@ export async function removeMovieWatchEventAction(
   movieProviderId: number,
 ): Promise<void> {
   await removeMovieWatchEvent(eventId);
-  revalidatePath(`/movies/${movieProviderId}`);
-  // Removing an event can change whether this movie still appears as
-  // "Watched" (or its watch count) on Library and in the Diary — also
-  // called as the Diary's own "Delete" action for one specific viewing
-  // (see docs/diary.md); no parallel delete path exists there.
-  revalidatePath("/library");
-  revalidatePath("/library/diary");
+  // Also called as the Diary's own "Delete" action for one specific
+  // viewing (see docs/diary.md); no parallel delete path exists there.
+  revalidateTrackingSurfaces({ movieProviderId, affectsDiary: true });
 }
 
 // The Diary's "Edit watch date" action (see docs/diary.md) — corrects
@@ -55,8 +52,6 @@ export async function updateMovieWatchedAtAction(
   watchedAt: Date,
 ): Promise<MovieWatchEvent | null> {
   const event = await updateMovieWatchedAt(eventId, watchedAt);
-  revalidatePath(`/movies/${movieProviderId}`);
-  revalidatePath("/library");
-  revalidatePath("/library/diary");
+  revalidateTrackingSurfaces({ movieProviderId, affectsDiary: true });
   return event;
 }

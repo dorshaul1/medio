@@ -147,17 +147,22 @@
     (`CastMemberTile`/`PersonLink`/`person-route.ts`) live in
     `features/media/` instead, since Movie/Show Details are their real
     callers — see that entry below.
-  - **`features/stats/`** — `/stats`'s own composition: `StatsRangeControl`
-    (the compact `?range=`/`?compare=` chip row), `StatsHero` (the opening
-    headline + count line), `StatsComparisonSection` (Compare's plain-
-    language facts), `StatsTimeline` (the range-granularity-aware viewing-
-    rhythm chart, with a "busiest month → Diary" link), and the `taste-*`
-    files (`TasteGenreSection`, `TastePeopleSection`/`TastePersonTile`,
-    `TasteRewatchSection`/`TasteTitleCard`, `TastePatternsSection`,
-    `TasteRatingsSection`) — Stats' Taste (genre/people) section
-    specifically, kept as their own vocabulary since they represent a
-    distinct analytical concept within the broader page. See
-    `docs/stats.md`.
+  - **`features/stats/`** — `/stats`'s own composition, shared by both
+    tabs: `StatsRangeControl` (the compact `?range=`/`?compare=` chip
+    row), `StatsTabs` (the `?tab=overview|taste` switch). Overview-tab
+    sections: `StatsHero` (the opening headline + count line),
+    `StatsComparisonSection` (Compare's plain-language facts),
+    `StatsTimeline` (the range-granularity-aware viewing-rhythm chart,
+    with a "busiest month → Diary" link), `StatsWeekdaySection` (the
+    day-of-week breakdown), `StatsPatternsSection` (Movie vs Show
+    balance + show completion tendency). See `docs/stats.md`.
+  - **`features/taste/`** — the Taste tab's own composition:
+    `TasteHero`, `TasteGenreSection`, `TastePeopleSection`/
+    `TastePersonTile`, `TasteRewatchSection`/`TasteTitleCard` — kept as
+    their own vocabulary since they represent a distinct analytical
+    concept (genre/people/rewatch preference) from Overview's temporal
+    viewing activity, even though both tabs share one route and one
+    `StatsProfile` fetch. See `docs/taste.md`.
   - **`features/settings/`** — `/settings`'s own composition:
     `SettingsNav` (the category rail), `SettingRow`/
     `SettingsCategoryHeader` (the shared open layout), `VisualChoice`/
@@ -260,11 +265,13 @@
   `hydration-selection.ts` (the pure bounded-candidate-selection logic),
   `hydrate.ts` (bounded, deduplicated provider hydration), one pure,
   testable module per insight category (`genres.ts`, `people.ts`,
-  `rewatch.ts`, `completion.ts`, `movie-vs-show.ts`, `rating-summary.ts`,
-  `timeline.ts`, `viewing-time.ts`, `headline.ts`, `compare.ts` — the
-  Compare-facts derivation), composed by `compose.ts` (`getStatsProfile`/
+  `rewatch.ts`, `completion.ts`, `movie-vs-show.ts`, `timeline.ts`,
+  `viewing-time.ts`, `headline.ts`, `compare.ts` — the Compare-facts
+  derivation), composed by `compose.ts` (`getStatsProfile`/
   `getStatsComparison`/`getStatsActiveYears` — the reusable reads, own
-  the session boundary). See `docs/stats.md`.
+  the session boundary; the *one* entrypoint both the Overview and Taste
+  tabs render from — there is no separate `server/taste/`). See
+  `docs/stats.md`, `docs/taste.md`.
 - **`server/calendar/`** — Calendar's Personal Release Intelligence read
   model, composed at request time from Tracking/Planning identity + TMDB
   metadata (never a `calendar_events` table): `types.ts` (the
@@ -291,7 +298,7 @@
   that hides episode content calls. See `docs/settings.md`.
 - **`server/dev-tools/`** — local testing tooling only, never reachable
   in production (`guard.ts`'s `assertDeveloperToolsEnabled`):
-  `mock-data.ts`'s `seedMockData` (seeds real watch/rating/planning rows
+  `mock-data.ts`'s `seedMockData` (seeds real watch/comment/planning rows
   through the same domain functions a real user action calls) and
   `reset-all-data.ts`'s `resetAllUserData` (the one comprehensive
   per-user data wipe in the app). See `docs/settings.md`, "Developer

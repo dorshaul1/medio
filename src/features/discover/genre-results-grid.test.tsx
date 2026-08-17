@@ -30,7 +30,7 @@ describe("GenreResultsGrid", () => {
       <GenreResultsGrid
         items={[MOVIE]}
         emptyLabel="drama movies"
-        personalStates={new Map([["movie:550", { kind: "watched", rating: null }]])}
+        personalStates={new Map([["movie:550", { kind: "watched" }]])}
       />,
     );
     expect(screen.getByRole("link", { name: "Fight Club, watched" })).toBeInTheDocument();

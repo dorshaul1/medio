@@ -50,16 +50,12 @@ const NO_TASTE: RecommendationTasteSummary = {
 };
 
 // A confident, multi-title taste profile — Drama and Sci-Fi affinities
-// each built from several rated titles (never a single 5-star outlier),
-// same threshold discipline as Stats itself.
+// each built from several watched titles (never a single outlier), same
+// threshold discipline as Stats itself.
 const RICH_TASTE: RecommendationTasteSummary = {
   hasEnoughDataForPersonalization: true,
-  movieGenreAffinities: [
-    { genreId: 18, genreName: "Drama", averageRating: 4.7, ratedTitleCount: 6 },
-  ],
-  showGenreAffinities: [
-    { genreId: 10765, genreName: "Sci-Fi & Fantasy", averageRating: 4.5, ratedTitleCount: 5 },
-  ],
+  movieGenreAffinities: [{ genreId: 18, genreName: "Drama", titleCount: 6 }],
+  showGenreAffinities: [{ genreId: 10765, genreName: "Sci-Fi & Fantasy", titleCount: 5 }],
   topDirector: { id: 500, name: "Denis Villeneuve" },
   seedMovies: [{ id: 9001, title: "Arrival" }],
   seedShows: [{ id: 9002, title: "Dark" }],
@@ -289,7 +285,7 @@ describe("scenario benchmark — time fit", () => {
 });
 
 describe("scenario benchmark — taste believability", () => {
-  it("Q9: a single 5-star rating never fabricates a genre affinity bonus (sparse taste)", () => {
+  it("Q9: a single watched title never fabricates a genre affinity bonus (sparse taste)", () => {
     // MIN_TOTAL_TITLES_FOR_GENRE_INSIGHT-gated in taste-summary.ts — a
     // caller that (incorrectly) tried to claim affinity from one title
     // would never actually reach this summary shape in production, but
@@ -313,9 +309,7 @@ describe("scenario benchmark — taste believability", () => {
     const scifiShow = discoveryShow({ genres: [{ id: 10765, name: "Sci-Fi & Fantasy" }] });
     const movieOnlyTaste: RecommendationTasteSummary = {
       ...NO_TASTE,
-      movieGenreAffinities: [
-        { genreId: 10765, genreName: "Sci-Fi & Fantasy", averageRating: 4.9, ratedTitleCount: 8 },
-      ],
+      movieGenreAffinities: [{ genreId: 10765, genreName: "Sci-Fi & Fantasy", titleCount: 8 }],
     };
     const result = scoreCandidate(scifiShow, ANY, movieOnlyTaste, NOW);
     expect(result.reasons.some((reason) => reason.kind === "highGenreAffinity")).toBe(false);
@@ -430,9 +424,9 @@ describe("scenario benchmark — genre isolation and bonus caps", () => {
     const taste: RecommendationTasteSummary = {
       ...NO_TASTE,
       movieGenreAffinities: [
-        { genreId: 18, genreName: "Drama", averageRating: 4.8, ratedTitleCount: 6 },
-        { genreId: 53, genreName: "Thriller", averageRating: 4.6, ratedTitleCount: 5 },
-        { genreId: 27, genreName: "Horror", averageRating: 4.5, ratedTitleCount: 4 },
+        { genreId: 18, genreName: "Drama", titleCount: 6 },
+        { genreId: 53, genreName: "Thriller", titleCount: 5 },
+        { genreId: 27, genreName: "Horror", titleCount: 4 },
       ],
     };
     const fiveGenreTitle = discoveryMovie({

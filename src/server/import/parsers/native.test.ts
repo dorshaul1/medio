@@ -34,10 +34,7 @@ function validExport() {
         },
       ],
       showTrackingState: [{ showProviderId: 1399, title: "Winter's Watch", status: "watching" }],
-      ratings: [
-        { mediaType: "movie", mediaProviderId: 550, title: "Fight Club", year: 1999, rating: 5 },
-      ],
-      notes: [
+      comments: [
         {
           mediaType: "movie",
           mediaProviderId: 550,
@@ -54,7 +51,7 @@ describe("parseNativeExport", () => {
   it("parses every domain with known (non-titleYear) identity", () => {
     const result = parseNativeExport(validExport());
     expect(result.errors).toEqual([]);
-    expect(result.records).toHaveLength(6);
+    expect(result.records).toHaveLength(5);
     const movie = result.records.find((r) => r.kind === "movieWatch");
     expect(movie?.identity).toEqual({ kind: "known", mediaType: "movie", providerId: 550 });
   });
@@ -86,8 +83,8 @@ describe("parseNativeExport", () => {
     const result = parseNativeExport(broken);
     expect(result.errors).toHaveLength(1);
     expect(result.errors[0]?.reason).toMatch(/Invalid watch timestamp/);
-    // The other 5 valid records still import.
-    expect(result.records).toHaveLength(5);
+    // The other 4 valid records still import.
+    expect(result.records).toHaveLength(4);
   });
 
   it("handles an empty export", () => {
@@ -99,8 +96,7 @@ describe("parseNativeExport", () => {
         episodeWatchEvents: [],
         planningItems: [],
         showTrackingState: [],
-        ratings: [],
-        notes: [],
+        comments: [],
       },
     };
     const result = parseNativeExport(empty);

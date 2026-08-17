@@ -1,7 +1,7 @@
 import { Skeleton } from "@/components/ui/skeleton";
 import { episodeCoordinateLabel } from "@/features/calendar/event-copy";
 import { hasReleased } from "@/features/media/has-released";
-import { MediaOpinionSection } from "@/features/media/media-opinion-section";
+import { MediaComment } from "@/features/media/media-comment";
 import { PlanningControl } from "@/features/media/planning-control";
 import { TrailerButton } from "@/features/media/trailer-button";
 import { MarkShowWatchedControl } from "@/features/shows/mark-show-watched-control";
@@ -9,7 +9,7 @@ import { ShowTrackingControl } from "@/features/shows/show-tracking-control";
 import { getShowTrackingView } from "@/features/shows/show-tracking-view";
 import { formatReleaseDate } from "@/server/calendar/date";
 import type { Episode, SeasonSummary, Trailer } from "@/server/media/types";
-import { getMediaOpinion } from "@/server/opinions/queries";
+import { getMediaComment } from "@/server/opinions/comments";
 import { getPlanningState } from "@/server/planning/planning-items";
 import { getCurrentUserPreferences } from "@/server/preferences/queries";
 
@@ -28,8 +28,8 @@ export function ShowTrackingSectionSkeleton() {
 // this whole section back up in ShowHero — so it stays aligned with the
 // status row exactly like Movie Details, in both the "not started" and
 // "watching" states, instead of vertically centering against this
-// section's full height once the opinion row below adds height (see
-// docs/tracking.md).
+// section's full height once the next-episode line below adds height
+// (see docs/tracking.md).
 export async function ShowTrackingSection({
   showProviderId,
   title,
@@ -45,21 +45,18 @@ export async function ShowTrackingSection({
   nextEpisodeToAir: Episode | null;
   trailer: Trailer | null;
 }) {
-  const [view, planningState, opinion, preferences] = await Promise.all([
+  const [view, planningState, comment, preferences] = await Promise.all([
     getShowTrackingView({ showProviderId, seasons, showStatus, nextEpisodeToAir }),
     getPlanningState("show", showProviderId),
-    getMediaOpinion({ mediaType: "show", mediaProviderId: showProviderId }),
+    getMediaComment({ mediaType: "show", mediaProviderId: showProviderId }),
     getCurrentUserPreferences(),
   ]);
 
   const explicitState = view.explicitState?.status ?? null;
   const notStarted = explicitState === null && view.progress.derivedViewingState === "unwatched";
-  // Rating/Reactions/Notes become available once the user has watched at
-  // least one regular (non-Special) episode — not full completion, and
-  // not gated by explicit tracking state, since someone can form a real
-  // opinion a few episodes in (see docs/opinions.md, "Show rating
-  // eligibility"). `uniqueWatchedAiredEpisodeCount` already excludes
-  // Specials and rewatches, same rule used everywhere else in this app.
+  // See the Comment action below for the eligibility reasoning.
+  // `uniqueWatchedAiredEpisodeCount` already excludes Specials and
+  // rewatches, same rule used everywhere else in this app.
   const hasWatchedAnEpisode = view.progress.uniqueWatchedAiredEpisodeCount > 0;
 
   const airedEpisodes = view.episodes
@@ -99,6 +96,23 @@ export async function ShowTrackingSection({
           />
         ) : null}
         {trailer ? <TrailerButton trailer={trailer} title={title} /> : null}
+        {/* The Comment action becomes available once the user has
+            watched at least one regular (non-Special) episode — not
+            full completion, and not gated by explicit tracking state,
+            since someone can form a real comment a few episodes in (see
+            docs/opinions.md, "Show comment eligibility").
+            `uniqueWatchedAiredEpisodeCount` already excludes Specials
+            and rewatches, same rule used everywhere else in this app.
+            Sits in the same action row as tracking/planning/trailer,
+            not a separate line below. */}
+        {hasWatchedAnEpisode ? (
+          <MediaComment
+            mediaType="show"
+            mediaProviderId={showProviderId}
+            title={title}
+            comment={comment?.content ?? null}
+          />
+        ) : null}
       </div>
 
       {/* Same release-date semantics/formatting Calendar itself uses
@@ -119,15 +133,6 @@ export async function ShowTrackingSection({
           })}{" "}
           · {formatReleaseDate(nextEpisodeToAir.airDate, new Date(), false)}
         </p>
-      ) : null}
-
-      {hasWatchedAnEpisode ? (
-        <MediaOpinionSection
-          mediaType="show"
-          mediaProviderId={showProviderId}
-          title={title}
-          opinion={opinion}
-        />
       ) : null}
     </div>
   );

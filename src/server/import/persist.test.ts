@@ -48,8 +48,7 @@ function readyPlan(records: Parameters<typeof persistImportPlan>[0]["plan"]["ent
         episodeWatch: records.filter((r) => r.record.kind === "episodeWatch").length,
         planningItem: records.filter((r) => r.record.kind === "planningItem").length,
         showTrackingState: 0,
-        rating: 0,
-        note: 0,
+        comment: 0,
       },
     },
   };
@@ -366,8 +365,7 @@ describe("rollbackImportBatch", () => {
         episodeWatch: 0,
         planningItem: 0,
         showTrackingState: 0,
-        rating: 0,
-        note: 0,
+        comment: 0,
       },
     });
   });

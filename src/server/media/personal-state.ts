@@ -1,5 +1,4 @@
 import "server-only";
-import { listMediaRatings } from "@/server/opinions/ratings";
 import { getPlanningIntentsBatch } from "@/server/planning/planning-items";
 import { getWatchedMovieIds } from "@/server/tracking/movie-events";
 import { getShowTrackingStatusesBatch } from "@/server/tracking/show-state";
@@ -22,9 +21,9 @@ function key(mediaType: MediaType, mediaProviderId: number): string {
 
 // One batched composition for a whole visible result set — three small,
 // independently-indexed queries in parallel (planning, movie watch
-// history, show tracking status) plus the user's rating set, never one
-// query per result. Movies and shows are handled uniformly here; a
-// caller never needs to branch on media type to use this.
+// history, show tracking status), never one query per result. Movies
+// and shows are handled uniformly here; a caller never needs to branch
+// on media type to use this.
 export async function getPersonalStates(
   items: readonly { mediaType: MediaType; mediaProviderId: number }[],
 ): Promise<ReadonlyMap<string, MediaPersonalState>> {
@@ -33,22 +32,18 @@ export async function getPersonalStates(
   const movieIds = items.filter((item) => item.mediaType === "movie").map((i) => i.mediaProviderId);
   const showIds = items.filter((item) => item.mediaType === "show").map((i) => i.mediaProviderId);
 
-  const [intents, watchedMovieIds, showStatuses, ratings] = await Promise.all([
+  const [intents, watchedMovieIds, showStatuses] = await Promise.all([
     getPlanningIntentsBatch(items),
     getWatchedMovieIds(movieIds),
     getShowTrackingStatusesBatch(showIds),
-    listMediaRatings(),
   ]);
-  const ratingByKey = new Map(
-    ratings.map((rating) => [key(rating.mediaType, rating.mediaProviderId), rating.rating]),
-  );
 
   const states = new Map<string, MediaPersonalState>();
   for (const item of items) {
     const itemKey = key(item.mediaType, item.mediaProviderId);
 
     if (item.mediaType === "movie" && watchedMovieIds.has(item.mediaProviderId)) {
-      states.set(itemKey, { kind: "watched", rating: ratingByKey.get(itemKey) ?? null });
+      states.set(itemKey, { kind: "watched" });
       continue;
     }
     if (item.mediaType === "show") {

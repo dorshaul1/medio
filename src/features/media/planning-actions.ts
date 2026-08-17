@@ -1,8 +1,7 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-import { mediaHref } from "@/features/media/media-route";
 import type { MediaType } from "@/server/media/types";
+import { revalidateTrackingSurfaces } from "@/server/mutations/revalidate-tracking-surfaces";
 import { changePlanningIntent, removePlanningItem } from "@/server/planning/planning-items";
 import type { PlanningIntent, PlanningItem } from "@/server/planning/types";
 
@@ -10,7 +9,11 @@ import type { PlanningIntent, PlanningItem } from "@/server/planning/types";
 // equivalent comment in features/movies/movie-tracking-actions.ts).
 // Shared across Movie and Show Details — unlike Tracking, Planning's
 // domain logic doesn't differ between media types, so there's no reason
-// for two near-identical action files.
+// for two near-identical action files. Revalidates via the one shared
+// `revalidateTrackingSurfaces` — a planning change is never Diary-visible
+// (no watch event involved), but it does change Home's Backlog row and
+// Calendar's planned-release candidates (both read planning state), not
+// just the media's own page and Library.
 
 export async function changePlanningIntentAction(
   mediaType: MediaType,
@@ -18,9 +21,7 @@ export async function changePlanningIntentAction(
   intent: PlanningIntent,
 ): Promise<PlanningItem> {
   const item = await changePlanningIntent(mediaType, mediaProviderId, intent);
-  revalidatePath(mediaHref({ mediaType, id: mediaProviderId }));
-  // Also called from Library rows (see features/library/library-item-actions.tsx).
-  revalidatePath("/library");
+  revalidatePlanningSurfaces(mediaType, mediaProviderId);
   return item;
 }
 
@@ -29,6 +30,13 @@ export async function removePlanningItemAction(
   mediaProviderId: number,
 ): Promise<void> {
   await removePlanningItem(mediaType, mediaProviderId);
-  revalidatePath(mediaHref({ mediaType, id: mediaProviderId }));
-  revalidatePath("/library");
+  revalidatePlanningSurfaces(mediaType, mediaProviderId);
+}
+
+function revalidatePlanningSurfaces(mediaType: MediaType, mediaProviderId: number): void {
+  if (mediaType === "movie") {
+    revalidateTrackingSurfaces({ movieProviderId: mediaProviderId, affectsDiary: false });
+  } else {
+    revalidateTrackingSurfaces({ showProviderId: mediaProviderId, affectsDiary: false });
+  }
 }

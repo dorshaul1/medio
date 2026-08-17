@@ -25,8 +25,6 @@ export function MediaStateHint({
   if (state.kind === "none") return null;
 
   const label = LABEL[state.kind];
-  const text =
-    state.kind === "watched" && state.rating !== null ? `${label} · ${state.rating}/5` : label;
 
-  return <span className={cn("text-xs text-muted-foreground", className)}>{text}</span>;
+  return <span className={cn("text-xs text-muted-foreground", className)}>{label}</span>;
 }
