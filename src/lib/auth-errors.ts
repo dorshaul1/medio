@@ -1,4 +1,4 @@
-export type AuthErrorField = "name" | "email" | "password";
+export type AuthErrorField = "name" | "email" | "password" | "currentPassword" | "newPassword";
 
 export type MappedAuthError = {
   message: string;
@@ -27,6 +27,13 @@ const ERRORS: Record<string, MappedAuthError> = {
   USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL: {
     message: "An account with this email already exists.",
     fields: ["email"],
+  },
+  // Change Password's own error — Better Auth reuses this same generic
+  // code for "current password is wrong", the only realistic failure
+  // that form can hit once client-side length validation already passed.
+  INVALID_PASSWORD: {
+    message: "Current password is incorrect.",
+    fields: ["currentPassword"],
   },
 };
 

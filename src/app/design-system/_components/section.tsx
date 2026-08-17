@@ -6,6 +6,7 @@ export const SECTIONS = [
   { id: "primary", label: "Primary — Clay" },
   { id: "surfaces", label: "Surfaces & radius" },
   { id: "actions", label: "Actions" },
+  { id: "identity", label: "Identity" },
   { id: "form-controls", label: "Form controls" },
   { id: "selection", label: "Selection" },
   { id: "status", label: "Status" },

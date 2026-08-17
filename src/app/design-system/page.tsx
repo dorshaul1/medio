@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Row, Section } from "@/app/design-system/_components/section";
 import { TableOfContents } from "@/app/design-system/_components/toc";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -252,6 +253,22 @@ export default function DesignSystemPage() {
             <IconButton aria-label="Delete" variant="ghost">
               <Trash2 />
             </IconButton>
+          </Row>
+        </Section>
+
+        <Section id="identity" title="Identity">
+          <Row label="Avatar — real image, initials fallback, sizes">
+            <Avatar size="sm">
+              <AvatarImage src="https://i.pravatar.cc/64?img=12" alt="" />
+              <AvatarFallback>DS</AvatarFallback>
+            </Avatar>
+            <Avatar size="lg">
+              <AvatarImage src="https://i.pravatar.cc/64?img=12" alt="" />
+              <AvatarFallback>DS</AvatarFallback>
+            </Avatar>
+            <Avatar size="lg">
+              <AvatarFallback>AL</AvatarFallback>
+            </Avatar>
           </Row>
         </Section>
 

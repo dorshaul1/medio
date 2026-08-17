@@ -13,7 +13,11 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   const preferences = await getCurrentUserPreferences();
 
   return (
-    <AppShell user={user} density={preferences.density} motion={preferences.motion}>
+    <AppShell
+      user={{ name: user.name, email: user.email, image: user.image ?? null }}
+      density={preferences.density}
+      motion={preferences.motion}
+    >
       {children}
     </AppShell>
   );

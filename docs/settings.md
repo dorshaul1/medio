@@ -1,11 +1,64 @@
 # Settings
 
-`/settings` is a secondary utility destination — reachable from the account
-control (desktop: bottom of the side rail; mobile: the header strip), never
-one of the four primary nav destinations and never a fifth mobile
-bottom-nav item. It exists to make a handful of genuinely useful,
-already-implemented behaviors configurable — never to turn the product into
-a configuration panel. See CLAUDE.md, "Settings" for the durable rules.
+`/settings` is a secondary utility destination — reachable from the
+identity link (`UserIdentityLink`; desktop: bottom of the side rail,
+avatar + name; mobile: the header strip, avatar only), never one of the
+four primary nav destinations and never a fifth mobile bottom-nav item.
+It exists to make a handful of genuinely useful, already-implemented
+behaviors configurable — never to turn the product into a configuration
+panel. See CLAUDE.md, "Settings" for the durable rules.
+
+## Account
+
+Account (`src/features/settings/account-settings.tsx`) is who you are
+and how you sign in — identity, password, session — never a social
+Profile (no bio, username, location, links, favorites, public
+visibility, followers). It's the default category (`?category=account`
+is what both `UserIdentityLink` and Settings' own index page land on)
+because it's both the destination the identity control opens directly
+and the most personally relevant category, ahead of product preferences.
+
+- **Identity** — `UserAvatar` (the real Better Auth `image` if one
+  exists, otherwise initials derived from the name — see
+  `src/lib/initials.ts`) plus `DisplayNameSetting`, an inline text field
+  that saves on blur/Enter via `authClient.updateUser({ name })` (Better
+  Auth's core "update-user" endpoint — no plugin required) and
+  `router.refresh()`s on success so the shell's own server-rendered
+  name/avatar picks it up immediately. Email renders as plain read-only
+  text — this app has no email-change/verification flow, so an editable
+  field would be a dead control.
+- **Security** — `ChangePasswordControl`, a focused Dialog (current
+  password, new password, confirm) calling `authClient.changePassword`
+  (also core, no plugin). Client-side confirms the two new-password
+  fields match before the request; every other failure (wrong current
+  password, too short) comes back through the same `mapAuthError` Sign
+  In/Sign Up already use.
+- **Session** — `LogoutControl`, the canonical Logout action, moved here
+  from the app shell (see "Identity link" below). A plain secondary
+  button, not destructive-styled — signing out isn't a destructive
+  action — but visually secondary to the identity/security rows above
+  it.
+- **Deliberately not offered**: email change, delete account, two-factor
+  auth, connected/social accounts, active-sessions management — none of
+  these are genuinely wired up in the current Better Auth config
+  (`emailAndPassword` only, no `user.deleteUser` enabled), and this app
+  never ships a dead control (see "Every setting here is real" below).
+  Account can grow into these later if the underlying auth capability is
+  deliberately added — not before.
+
+### Identity link
+
+`UserIdentityLink` (`src/components/shell/user-identity-link.tsx`)
+replaced the old `AccountControl`, which held three separate things
+(name/email text, a Settings gear icon, a Sign out icon) — Account now
+holds Settings navigation *and* Sign out itself, so a single link
+straight to `/settings/account` covers what used to take three controls,
+with no dropdown menu for its own sake. Desktop shows avatar + name;
+mobile shows avatar only (header space is tight, and Settings' own index
+page carries the full identity row for anyone who lands there). Its
+accessible name (`aria-label="Open account settings for {name}"`) is
+independent of the visible, potentially-truncated name text, so a long
+name never removes the control's accessible identity.
 
 ## Every setting here is real
 
@@ -127,6 +180,9 @@ concentrated in TV episode progression, not movie identity/overview.
 
 | Category | Setting | Real effect |
 | --- | --- | --- |
+| Account | Display name | `authClient.updateUser({ name })` (Better Auth core) — updates `user.name` |
+| Account | Change password | `authClient.changePassword` (Better Auth core) — updates the stored credential |
+| Account | Log out | `authClient.signOut` + hard navigation to `/` (see docs/authentication.md, "Logout destination") |
 | Appearance | Theme | next-themes `setTheme()` + durable record (see above) |
 | Appearance | Content density | `data-density` on AppShell → Library/Diary/Episode row padding |
 | Appearance | Interface motion | `data-motion` on AppShell → `globals.css` transition override |
@@ -214,13 +270,16 @@ deliberate cut for this phase — see "Settings considered and cut."
 
 ## Settings information architecture
 
-Seven categories (`src/features/settings/settings-params.ts`), each
-real: General, Appearance, Tracking & Library, Spoilers, Home, Defaults,
-Data. `/settings` redirects to `/settings/appearance`.
-`/settings/[category]` is real, URL-addressable, back/forward/
-refresh-safe — a `layout.tsx` renders the category rail (`SettingsNav`)
-beside the active category's content (`page.tsx`'s discriminated
-switch).
+Eight categories (`src/features/settings/settings-params.ts`), each
+real, in this order: **Account**, General, Appearance, Tracking &
+Library, Spoilers, Home, Defaults, Data. Account is first and is the
+product default (`DEFAULT_SETTINGS_CATEGORY`) — it's both the most
+personally relevant category and where the identity link (sidebar/
+mobile header) always lands. `/settings` itself is real content, not a
+redirect (see "The index page" below); `/settings/[category]` is real,
+URL-addressable, back/forward/refresh-safe — a `layout.tsx` renders the
+category rail (`SettingsNav`) beside the active category's content
+(`page.tsx`'s discriminated switch).
 
 **Home vs. Defaults** — Home is genuinely Home's own composition (Up
 Next, layout, Finish Soon, Home's own Calendar-layout view); Defaults is
@@ -230,11 +289,25 @@ so Home doesn't accumulate unrelated other pages' defaults just because
 they were the first ones added.
 
 **Data** (`src/features/settings/data-settings.tsx`) is the odd one out
-architecturally — every other category is a set of `UserPreferences`
-controls; Data is import/export actions and an import-history/rollback
-list, none of it a persisted preference. It's still one of the same
-categories in the same nav, not a separate surface — see
-`docs/data-portability.md` for the full domain.
+architecturally — every other category (besides Account) is a set of
+`UserPreferences` controls; Data is import/export actions and an
+import-history/rollback list, none of it a persisted preference. It's
+still one of the same categories in the same nav, not a separate
+surface — see `docs/data-portability.md` for the full domain.
+
+### The index page and mobile drill-down
+
+`/settings/page.tsx` is real content, not a `redirect()` — this is what
+makes mobile's own drill-down possible. On mobile: a compact identity
+row (avatar, name, email — tapping it opens Account) above a plain
+category list, and nothing else; `/settings/[category]/layout.tsx`
+hides that list and the "Settings" page title entirely below `md`,
+replacing them with a small "← Settings" back link, so opening a
+category is a genuine two-screen drill-down (list → content), never
+both stacked on one scrolling page. On desktop, where the rail and
+content have always shown side by side, `/settings` renders exactly
+like `/settings/account` — Account beside the rail — so desktop's
+landing experience is unchanged from before Account existed.
 
 ## Visual choice component
 

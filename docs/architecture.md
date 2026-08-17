@@ -22,10 +22,13 @@
   where real interaction behavior is needed, fully owned/redesigned source —
   see `docs/design-system.md` for the current list). Not a vendored package.
 - **`components/shell/`** — the application shell: `AppShell`, `DesktopNav`,
-  `MobileNav`, `PageContainer`, `PageHeader`, `BackButton` (a real
-  browser-history back — used by a genre's "View all" page, reachable
-  from several different places, so no fixed destination Link could
-  stand in for it; deliberately *not* used on Movie/Show Details —
+  `MobileNav`, `UserIdentityLink` (the avatar + name/avatar-only link to
+  Settings → Account — see docs/settings.md, "Identity link"),
+  `UserAvatar` (real image or initials fallback, wraps
+  `components/ui/avatar.tsx`), `PageContainer`, `PageHeader`, `BackButton`
+  (a real browser-history back — used by a genre's "View all" page,
+  reachable from several different places, so no fixed destination Link
+  could stand in for it; deliberately *not* used on Movie/Show Details —
   primary nav is how those are left). Composed from primitives, owned by
   this application, used by every route inside the `(app)` route group.
 - **`components/`** (outside `ui/`/`shell/`) — other app-level composed
@@ -164,17 +167,24 @@
     viewing activity, even though both tabs share one route and one
     `StatsProfile` fetch. See `docs/taste.md`.
   - **`features/settings/`** — `/settings`'s own composition:
-    `SettingsNav` (the category rail), `SettingRow`/
-    `SettingsCategoryHeader` (the shared open layout), `VisualChoice`/
-    `TextChoice` (the two reusable choice primitives — see
-    docs/settings.md), one `*-mini-preview.tsx` per visual choice
-    (Theme/Density/Motion/Spoiler protection/Home layout), one
-    `*-setting.tsx` per individual setting, the six `*-settings.tsx`
-    category compositions (General/Appearance/Tracking/Spoilers/Home/
-    Developer), `reset-preferences-control.tsx`, `settings-actions.ts`
-    (the Server Action wrappers), and the Developer-only
-    `seed-mock-data-control.tsx`/`reset-all-data-control.tsx`/
-    `dev-tools-actions.ts`. See `docs/settings.md`.
+    `SettingsNav` (the category rail/mobile list, with a leading icon per
+    category), `SettingRow`/`SettingsCategoryHeader` (the shared open
+    layout), `VisualChoice`/`TextChoice` (the two reusable choice
+    primitives — see docs/settings.md), one `*-mini-preview.tsx` per
+    visual choice (Theme/Density/Motion/Spoiler protection/Home layout),
+    one `*-setting.tsx` per individual preference, one `*-settings.tsx`
+    composition per category (Account/General/Appearance/Tracking/
+    Spoilers/Home/Defaults/Data/Developer), `reset-preferences-control.tsx`,
+    `settings-actions.ts` (the Server Action wrappers), and the
+    Developer-only `seed-mock-data-control.tsx`/
+    `reset-all-data-control.tsx`/`dev-tools-actions.ts`. Account's own
+    pieces — `account-settings.tsx`, `display-name-setting.tsx` (saves on
+    blur/Enter via `authClient.updateUser`), `change-password-control.tsx`
+    (a Dialog around `authClient.changePassword`), `logout-control.tsx`
+    (the canonical Logout, moved here from the app shell) — call Better
+    Auth's client directly rather than going through
+    `server/preferences/`, since none of it is a `UserPreferences` row.
+    See `docs/settings.md`.
 - **`server/db/`** — the database connection (`index.ts`: pool + Drizzle
   instance, plus the shared `Transaction` type for domain code that needs
   to accept either `db` or an in-flight transaction) and schema modules

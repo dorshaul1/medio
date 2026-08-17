@@ -197,15 +197,19 @@ in the same change.
 - `DesktopNav`/`MobileNav` are Client Components only because they need
   `usePathname()`; don't make `AppShell` or page content client for this.
 - Don't add sidebar-collapse behavior or a command palette without a real
-  requirement. The account control (`AccountControl`) is real (name/email +
-  sign out) — keep it that small; don't grow it into an avatar/dropdown
-  profile system without a real requirement.
-- The mobile header strip (wordmark + `AccountControl`, in `AppShell`) is
-  `sticky`, not merely fixed at the top of the page — it stays reachable
-  on long scrolling routes (Library, Diary, Stats) without permanently
-  occupying more vertical space than its own height. Solid background,
-  not translucent/blurred — content must be fully hidden behind it, never
-  showing through.
+  requirement. `UserIdentityLink` (avatar + name on desktop, avatar only
+  on mobile) is the one identity control in nav chrome — a direct link
+  to Settings → Account, never a dropdown menu opened for its own sake;
+  Settings navigation and Sign out both live inside Account itself now,
+  not as separate controls beside it. Keep it that restrained — don't
+  grow it into a richer account-switcher/notification surface without a
+  real requirement.
+- The mobile header strip (wordmark + `UserIdentityLink`, in `AppShell`)
+  is `sticky`, not merely fixed at the top of the page — it stays
+  reachable on long scrolling routes (Library, Diary, Stats) without
+  permanently occupying more vertical space than its own height. Solid
+  background, not translucent/blurred — content must be fully hidden
+  behind it, never showing through.
 
 ## Database
 
@@ -970,9 +974,33 @@ in the same change.
 ## Settings
 
 - Settings is a secondary utility destination at `/settings`, reachable
-  from the account control (desktop: bottom of the side rail; mobile: the
-  header strip) — never one of the primary nav destinations, and never a
-  fifth/sixth mobile bottom-nav item.
+  from `UserIdentityLink` (desktop: bottom of the side rail, avatar +
+  name; mobile: the header strip, avatar only) — never one of the
+  primary nav destinations, and never a fifth/sixth mobile bottom-nav
+  item. Account is the default category — both the identity link and
+  Settings' own index page land there directly.
+- MEDIO uses **Account**, not **Profile**, for private user identity/
+  account management — this app has no public/social profile concept.
+  Account holds identity (avatar, display name, email), security
+  (password), and session (log out) only. Never add social-profile
+  fields (bio, username, location, website, social links, favorite
+  Movies/genres, public visibility, followers, profile sharing) unless a
+  real social/public profile feature is deliberately introduced later —
+  see docs/settings.md, "Account."
+- Account only exposes identity/security/session capabilities Better
+  Auth's current config genuinely supports (name/image via `updateUser`,
+  password via `changePassword`) — never a dead control for something
+  unsupported (email change, delete account, 2FA) just to look complete.
+- Mobile does not add Account to bottom navigation; identity is surfaced
+  through Settings' own compact header row (`/settings`'s index page),
+  which drills down into a real two-screen flow on mobile — the category
+  list and content are never both shown stacked on one scrolling page
+  below `md` (see docs/settings.md, "The index page and mobile
+  drill-down").
+- Logout is Account's canonical session action (moved out of the app
+  shell) — always a hard navigation back to the public Landing page,
+  never `/sign-in`, and must invalidate private client state the same
+  way it always has (see "Authentication" below).
 - Every visible setting must be real, implemented, and durable — never a
   placeholder, a disabled "coming soon," or a control that updates local
   UI with no product effect. If a setting can't be given a genuine,

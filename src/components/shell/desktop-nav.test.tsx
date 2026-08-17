@@ -14,7 +14,7 @@ vi.mock("@/features/search/global-search-trigger", () => ({
   GlobalSearchNavTrigger: () => null,
 }));
 
-const USER = { name: "Ada Lovelace", email: "ada@example.com" };
+const USER = { name: "Ada Lovelace", email: "ada@example.com", image: null };
 
 function renderNav() {
   return render(<DesktopNav user={USER} />);
@@ -36,11 +36,13 @@ describe("DesktopNav", () => {
     expect(screen.getByRole("link", { name: "Home" })).not.toHaveAttribute("aria-current");
   });
 
-  it("integrates Settings and account identity as secondary controls", () => {
+  it("integrates the account identity link as a direct link to Settings → Account", () => {
     renderNav();
 
-    expect(screen.getByRole("link", { name: "Settings" })).toHaveAttribute("href", "/settings");
-    expect(screen.getByRole("button", { name: "Sign out" })).toBeInTheDocument();
+    const identityLink = screen.getByRole("link", {
+      name: `Open account settings for ${USER.name}`,
+    });
+    expect(identityLink).toHaveAttribute("href", "/settings/account");
     expect(screen.getByText(USER.name)).toBeInTheDocument();
   });
 });

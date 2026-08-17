@@ -123,16 +123,15 @@ test.describe("account-switch privacy with the Service Worker active", () => {
 
     await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
 
-    // The account control shows the signed-in user's own name — real,
+    // `UserIdentityLink` shows the signed-in user's own name — real,
     // visible identity content a stale cached response would leak
-    // first. Both DesktopNav and MobileNav render their own
-    // `AccountControl` (only one is ever CSS-visible per viewport), so
-    // this scopes to the one real "Primary" navigation landmark the
-    // accessibility tree currently exposes, rather than an ambiguous
-    // page-wide text match.
+    // first. Scoped to the one real "Primary" navigation landmark
+    // (DesktopNav, the visible one at this default desktop viewport)
+    // rather than an ambiguous page-wide text match.
     const primaryNav = page.getByRole("navigation", { name: "Primary" });
     await expect(primaryNav.getByText("PWA Privacy A")).toBeVisible();
-    await page.getByRole("button", { name: "Sign out" }).click();
+    await page.getByRole("link", { name: /Open account settings for/ }).click();
+    await page.getByRole("button", { name: "Log out" }).click();
     await expect(page).toHaveURL("/");
     // The public Landing page has more than one "Get started" link
     // (header + hero) — the header one alone is enough to confirm we

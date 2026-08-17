@@ -1,20 +1,21 @@
 import type { ReactNode } from "react";
-import { AccountControl } from "@/components/shell/account-control";
 import { DesktopNav } from "@/components/shell/desktop-nav";
 import { MobileNav } from "@/components/shell/mobile-nav";
+import { UserIdentityLink } from "@/components/shell/user-identity-link";
 import { Wordmark } from "@/components/shell/wordmark";
 import { GlobalSearchProvider } from "@/features/search/global-search-provider";
 import { GlobalSearchIconTrigger } from "@/features/search/global-search-trigger";
 import type { DensityPreferenceValue, MotionPreferenceValue } from "@/server/db/schema/preferences";
 
-type ShellUser = {
+export type ShellUser = {
   name: string;
   email: string;
+  image: string | null;
 };
 
 // Server Component: the shell itself renders no client behavior. Route
-// awareness is isolated to DesktopNav/MobileNav; the account control
-// (Settings + sign out) is already its own small client leaf.
+// awareness is isolated to DesktopNav/MobileNav; the identity link
+// (Settings → Account) is already its own small client leaf.
 //
 // `data-density`/`data-motion` are set once here, on the one wrapper
 // every authenticated page renders inside — see docs/settings.md,
@@ -45,14 +46,17 @@ export function AppShell({
             pixel value. */}
         <div className="flex min-w-0 flex-1 flex-col pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
           {/* Mobile has no sidebar to hold secondary controls, so the brand
-              mark, Search, and account control get a minimal header strip
+              mark, Search, and the identity link get a minimal header strip
               instead. Sticky (not just fixed-at-top-of-page) so it stays
               reachable on long scrolling routes (Library, Diary, Stats)
               without wasting permanent vertical space the way a taller
               always-visible bar would — a solid background (matching
               MobileNav's own bottom bar), not a translucent/blurred one,
               since content should be fully hidden behind it, never showing
-              through. */}
+              through. The identity link is avatar-only here (no name/
+              email — see docs/settings.md, "Account"): header space is
+              tight, and Settings' own mobile index page carries the full
+              identity row for anyone who lands there directly. */}
           <div
             className="sticky top-0 z-10 flex items-center justify-between gap-1 border-b border-border bg-background px-4 py-3 md:hidden"
             style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top))" }}
@@ -60,7 +64,12 @@ export function AppShell({
             <Wordmark className="shrink-0 text-xl" />
             <div className="flex shrink-0 items-center gap-1">
               <GlobalSearchIconTrigger />
-              <AccountControl name={user.name} email={user.email} />
+              <UserIdentityLink
+                name={user.name}
+                email={user.email}
+                image={user.image}
+                variant="mobile"
+              />
             </div>
           </div>
 

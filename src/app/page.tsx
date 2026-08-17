@@ -52,7 +52,15 @@ export default async function RootPage() {
   const preferences = await getCurrentUserPreferences();
 
   return (
-    <AppShell user={session.user} density={preferences.density} motion={preferences.motion}>
+    <AppShell
+      user={{
+        name: session.user.name,
+        email: session.user.email,
+        image: session.user.image ?? null,
+      }}
+      density={preferences.density}
+      motion={preferences.motion}
+    >
       <HomePage />
     </AppShell>
   );

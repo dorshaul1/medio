@@ -2,15 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { AccountControl } from "@/components/shell/account-control";
+import { UserIdentityLink } from "@/components/shell/user-identity-link";
 import { Wordmark } from "@/components/shell/wordmark";
 import { isNavItemActive, primaryNavigation } from "@/config/navigation";
 import { GlobalSearchNavTrigger } from "@/features/search/global-search-trigger";
 import { cn } from "@/lib/utils";
+import type { ShellUser } from "./app-shell";
 
 // The only reason this is a Client Component: it needs the current pathname
 // to mark the active destination. Everything else in the shell stays server-rendered.
-export function DesktopNav({ user }: { user: { name: string; email: string } }) {
+export function DesktopNav({ user }: { user: ShellUser }) {
   const pathname = usePathname();
 
   return (
@@ -57,7 +58,7 @@ export function DesktopNav({ user }: { user: { name: string; email: string } }) 
         </ul>
       </div>
 
-      <AccountControl name={user.name} email={user.email} />
+      <UserIdentityLink name={user.name} email={user.email} image={user.image} />
     </nav>
   );
 }

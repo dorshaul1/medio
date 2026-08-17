@@ -20,10 +20,17 @@ PWA-only start page, never duplicated auth logic.
 
 ## App icons
 
-`src/app/icons/_mark.tsx` is the one shared icon mark — three ascending
-rounded bars (echoing Stats' own "Viewing rhythm" chart and MEDIO's core
-promise of exact, sequential episode tracking), rendered via
-`next/og`'s `ImageResponse` at every size:
+`src/components/medio-mark.tsx` is the one shared icon mark — three
+ascending rounded bars (echoing Stats' own "Viewing rhythm" chart and
+MEDIO's core promise of exact, sequential episode tracking), rendered
+via `next/og`'s `ImageResponse` at every size. A deliberate,
+generous safe margin (`BASE_PADDING`, 16% of the tile per side) applies
+to every size, standard or maskable — content never fills the full
+square edge-to-edge, which reads as cramped next to other apps on a
+real Home Screen. The bar group's own height is deliberately less than
+the full padded content box, so the outer flex container centers it as
+one composition top-to-bottom, not a chart glued flush to the bottom
+edge.
 
 - `src/app/icon.tsx` — the browser-tab favicon (32×32, Next's `icon.tsx`
   convention).

@@ -40,9 +40,11 @@ test("full auth lifecycle: sign up via a protected deep link, use the app, sign 
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole("heading", { level: 1, name: "Home" })).toBeVisible();
 
-  // 5. Sign out — always returns to the public Landing page, never back
-  // to Sign In.
-  await page.getByRole("button", { name: "Sign out" }).click();
+  // 5. Log out (from Account — see docs/settings.md) — always returns to
+  // the public Landing page, never back to Sign In.
+  await page.getByRole("link", { name: /Open account settings for/ }).click();
+  await expect(page).toHaveURL(/\/settings\/account$/);
+  await page.getByRole("button", { name: "Log out" }).click();
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole("heading", { level: 1, name: /Everything you watch/ })).toBeVisible();
 
@@ -62,7 +64,8 @@ test("sign in with an existing account", async ({ page }) => {
   await page.getByRole("button", { name: "Create account" }).click();
   await expect(page).toHaveURL(/\/$/);
 
-  await page.getByRole("button", { name: "Sign out" }).click();
+  await page.getByRole("link", { name: /Open account settings for/ }).click();
+  await page.getByRole("button", { name: "Log out" }).click();
   await expect(page).toHaveURL(/\/$/);
 
   await page.getByRole("link", { name: "Log in" }).first().click();

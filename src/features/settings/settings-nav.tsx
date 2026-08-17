@@ -1,5 +1,6 @@
 import {
   Bookmark,
+  CircleUserRound,
   Code2,
   Database,
   EyeOff,
@@ -22,6 +23,7 @@ import {
 // docs/settings.md, "Internal navigation"). Kept here rather than in
 // settings-params.ts, which stays framework-agnostic plain data.
 const SETTINGS_CATEGORY_ICON: Record<SettingsCategory, LucideIcon> = {
+  account: CircleUserRound,
   general: Settings2,
   appearance: Palette,
   tracking: Bookmark,

@@ -22,17 +22,28 @@
 const CLAY = "#8b5e45";
 const CLAY_FOREGROUND = "#f5efe9";
 
-// `inset` is the fraction of the tile reserved as empty margin — 0 for a
-// standard/"any"-purpose icon (the platform already respects the full
-// square), ~0.1 for a maskable icon, whose *outer* ~20% can be cropped
-// away by an arbitrary OS mask shape (circle, squircle, rounded square),
-// so real content must stay inside that safe inner zone.
+// A generous, deliberate safe margin every icon keeps, standard or not —
+// most platforms already add their own shadow/highlight treatment right
+// at a tile's edge, so content that fills the full square reads as
+// cramped next to icons that already keep real breathing room (compare
+// any modern iOS/Android app icon). `inset` adds *additional* margin on
+// top of this base for a maskable icon specifically, whose outer ~20%
+// may be cropped away by an arbitrary OS mask shape (circle, squircle,
+// rounded square).
+const BASE_PADDING = 0.16;
+
 export function MedioMark({ size, inset = 0 }: { size: number; inset?: number }) {
-  const margin = size * inset;
-  const content = size - margin * 2;
-  const barWidth = content * 0.16;
-  const gap = content * 0.12;
-  const heights = [0.42, 0.68, 0.9].map((fraction) => content * fraction);
+  const margin = size * (BASE_PADDING + inset);
+  const contentWidth = size - margin * 2;
+  const barWidth = contentWidth * 0.18;
+  const gap = contentWidth * 0.16;
+  // The bar group's own height is deliberately less than the full
+  // padded content box — centered top-to-bottom by the outer flex
+  // container below, rather than bottom-anchored flush against the
+  // padding, so the mark reads as one centered composition sitting in
+  // the middle of the tile, not a chart glued to its bottom edge.
+  const barGroupHeight = contentWidth * 0.82;
+  const heights = [0.45, 0.72, 1].map((fraction) => barGroupHeight * fraction);
 
   return (
     <div
@@ -57,8 +68,8 @@ export function MedioMark({ size, inset = 0 }: { size: number; inset?: number })
           alignItems: "flex-end",
           justifyContent: "center",
           gap,
-          width: content,
-          height: content,
+          width: contentWidth,
+          height: barGroupHeight,
         }}
       >
         {heights.map((height) => (
