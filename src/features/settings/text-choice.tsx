@@ -42,7 +42,7 @@ export function TextChoice<T extends string>({
       value={current}
       onValueChange={(next) => select(next as T)}
       aria-label={ariaLabel}
-      className="inline-flex rounded-md border border-border p-0.5"
+      className="inline-flex flex-wrap rounded-md border border-border p-0.5"
     >
       {options.map((option) => (
         <RadioGroupPrimitive.Item

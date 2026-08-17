@@ -30,7 +30,7 @@ describe("GlobalSearchIconTrigger", () => {
     const user = userEvent.setup();
     const { setOpen } = renderWithContext(<GlobalSearchIconTrigger />);
 
-    await user.click(screen.getByRole("button", { name: "Search Movies, Shows and People" }));
+    await user.click(screen.getByRole("button", { name: "Search" }));
     expect(setOpen).toHaveBeenCalledWith(true);
   });
 });

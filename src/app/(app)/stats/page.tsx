@@ -83,7 +83,7 @@ export default async function StatsPage({ searchParams }: PageProps<"/stats">) {
 
         {hasAnyHistoryEver ? (
           <div className="flex flex-col gap-6">
-            <StatsRangeControl activeRange={range} compare={compareRequested} />
+            <StatsRangeControl activeRange={range} compare={compareRequested} tab={tab} />
             <StatsTabs active={tab} range={range} compare={compareRequested} />
 
             {stats.hasAnyHistory ? (

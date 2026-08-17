@@ -97,6 +97,22 @@ test.describe
       await expect(page).toHaveURL("/stats?range=all");
     });
 
+    test("changing the range while on the Taste tab keeps Taste active — never silently falls back to Overview", async ({
+      page,
+    }) => {
+      await page.goto("/stats?tab=taste");
+      await expect(page.getByText("You watch mostly Drama.")).toBeVisible();
+
+      const currentYear = new Date().getUTCFullYear();
+      await page
+        .getByRole("navigation", { name: "Date range" })
+        .getByRole("link", { name: "This year" })
+        .click();
+
+      await expect(page).toHaveURL(`/stats?range=${currentYear}&tab=taste`);
+      await expect(page.getByText("You watch mostly Drama.")).toBeVisible();
+    });
+
     test("Stats viewing rhythm is readable on a touch-sized viewport", async ({ page }) => {
       await page.setViewportSize({ width: 390, height: 844 });
       await page.goto("/stats?range=all");

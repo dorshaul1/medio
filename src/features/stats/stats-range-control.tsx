@@ -4,6 +4,7 @@ import type { Route } from "next";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Switch } from "@/components/ui/switch";
+import type { StatsTab } from "@/features/stats/stats-tabs";
 import { cn } from "@/lib/utils";
 import {
   formatStatsRangeParam,
@@ -15,9 +16,10 @@ function rangesEqual(a: StatsRange, b: StatsRange): boolean {
   return formatStatsRangeParam(a) === formatStatsRangeParam(b);
 }
 
-function rangeHref(range: StatsRange, compare: boolean): Route {
+function rangeHref(range: StatsRange, compare: boolean, tab: StatsTab): Route {
   const params = new URLSearchParams({ range: formatStatsRangeParam(range) });
   if (compare && statsRangeSupportsComparison(range)) params.set("compare", "1");
+  if (tab !== "overview") params.set("tab", tab);
   return `/stats?${params.toString()}` as Route;
 }
 
@@ -26,15 +28,17 @@ function RangeChip({
   label,
   active,
   compare,
+  tab,
 }: {
   range: StatsRange;
   label: string;
   active: boolean;
   compare: boolean;
+  tab: StatsTab;
 }) {
   return (
     <Link
-      href={rangeHref(range, compare)}
+      href={rangeHref(range, compare, tab)}
       aria-current={active ? "true" : undefined}
       className={cn(
         "rounded-md px-2.5 py-1 text-sm font-medium whitespace-nowrap outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50",
@@ -64,9 +68,16 @@ function RangeChip({
 export function StatsRangeControl({
   activeRange,
   compare,
+  tab,
 }: {
   activeRange: StatsRange;
   compare: boolean;
+  // Which tab is currently active — carried through every chip's own
+  // href so switching range never silently drops back to Overview while
+  // on Taste (a real bug this fixes: range and tab are two independent
+  // pieces of URL state, see docs/stats.md, and every control that
+  // writes one must preserve the other).
+  tab: StatsTab;
 }) {
   const router = useRouter();
   const now = new Date();
@@ -81,7 +92,7 @@ export function StatsRangeControl({
   ];
 
   function toggleCompare(checked: boolean) {
-    router.push(rangeHref(activeRange, checked));
+    router.push(rangeHref(activeRange, checked, tab));
   }
 
   return (
@@ -94,6 +105,7 @@ export function StatsRangeControl({
             label={chip.label}
             active={rangesEqual(chip.range, activeRange)}
             compare={compare}
+            tab={tab}
           />
         ))}
       </nav>

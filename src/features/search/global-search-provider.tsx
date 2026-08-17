@@ -5,11 +5,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { GlobalSearchContext } from "@/features/search/global-search-context";
 import { GlobalSearchDialog } from "@/features/search/global-search-dialog";
 
-// Mounted once, at the app shell root — owns GlobalSearch's open state,
-// the actual overlay, and the ⌘K/Ctrl+K shortcut (desktop only; there's
-// no keyboard on mobile). See docs/search.md:
-// deliberately scoped to *this one job* (search Movies/Shows/People),
-// never generalized into a command palette.
+// Mounted once, at the app shell root — owns the Command Center's open
+// state, the actual overlay, and the ⌘K/Ctrl+K shortcut (desktop only;
+// there's no keyboard on mobile — see docs/search.md, "Command Center").
+// The sidebar/mobile-header triggers and ⌘K all open this exact same
+// instance — one canonical desktop search/command experience, never a
+// separate Search modal plus a separate command palette.
 export function GlobalSearchProvider({ children }: { children: ReactNode }) {
   const [open, setOpenState] = useState(false);
   // GlobalSearch's own triggers (the desktop nav row, the mobile header

@@ -32,7 +32,15 @@ export function MobileNav() {
                   active ? "font-medium text-foreground" : "text-muted-foreground",
                 )}
               >
-                <Icon aria-hidden="true" strokeWidth={active ? 2.25 : 1.75} className="size-5" />
+                {/* The active *icon* alone carries the one restrained clay
+                    accent, same convention DesktopNav's own row uses — the
+                    label stays neutral foreground text, never clay (see
+                    CLAUDE.md, "Visual system"). */}
+                <Icon
+                  aria-hidden="true"
+                  strokeWidth={active ? 2.25 : 1.75}
+                  className={cn("size-5", active && "text-primary")}
+                />
                 {item.label}
               </Link>
             </li>

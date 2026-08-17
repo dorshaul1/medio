@@ -5,11 +5,24 @@ import { GlobalSearchProvider } from "./global-search-provider";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
+  usePathname: () => "/library",
 }));
 
 const getSearchSuggestionsAction = vi.fn();
 vi.mock("@/features/search/search-actions", () => ({
   getSearchSuggestionsAction: (...args: unknown[]) => getSearchSuggestionsAction(...args),
+}));
+
+vi.mock("@/features/command-center/command-center-actions", () => ({
+  getUpNextCommandDataAction: () => Promise.resolve(null),
+}));
+
+vi.mock("@/features/movies/movie-tracking-actions", () => ({
+  markMovieWatchedAction: vi.fn(),
+}));
+
+vi.mock("@/features/shows/show-tracking-actions", () => ({
+  markEpisodeWatchedAction: vi.fn(),
 }));
 
 vi.mock("@/features/media/planning-actions", () => ({

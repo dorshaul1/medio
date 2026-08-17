@@ -40,16 +40,16 @@ export function GlobalSearchNavTrigger() {
 
 // The mobile header strip's entry point — an icon button beside the
 // wordmark/account control, same as any other header icon action (see
-// AppShell). No keyboard hint on mobile; there's no keyboard.
+// AppShell). No keyboard hint on mobile; there's no keyboard. Opens the
+// same overlay as desktop's `⌘K`, but purpose-built for touch there —
+// see docs/search.md, "Mobile": Search plus a couple of real quick
+// actions, never the full destination-navigation list desktop shows
+// (mobile already has its own bottom nav for that).
 export function GlobalSearchIconTrigger() {
   const { setOpen } = useGlobalSearch();
 
   return (
-    <IconButton
-      aria-label="Search Movies, Shows and People"
-      variant="ghost"
-      onClick={() => setOpen(true)}
-    >
+    <IconButton aria-label="Search" variant="ghost" onClick={() => setOpen(true)}>
       <Search />
     </IconButton>
   );

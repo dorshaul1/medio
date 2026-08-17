@@ -21,8 +21,10 @@ import {
 // One small, recognizable glyph per category — never a decorative
 // flourish, just a faster visual anchor for scanning the list (see
 // docs/settings.md, "Internal navigation"). Kept here rather than in
-// settings-params.ts, which stays framework-agnostic plain data.
-const SETTINGS_CATEGORY_ICON: Record<SettingsCategory, LucideIcon> = {
+// settings-params.ts, which stays framework-agnostic plain data. Exported
+// so the Command Center's own Settings commands reuse the exact same
+// icons rather than a second mapping (see features/command-center/).
+export const SETTINGS_CATEGORY_ICON: Record<SettingsCategory, LucideIcon> = {
   account: CircleUserRound,
   general: Settings2,
   appearance: Palette,

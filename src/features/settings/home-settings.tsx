@@ -53,7 +53,7 @@ export function HomeSettings({ preferences }: { preferences: UserPreferences }) 
       <Separator />
       <SettingRow
         title="Show Pick for me"
-        comment="Show the “Pick for me” button in Home's header. Pick for me stays reachable at /pick either way."
+        comment="Show the “Pick for me” button in Home's header. You can still open Pick for me directly either way."
         htmlFor="show-pick-for-me"
       >
         <ShowPickForMeSetting value={preferences.showPickForMe} />

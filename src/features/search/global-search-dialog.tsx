@@ -1,13 +1,24 @@
 "use client";
 
-import { Search, X } from "lucide-react";
-import Link from "next/link";
+import { ArrowLeft, Search, X } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { Dialog as DialogPrimitive } from "radix-ui";
 import type { KeyboardEvent, RefObject } from "react";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { IconButton } from "@/components/ui/icon-button";
 import { Input } from "@/components/ui/input";
+import { CommandRow } from "@/features/command-center/command-row";
+import { getUpNextCommandDataAction } from "@/features/command-center/command-center-actions";
+import {
+  LOG_WATCHED_COMMAND,
+  NAVIGATION_COMMANDS,
+} from "@/features/command-center/static-commands";
+import { matchCommands } from "@/features/command-center/match";
+import type { Command } from "@/features/command-center/types";
+import { LogWatchedResultRow } from "@/features/command-center/log-watched-result-row";
+import { buildUpNextCommand } from "@/features/command-center/up-next-command";
+import { isNavItemActive } from "@/config/navigation";
 import { UnifiedSearchResultRow } from "@/features/discover/unified-search-result-row";
 import {
   addRecentSearch,
@@ -15,31 +26,45 @@ import {
   getRecentSearches,
 } from "@/features/search/recent-searches";
 import { getSearchSuggestionsAction } from "@/features/search/search-actions";
+import type { ActiveShowContinuation } from "@/server/home/types";
 import type { PlanningIntent } from "@/server/planning/types";
 import { SEARCH_MIN_QUERY_LENGTH } from "@/server/search/constants";
 import type { UnifiedSearchResults } from "@/server/search/types";
 
 const DEBOUNCE_MS = 250;
+// A query typed as "watch X"/"log X" almost always means "find X" —
+// stripping the verb before searching media is the one deliberate bit of
+// intent-parsing this domain does (see docs/search.md, "Command Center");
+// everything else is plain deterministic text matching, no NLP/LLM.
+const MEDIA_INTENT_PREFIXES = ["watch ", "log "];
 
-function focusableResults(container: HTMLElement | null): HTMLAnchorElement[] {
-  if (!container) return [];
-  return Array.from(container.querySelectorAll<HTMLAnchorElement>("a[data-search-result]"));
+function stripMediaIntentPrefix(query: string): string {
+  const lower = query.toLowerCase();
+  const prefix = MEDIA_INTENT_PREFIXES.find((candidate) => lower.startsWith(candidate));
+  return prefix ? query.slice(prefix.length) : query;
 }
 
-// GlobalSearch's overlay — the compact, fast "search-as-you-type" surface
-// (see docs/search.md). Built on Radix's
-// headless Dialog directly (not the shared DialogContent, whose centered/
-// max-width chrome is right for a confirmation dialog but not for a
-// search surface that should anchor near the top and go closer to full-
-// screen on mobile — see "Mobile Search" in the product spec) — same
-// real focus-trap/Escape/return-focus behavior either way.
+function focusableResults(container: HTMLElement | null): HTMLElement[] {
+  if (!container) return [];
+  return Array.from(container.querySelectorAll<HTMLElement>("[data-search-result]"));
+}
+
+// MEDIO's Command Center — search Movies/Shows/People, navigate, and run
+// the highest-frequency tracking actions from one keyboard-first overlay
+// (see docs/search.md, "Command Center"). Evolved in place from the
+// original Search-only overlay rather than a second parallel component —
+// the sidebar/mobile triggers, `⌘K`, and this dialog are still exactly
+// one implementation (see GlobalSearchProvider). Built on Radix's
+// headless Dialog directly (not the shared DialogContent, whose
+// centered/max-width chrome is right for a confirmation dialog but not
+// this anchored-near-the-top, denser surface) — same real focus-trap/
+// Escape/return-focus behavior either way.
 //
-// Deliberately plain search input + a real list of `<Link>`s, not a
-// simulated ARIA combobox/listbox (see the product spec: "do not fake
-// combobox semantics... a normal search input + result list may be more
-// robust") — Arrow Up/Down/Enter/Escape all still work, just via real
-// focus movement between real, independently-tabbable links rather than
-// a synthetic aria-activedescendant relationship.
+// Deliberately plain search input + a real list of focusable rows (Links
+// or buttons, both marked `data-search-result`), not a simulated ARIA
+// combobox/listbox — Arrow Up/Down/Enter/Escape all still work via real
+// focus movement between real, independently-tabbable elements rather
+// than a synthetic aria-activedescendant relationship.
 export function GlobalSearchDialog({
   open,
   onOpenChange,
@@ -47,19 +72,16 @@ export function GlobalSearchDialog({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  // Whichever element had focus right before opening (see
-  // GlobalSearchProvider) — restored in `onCloseAutoFocus` below, which
-  // is the one place that reliably wins over Radix's own internal
-  // focus-restore-on-unmount rather than racing it. Optional: a caller
-  // testing this component standalone (no real trigger to return to)
-  // can omit it.
   previouslyFocused?: RefObject<HTMLElement | null>;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const [mode, setMode] = useState<"search" | "log-watched">("search");
   const [value, setValue] = useState("");
   const [results, setResults] = useState<UnifiedSearchResults | null>(null);
   const [defaultSaveIntent, setDefaultSaveIntent] = useState<PlanningIntent>("watchlist");
   const [recentSearches, setRecentSearches] = useState<readonly string[]>([]);
+  const [upNext, setUpNext] = useState<ActiveShowContinuation | null>(null);
   const [isPending, startTransition] = useTransition();
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const requestId = useRef(0);
@@ -69,33 +91,30 @@ export function GlobalSearchDialog({
   useEffect(() => {
     if (open) {
       setRecentSearches(getRecentSearches());
+      // Bounded, local-DB-only, and only ever fetched once per open — see
+      // command-center-actions.ts. Never blocks the dialog opening: it's
+      // fire-and-forget, the Quick Actions section simply gains the Up
+      // Next command a beat after everything else is already interactive.
+      getUpNextCommandDataAction().then(setUpNext);
     } else {
-      // Fresh state each time it opens — a stale previous query/result
-      // set flashing before the new one loads would be more confusing
-      // than a clean slate.
       clearTimeout(timeoutRef.current);
       setValue("");
       setResults(null);
+      setMode("search");
+      setUpNext(null);
     }
   }, [open]);
 
   function runSearch(query: string) {
-    const trimmed = query.trim();
-    if (trimmed.length < SEARCH_MIN_QUERY_LENGTH) {
+    const searchTerm = stripMediaIntentPrefix(query).trim();
+    if (searchTerm.length < SEARCH_MIN_QUERY_LENGTH) {
       setResults(null);
       return;
     }
-    // A query is "recent" the moment it's actually searched — not only
-    // once a result is clicked (closing without picking anything is
-    // still a real search worth remembering for next time) or the
-    // "See all results" escape hatch. Debounced already, so this is
-    // never once per keystroke.
-    addRecentSearch(trimmed);
+    addRecentSearch(query.trim());
     const id = ++requestId.current;
     startTransition(async () => {
-      const response = await getSearchSuggestionsAction(trimmed);
-      // A slower, now-superseded request must never clobber a newer one's
-      // results — only the latest request in flight is ever applied.
+      const response = await getSearchSuggestionsAction(searchTerm);
       if (requestId.current !== id) return;
       setResults(response.results);
       setDefaultSaveIntent(response.defaultSaveIntent);
@@ -108,23 +127,41 @@ export function GlobalSearchDialog({
     timeoutRef.current = setTimeout(() => runSearch(next), DEBOUNCE_MS);
   }
 
+  const close = useCallback(() => onOpenChange(false), [onOpenChange]);
+
+  function openLogWatched() {
+    setMode("log-watched");
+    setValue("");
+    setResults(null);
+    requestAnimationFrame(() => inputRef.current?.focus());
+  }
+
+  function backToSearch() {
+    setMode("search");
+    setValue("");
+    setResults(null);
+    requestAnimationFrame(() => inputRef.current?.focus());
+  }
+
   function goToFullResults(query: string) {
     const trimmed = query.trim();
     if (trimmed.length < SEARCH_MIN_QUERY_LENGTH) return;
     addRecentSearch(trimmed);
-    onOpenChange(false);
-    router.push(`/discover?q=${encodeURIComponent(trimmed)}`);
+    close();
+    router.push(`/discover?q=${encodeURIComponent(stripMediaIntentPrefix(trimmed))}`);
   }
 
   function handleResultNavigate() {
     if (value.trim()) addRecentSearch(value.trim());
-    onOpenChange(false);
+    close();
   }
 
   function handleInputKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (event.key === "Enter") {
-      event.preventDefault();
-      goToFullResults(value);
+      if (mode === "search") {
+        event.preventDefault();
+        goToFullResults(value);
+      }
     } else if (event.key === "ArrowDown") {
       const first = focusableResults(resultsRef.current)[0];
       if (first) {
@@ -136,11 +173,7 @@ export function GlobalSearchDialog({
 
   // A native listener on the results container, not a JSX `onKeyDown` on
   // a plain `<div>` — this moves focus *between other elements*, it
-  // isn't itself an interactive control, so it shouldn't carry its own
-  // interactive-element semantics (see the a11y lint this avoids). Depends
-  // on `open` (unread inside the effect) because Radix only mounts this
-  // ref's DOM node while the dialog is open — without it, the effect
-  // would run once against a still-null ref and never retry.
+  // isn't itself an interactive control.
   // biome-ignore lint/correctness/useExhaustiveDependencies: see comment above.
   useEffect(() => {
     const container = resultsRef.current;
@@ -149,7 +182,7 @@ export function GlobalSearchDialog({
     function handleKeyDown(event: globalThis.KeyboardEvent) {
       if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
       const items = focusableResults(container);
-      const currentIndex = items.indexOf(document.activeElement as HTMLAnchorElement);
+      const currentIndex = items.indexOf(document.activeElement as HTMLElement);
       if (currentIndex === -1) return;
 
       event.preventDefault();
@@ -166,8 +199,29 @@ export function GlobalSearchDialog({
     return () => container.removeEventListener("keydown", handleKeyDown);
   }, [open]);
 
-  const hasQuery = value.trim().length >= SEARCH_MIN_QUERY_LENGTH;
-  const hasAnyResult = Boolean(results && results.results.length > 0);
+  const allCommands = useMemo<readonly Command[]>(() => {
+    const dynamic = upNext ? [buildUpNextCommand(upNext, close)] : [];
+    return [...dynamic, LOG_WATCHED_COMMAND, ...NAVIGATION_COMMANDS];
+  }, [upNext, close]);
+
+  const matchedCommands = useMemo(
+    () => (mode === "search" ? matchCommands(allCommands, value) : []),
+    [allCommands, value, mode],
+  );
+
+  const runContext = { openLogWatched, close };
+
+  const hasQuery = stripMediaIntentPrefix(value).trim().length >= SEARCH_MIN_QUERY_LENGTH;
+  const hasAnyMediaResult = Boolean(results && results.results.length > 0);
+  // A strong command match (an exact/prefix hit on a label or alias —
+  // "taste", "preferences", "user", "releases", "log") is almost always
+  // exactly what the user meant, so it leads the list; a merely-word-
+  // boundary/substring match trails media results instead, since a
+  // clear content search ("breaking bad") shouldn't be pushed down by a
+  // coincidental partial command match (see docs/search.md, "Ranking").
+  const strongCommandMatches = matchedCommands.filter((match) => match.score >= 0.75);
+  const weakCommandMatches = matchedCommands.filter((match) => match.score < 0.75);
+  const hasAnyResult = hasAnyMediaResult || matchedCommands.length > 0;
 
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
@@ -178,37 +232,70 @@ export function GlobalSearchDialog({
             event.preventDefault();
             inputRef.current?.focus();
           }}
-          // Overrides Radix's own default (return focus to whatever was
-          // focused when this Content mounted) with the trigger
-          // GlobalSearchProvider actually captured — the two would
-          // usually agree, but this is the one place that reliably wins
-          // rather than racing a second, separate focus-restore attempt.
           onCloseAutoFocus={(event) => {
             if (!previouslyFocused?.current) return;
             event.preventDefault();
             previouslyFocused.current.focus();
           }}
-          className="fixed inset-x-0 top-0 z-50 flex max-h-dvh flex-col gap-0 border-b border-border bg-surface-elevated shadow-sm outline-none sm:top-[10vh] sm:inset-x-auto sm:left-1/2 sm:w-full sm:max-w-lg sm:-translate-x-1/2 sm:rounded-lg sm:border"
+          // Radix's own documented hook for "intercept Escape instead of
+          // letting it close the dialog" — a plain `preventDefault` on a
+          // child input's `onKeyDown` isn't enough, since Radix's own
+          // Escape handling lives on the Content itself, not something a
+          // descendant's synthetic event can out-race (see docs/search.md,
+          // "Keyboard UX": Escape returns from the nested Log Watched step
+          // first, then closes on a second press).
+          onEscapeKeyDown={(event) => {
+            if (mode === "log-watched") {
+              event.preventDefault();
+              backToSearch();
+            }
+          }}
+          className="fixed inset-x-0 top-0 z-50 flex max-h-dvh flex-col gap-0 border-b border-border bg-surface-elevated shadow-sm outline-none sm:top-[10vh] sm:inset-x-auto sm:left-1/2 sm:w-full sm:max-w-xl sm:-translate-x-1/2 sm:rounded-lg sm:border"
         >
           <DialogPrimitive.Title className="sr-only">
-            Search Movies, Shows and People
+            {mode === "log-watched" ? "Log something watched" : "Search and commands"}
           </DialogPrimitive.Title>
           <div className="flex items-center gap-2 border-b border-border p-3">
-            <Search aria-hidden="true" className="ml-1 size-4 shrink-0 text-muted-foreground" />
+            {mode === "log-watched" ? (
+              <IconButton
+                aria-label="Back to search"
+                variant="ghost"
+                size="sm"
+                onClick={backToSearch}
+              >
+                <ArrowLeft />
+              </IconButton>
+            ) : (
+              <Search aria-hidden="true" className="ml-1 size-4 shrink-0 text-muted-foreground" />
+            )}
             <Input
               ref={inputRef}
               type="text"
               role="searchbox"
-              aria-label="Search Movies, Shows and People"
-              placeholder="Search Movies, Shows and People"
+              aria-label={
+                mode === "log-watched" ? "Search Movies and Shows to log" : "Search and commands"
+              }
+              placeholder={
+                mode === "log-watched"
+                  ? "Search Movies and Shows to log…"
+                  : "Search or run a command…"
+              }
               autoComplete="off"
               value={value}
-              onChange={(event) => handleChange(event.target.value)}
+              onChange={(event) => {
+                setValue(event.target.value);
+                if (mode === "log-watched") {
+                  clearTimeout(timeoutRef.current);
+                  timeoutRef.current = setTimeout(() => runSearch(event.target.value), DEBOUNCE_MS);
+                } else {
+                  handleChange(event.target.value);
+                }
+              }}
               onKeyDown={handleInputKeyDown}
               className="h-9 border-none px-0 shadow-none focus-visible:ring-0"
             />
             <DialogPrimitive.Close asChild>
-              <IconButton aria-label="Close search" variant="ghost" size="sm">
+              <IconButton aria-label="Close" variant="ghost" size="sm">
                 <X />
               </IconButton>
             </DialogPrimitive.Close>
@@ -216,16 +303,31 @@ export function GlobalSearchDialog({
 
           <div ref={resultsRef} className="max-h-[70vh] overflow-y-auto p-2 sm:max-h-[60vh]">
             <div aria-live="polite" className="sr-only">
-              {hasQuery && results
-                ? hasAnyResult
-                  ? `${results.results.length} results`
-                  : `No results for ${value}`
-                : ""}
+              {mode === "log-watched"
+                ? hasAnyMediaResult
+                  ? `${results?.results.length} results`
+                  : ""
+                : hasQuery && (results || matchedCommands.length > 0)
+                  ? hasAnyResult
+                    ? "Results updated"
+                    : `No results for ${value}`
+                  : ""}
             </div>
 
-            {!hasQuery ? (
-              <GlobalSearchIdleState
+            {mode === "log-watched" ? (
+              <LogWatchedResults
+                results={results}
+                isPending={isPending}
+                value={value}
+                onLogged={close}
+                onNavigate={handleResultNavigate}
+              />
+            ) : !hasQuery ? (
+              <CommandCenterIdleState
+                pathname={pathname}
+                upNext={upNext}
                 recentSearches={recentSearches}
+                runContext={runContext}
                 onSelectRecent={(query) => {
                   setValue(query);
                   runSearch(query);
@@ -234,24 +336,19 @@ export function GlobalSearchDialog({
                   clearRecentSearches();
                   setRecentSearches([]);
                 }}
-                onNavigate={() => onOpenChange(false)}
               />
-            ) : !results && isPending ? (
+            ) : !results && isPending && matchedCommands.length === 0 ? (
               <p className="px-2 py-8 text-center text-sm text-muted-foreground">Searching…</p>
             ) : !hasAnyResult ? (
               <p className="px-2 py-8 text-center text-sm text-muted-foreground">
-                No Movies, Shows or People found for &ldquo;{value}&rdquo;.
+                No results for &ldquo;{value}&rdquo;.
               </p>
             ) : (
               <div className="flex flex-col gap-2">
-                {/* One continuous cross-type ranked list — see
-                    docs/search.md, "Unified search ranking".
-                    Deliberately no per-type section headers: Movies,
-                    Shows, and People compete for position on relevance
-                    alone, and grouping them back into sections here would
-                    silently reintroduce the exact type-priority ordering
-                    the ranking itself is designed not to have. */}
                 <div className="flex flex-col">
+                  {strongCommandMatches.map(({ command }) => (
+                    <CommandRow key={command.id} command={command} runContext={runContext} />
+                  ))}
                   {results?.results.map((result) => (
                     <UnifiedSearchResultRow
                       key={
@@ -264,15 +361,20 @@ export function GlobalSearchDialog({
                       onNavigate={handleResultNavigate}
                     />
                   ))}
+                  {weakCommandMatches.map(({ command }) => (
+                    <CommandRow key={command.id} command={command} runContext={runContext} />
+                  ))}
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => goToFullResults(value)}
-                  className="mx-2 rounded-md px-2 py-2 text-left text-sm text-muted-foreground outline-none transition-colors hover:bg-surface-subtle hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
-                >
-                  See all results for &ldquo;{value}&rdquo;
-                </button>
+                {hasAnyMediaResult ? (
+                  <button
+                    type="button"
+                    onClick={() => goToFullResults(value)}
+                    className="mx-2 rounded-md px-2 py-2 text-left text-sm text-muted-foreground outline-none transition-colors hover:bg-surface-subtle hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+                  >
+                    See all results for &ldquo;{value}&rdquo;
+                  </button>
+                ) : null}
               </div>
             )}
           </div>
@@ -282,22 +384,104 @@ export function GlobalSearchDialog({
   );
 }
 
-// Before typing anything — recent searches (if any) plus a couple of
-// quick Discover entry points, not a "type something to search" empty
-// state (see the product spec, "Search Empty State").
-function GlobalSearchIdleState({
-  recentSearches,
-  onSelectRecent,
-  onClearRecent,
+function LogWatchedResults({
+  results,
+  isPending,
+  value,
+  onLogged,
   onNavigate,
 }: {
-  recentSearches: readonly string[];
-  onSelectRecent: (query: string) => void;
-  onClearRecent: () => void;
+  results: UnifiedSearchResults | null;
+  isPending: boolean;
+  value: string;
+  onLogged: () => void;
   onNavigate: () => void;
 }) {
+  const media = (results?.results ?? []).filter((result) => result.kind !== "person");
+
+  if (value.trim().length < SEARCH_MIN_QUERY_LENGTH) {
+    return (
+      <p className="px-2 py-8 text-center text-sm text-muted-foreground">
+        Search for a Movie or Show to log as watched.
+      </p>
+    );
+  }
+  if (!results && isPending) {
+    return <p className="px-2 py-8 text-center text-sm text-muted-foreground">Searching…</p>;
+  }
+  if (media.length === 0) {
+    return (
+      <p className="px-2 py-8 text-center text-sm text-muted-foreground">
+        No Movies or Shows found for &ldquo;{value}&rdquo;.
+      </p>
+    );
+  }
+
+  return (
+    <div className="flex flex-col">
+      {media.map((result) => (
+        <LogWatchedResultRow
+          key={`${result.kind}:${result.media.id}`}
+          media={result.media}
+          onLogged={onLogged}
+          onNavigate={onNavigate}
+        />
+      ))}
+    </div>
+  );
+}
+
+// Before typing anything — curated Quick Actions, Navigate (minus
+// wherever the user already is), and Recent searches, never a "type
+// something to search" empty state or a dozen-command sitemap (see
+// docs/search.md, "Command Center", "Default state").
+function CommandCenterIdleState({
+  pathname,
+  upNext,
+  recentSearches,
+  runContext,
+  onSelectRecent,
+  onClearRecent,
+}: {
+  pathname: string;
+  upNext: ActiveShowContinuation | null;
+  recentSearches: readonly string[];
+  runContext: { openLogWatched: () => void; close: () => void };
+  onSelectRecent: (query: string) => void;
+  onClearRecent: () => void;
+}) {
+  const quickActions: Command[] = [
+    ...(upNext ? [buildUpNextCommand(upNext, runContext.close)] : []),
+    LOG_WATCHED_COMMAND,
+  ];
+  const navCommands = NAVIGATION_COMMANDS.filter(
+    (command) =>
+      command.group === "navigate" &&
+      !("href" in command && isNavItemActive(pathname, command.href)),
+  );
+
   return (
     <div className="flex flex-col gap-4 px-1 py-2">
+      <IdleSection title="Quick actions">
+        {quickActions.map((command) => (
+          <CommandRow key={command.id} command={command} runContext={runContext} />
+        ))}
+      </IdleSection>
+
+      {/* Desktop-only — mobile already has its own bottom nav for these
+          exact destinations; repeating all eight here would read as a
+          sitemap dropped into a touch surface, not the purpose-built
+          mobile Search this app's own PWA rules call for (see
+          docs/search.md, "Mobile"). Quick actions above stays shared:
+          a couple of real shortcuts, not a navigation dump. */}
+      <div className="hidden md:block">
+        <IdleSection title="Navigate">
+          {navCommands.map((command) => (
+            <CommandRow key={command.id} command={command} runContext={runContext} />
+          ))}
+        </IdleSection>
+      </div>
+
       {recentSearches.length > 0 ? (
         <div>
           <div className="flex items-center justify-between px-1 pb-1">
@@ -326,28 +510,15 @@ function GlobalSearchIdleState({
           </ul>
         </div>
       ) : null}
+    </div>
+  );
+}
 
-      <div>
-        <h2 className="px-1 pb-1 text-xs font-medium text-muted-foreground uppercase">
-          Browse Discover
-        </h2>
-        <div className="flex flex-col">
-          <Link
-            href="/discover?type=movies"
-            onClick={onNavigate}
-            className="rounded-md px-2 py-2 text-sm text-foreground outline-none transition-colors hover:bg-surface-subtle focus-visible:ring-3 focus-visible:ring-ring/50"
-          >
-            Movies
-          </Link>
-          <Link
-            href="/discover?type=shows"
-            onClick={onNavigate}
-            className="rounded-md px-2 py-2 text-sm text-foreground outline-none transition-colors hover:bg-surface-subtle focus-visible:ring-3 focus-visible:ring-ring/50"
-          >
-            Shows
-          </Link>
-        </div>
-      </div>
+function IdleSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <h2 className="px-1 pb-1 text-xs font-medium text-muted-foreground uppercase">{title}</h2>
+      <div className="flex flex-col">{children}</div>
     </div>
   );
 }
