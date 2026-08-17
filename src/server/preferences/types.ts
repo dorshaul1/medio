@@ -37,4 +37,7 @@ export type UserPreferences = {
   // Independent of `homeLayout` — see docs/home.md, "Up Next is a
   // separate preference".
   showUpNext: boolean;
+  // Whether Home's header shows the "Pick for me" entry point — defaults
+  // to `false`; see docs/recommendations.md.
+  showPickForMe: boolean;
 };

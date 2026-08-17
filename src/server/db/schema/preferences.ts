@@ -91,6 +91,12 @@ export const userPreferences = pgTable(
     // now", homeLayout answers "what fills the rest of the page". Never
     // encoded as a layout variant (no `calendarWithUpNext`).
     showUpNext: boolean("show_up_next").notNull().default(true),
+    // Whether Home's header shows the "Pick for me" entry point — see
+    // docs/recommendations.md. Defaults to `false`: Pick is a deliberate,
+    // occasional "help me decide" action, not something every user wants
+    // competing for attention on every Home visit; this only hides the
+    // entry point, `/pick` itself stays fully reachable directly.
+    showPickForMe: boolean("show_pick_for_me").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()

@@ -52,13 +52,19 @@ and the most personally relevant category, ahead of product preferences.
 replaced the old `AccountControl`, which held three separate things
 (name/email text, a Settings gear icon, a Sign out icon) — Account now
 holds Settings navigation *and* Sign out itself, so a single link
-straight to `/settings/account` covers what used to take three controls,
-with no dropdown menu for its own sake. Desktop shows avatar + name;
-mobile shows avatar only (header space is tight, and Settings' own index
-page carries the full identity row for anyone who lands there). Its
-accessible name (`aria-label="Open account settings for {name}"`) is
-independent of the visible, potentially-truncated name text, so a long
-name never removes the control's accessible identity.
+covers what used to take three controls, with no dropdown menu for its
+own sake. **Desktop** shows avatar + name and goes straight to
+`/settings/account` — the default category, so this is the same one
+click it always was. **Mobile** shows avatar only (header space is
+tight) and goes to `/settings` (the index/list) instead of Account
+directly — mobile's own drill-down pattern means landing straight in
+one category would skip past the list a tap is expected to open first;
+Settings' index page carries its own compact identity row at the top for
+anyone who lands there and wants Account specifically. Each variant's
+accessible name (`aria-label="Open account settings for {name}"` on
+desktop, `"Open Settings for {name}"` on mobile) is independent of the
+visible, potentially-truncated name text, so a long name never removes
+the control's accessible identity.
 
 ## Every setting here is real
 
@@ -192,6 +198,7 @@ concentrated in TV episode progression, not movie identity/overview.
 | Home | Home layout | `resolveHomeLayout` → Home's composition below Up Next (`src/server/home/layout.ts`; see "Home layout and Show Up Next") |
 | Home | Home calendar view | Whether the Calendar layout's body is the agenda or the full month grid (`home-page.tsx`; see "Home layout and Show Up Next") |
 | Home | Show Finish Soon | `PersonalizedHomeSections`'s Finish Soon row visibility |
+| Home | Show Pick for me | Whether `PickEntryPoint` renders in Home's header (see docs/recommendations.md) — `/pick` stays reachable directly either way |
 | Defaults | Default Discover view | `normalizeDiscoverMediaType`'s fallback when `?type=` is absent |
 | Defaults | Calendar page view | `normalizeCalendarView`'s fallback when `?view=` is absent (see docs/calendar.md) |
 | Defaults | Default Stats range | `resolveDefaultStatsRange` → `StatsRangeControl`'s fallback when `?range=` is absent (see docs/stats.md) |

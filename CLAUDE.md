@@ -197,12 +197,14 @@ in the same change.
 - `DesktopNav`/`MobileNav` are Client Components only because they need
   `usePathname()`; don't make `AppShell` or page content client for this.
 - Don't add sidebar-collapse behavior or a command palette without a real
-  requirement. `UserIdentityLink` (avatar + name on desktop, avatar only
-  on mobile) is the one identity control in nav chrome — a direct link
-  to Settings → Account, never a dropdown menu opened for its own sake;
-  Settings navigation and Sign out both live inside Account itself now,
-  not as separate controls beside it. Keep it that restrained — don't
-  grow it into a richer account-switcher/notification surface without a
+  requirement. `UserIdentityLink` is the one identity control in nav
+  chrome, never a dropdown menu opened for its own sake — desktop (avatar
+  + name) goes straight to Settings → Account, the default category;
+  mobile (avatar only) goes to the Settings list instead, matching
+  mobile's own drill-down pattern rather than skipping past it. Settings
+  navigation and Sign out both live inside Account itself now, not as
+  separate controls beside it. Keep it that restrained — don't grow it
+  into a richer account-switcher/notification surface without a
   real requirement.
 - The mobile header strip (wordmark + `UserIdentityLink`, in `AppShell`)
   is `sticky`, not merely fixed at the top of the page — it stays
@@ -874,6 +876,10 @@ in the same change.
   not a feed, carousel, dashboard, chatbot, filter page, or randomizer —
   see docs/recommendations.md. Its success metric is how fast a user can
   confidently choose something to watch.
+- Home's "Pick for me" entry point is opt-in — `showPickForMe`
+  (`user_preferences`, defaulting to `false`) gates whether it renders in
+  Home's header. `/pick` itself always stays reachable by direct URL
+  regardless of the preference; only the entry point is hidden.
 - Default output stays small: exactly one Best Pick plus up to
   `PICK_ALTERNATIVE_COUNT` Alternatives, never a scrollable list
   underneath. Prefer fewer, better recommendations.

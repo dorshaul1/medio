@@ -5,14 +5,19 @@ import { usePathname } from "next/navigation";
 import { UserAvatar } from "@/components/shell/user-avatar";
 import { cn } from "@/lib/utils";
 
-// The one identity control in authenticated nav chrome — a direct link
-// to Settings → Account, not a menu (see docs/settings.md, "Account").
-// Settings/Sign out used to be two separate icon buttons here; both now
-// live inside Account itself, so this single control replaces all three
-// without losing anything — clicking it always lands somewhere useful,
-// never opens a dropdown for its own sake. `aria-label` (not the visible
-// text) carries the precise accessible name so CSS truncation of a long
-// name never removes it from the accessibility tree.
+// The one identity control in authenticated nav chrome — never a menu
+// (see docs/settings.md, "Account"). Settings/Sign out used to be two
+// separate icon buttons here; both now live inside Settings/Account
+// itself, so this single control replaces all three without losing
+// anything. Desktop goes straight to Account (the default category, and
+// the destination that used to take a dedicated click) — mobile
+// deliberately goes to the Settings list instead: mobile's `/settings`
+// index page carries its own compact identity row at the top, so
+// landing there first shows the category list mobile's own drill-down
+// pattern expects, rather than skipping straight past it into one
+// category. `aria-label` (not the visible text) carries the precise
+// accessible name so CSS truncation of a long name never removes it
+// from the accessibility tree.
 export function UserIdentityLink({
   name,
   email,
@@ -31,8 +36,8 @@ export function UserIdentityLink({
   if (variant === "mobile") {
     return (
       <Link
-        href="/settings/account"
-        aria-label={`Open account settings for ${displayName}`}
+        href="/settings"
+        aria-label={`Open Settings for ${displayName}`}
         aria-current={active ? "page" : undefined}
         className="relative rounded-full outline-none before:absolute before:-inset-1.5 before:content-[''] focus-visible:ring-3 focus-visible:ring-ring/50"
       >

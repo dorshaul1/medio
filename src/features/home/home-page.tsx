@@ -103,7 +103,7 @@ export async function HomePage() {
             <Suspense fallback={<CalendarEntryPointFallback />}>
               <CalendarEntryPoint />
             </Suspense>
-            <PickEntryPoint />
+            {preferences.showPickForMe ? <PickEntryPoint /> : null}
           </div>
         }
       />

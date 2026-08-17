@@ -7,6 +7,16 @@ page, or a randomizer. Its one success metric is how quickly a user can
 confidently choose something to watch. See CLAUDE.md, "Pick for Me" for the
 durable rules this file expands on.
 
+## Home entry point
+
+`PickEntryPoint` (`src/features/home/pick-entry-point.tsx`) is Home's one
+link into Pick — a restrained icon+text action in the page header, never
+a banner or a promoted section. It's opt-in: `showPickForMe`
+(`user_preferences`, defaulting to `false` — see docs/settings.md)
+decides whether it renders at all. `/pick` itself is never gated by
+this — the preference only controls the Home entry point, not the
+route.
+
 ## Purpose and shape
 
 Every call to `getPickRecommendations` (`compose.ts`) returns at most one

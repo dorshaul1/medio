@@ -1,0 +1,1 @@
+ALTER TABLE "user_preferences" ADD COLUMN "show_pick_for_me" boolean DEFAULT false NOT NULL;

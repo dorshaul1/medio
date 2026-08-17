@@ -75,6 +75,28 @@ test.describe
       await expect(row.getByText("Backlog")).toBeVisible();
     });
 
+    test("Pick for me is hidden from Home by default, appears once enabled, and /pick stays reachable either way", async ({
+      page,
+    }) => {
+      await page.goto("/");
+      await expect(page.getByRole("link", { name: "Pick for me" })).toHaveCount(0);
+      await page.goto("/pick");
+      await expect(
+        page.getByRole("heading", { level: 1, name: "What should I watch?" }),
+      ).toBeVisible();
+
+      await page.goto("/settings/home");
+      await page.getByRole("switch", { name: "Show Pick for me" }).click();
+
+      await page.goto("/");
+      await expect(page.getByRole("link", { name: "Pick for me" })).toBeVisible();
+
+      await page.goto("/settings/home");
+      await page.getByRole("switch", { name: "Show Pick for me" }).click();
+      await page.goto("/");
+      await expect(page.getByRole("link", { name: "Pick for me" })).toHaveCount(0);
+    });
+
     test("Spoiler protection hides an unwatched episode's identity and overview, keeps a watched one visible, and allows a local reveal", async ({
       page,
     }) => {
@@ -133,7 +155,7 @@ test.describe("mobile viewport", () => {
     const bottomNav = page.getByRole("navigation", { name: "Primary" });
     await expect(bottomNav.getByRole("link")).toHaveCount(4);
 
-    await page.getByRole("link", { name: "Settings" }).click();
+    await page.getByRole("link", { name: /Open Settings for/ }).click();
     await expect(page).toHaveURL("/settings");
     await expect(page.getByRole("heading", { level: 1, name: "Settings" })).toBeVisible();
   });

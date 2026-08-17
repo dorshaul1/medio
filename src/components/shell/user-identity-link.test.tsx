@@ -28,9 +28,18 @@ describe("UserIdentityLink", () => {
       <UserIdentityLink name="Dor Shaul" email="dor@example.com" image={null} variant="mobile" />,
     );
     expect(screen.queryByText("Dor Shaul")).not.toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: "Open account settings for Dor Shaul" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open Settings for Dor Shaul" })).toBeInTheDocument();
+  });
+
+  it("the mobile variant opens the Settings list, not Account directly — desktop still opens Account directly", () => {
+    usePathname.mockReturnValue("/library");
+    render(
+      <UserIdentityLink name="Dor Shaul" email="dor@example.com" image={null} variant="mobile" />,
+    );
+    expect(screen.getByRole("link", { name: "Open Settings for Dor Shaul" })).toHaveAttribute(
+      "href",
+      "/settings",
+    );
   });
 
   it("falls back to email for both the visible label and the accessible name when no name is set", () => {

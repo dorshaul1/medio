@@ -5,6 +5,7 @@ import { HomeCalendarViewSetting } from "./home-calendar-view-setting";
 import { HomeLayoutSetting } from "./home-layout-setting";
 import { SettingRow } from "./setting-row";
 import { SettingsCategoryHeader } from "./settings-category-header";
+import { ShowPickForMeSetting } from "./show-pick-for-me-setting";
 import { ShowUpNextSetting } from "./show-up-next-setting";
 
 // "Home layout" and "Show Up Next" are two deliberately separate rows —
@@ -48,6 +49,14 @@ export function HomeSettings({ preferences }: { preferences: UserPreferences }) 
         htmlFor="show-finish-soon"
       >
         <FinishSoonSetting value={preferences.showFinishSoon} />
+      </SettingRow>
+      <Separator />
+      <SettingRow
+        title="Show Pick for me"
+        comment="Show the “Pick for me” button in Home's header. Pick for me stays reachable at /pick either way."
+        htmlFor="show-pick-for-me"
+      >
+        <ShowPickForMeSetting value={preferences.showPickForMe} />
       </SettingRow>
     </div>
   );

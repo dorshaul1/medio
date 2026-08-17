@@ -23,6 +23,7 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
   homeCalendarView: "calendar",
   showFinishSoon: true,
   showUpNext: true,
+  showPickForMe: false,
 };
 
 export function toPreferences(row: typeof userPreferences.$inferSelect): UserPreferences {
@@ -39,6 +40,7 @@ export function toPreferences(row: typeof userPreferences.$inferSelect): UserPre
     homeCalendarView: row.homeCalendarView,
     showFinishSoon: row.showFinishSoon,
     showUpNext: row.showUpNext,
+    showPickForMe: row.showPickForMe,
   };
 }
 
