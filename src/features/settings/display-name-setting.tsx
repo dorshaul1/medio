@@ -19,8 +19,19 @@ export function DisplayNameSetting({ value }: { value: string }) {
   const [name, setName] = useState(value);
   const [status, setStatus] = useState<"idle" | "pending" | "error">("idle");
   const saved = useRef(value);
+  // Escape reverts state and blurs in the same call, but the blur
+  // listener below (`save`) runs before React has committed that revert
+  // — closing over the still-stale draft otherwise. This flag lets
+  // Escape's own blur skip that one save rather than persisting the
+  // abandoned edit.
+  const skipNextBlur = useRef(false);
 
   async function save() {
+    if (skipNextBlur.current) {
+      skipNextBlur.current = false;
+      return;
+    }
+
     const trimmed = name.trim();
     if (!trimmed || trimmed === saved.current) {
       setName(saved.current);
@@ -45,6 +56,7 @@ export function DisplayNameSetting({ value }: { value: string }) {
     if (event.key === "Enter") {
       event.currentTarget.blur();
     } else if (event.key === "Escape") {
+      skipNextBlur.current = true;
       setName(saved.current);
       setStatus("idle");
       event.currentTarget.blur();
