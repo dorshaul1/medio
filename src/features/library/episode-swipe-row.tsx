@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronLeft } from "lucide-react";
+import { Check, ChevronsRight } from "lucide-react";
 import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
@@ -105,6 +105,17 @@ export function EpisodeSwipeRow({
     startRef.current = { x: event.clientX, y: event.clientY };
     intentRef.current = "pending";
     pointerIdRef.current = event.pointerId;
+    // Captured immediately, not deferred until horizontal intent is
+    // confirmed — a fast real-finger drag can leave this element's own
+    // hit-test bounds before the first qualifying pointermove fires, and
+    // without capture already in place by then, the eventual pointerup
+    // lands on whatever element the finger is over instead of here,
+    // never reaching `endDrag` at all (the row gets stuck mid-drag,
+    // holding whatever `travel` it last had — a real bug users hit,
+    // not a hypothetical). Vertical scrolls are unaffected: capture only
+    // changes where *pointer events* are dispatched, never the browser's
+    // own native scroll handling for `touch-action: pan-y`.
+    event.currentTarget.setPointerCapture?.(event.pointerId);
   }
 
   function onPointerMove(event: ReactPointerEvent<HTMLDivElement>) {
@@ -124,11 +135,6 @@ export function EpisodeSwipeRow({
         return;
       }
       if (intentRef.current === "horizontal") {
-        // Not implemented in every environment (jsdom, some older
-        // WebViews) — the gesture still works without it, just without
-        // the guarantee that a pointer dragged outside this element's
-        // bounds keeps reporting to it.
-        event.currentTarget.setPointerCapture?.(event.pointerId);
         setPhase("dragging");
       }
     }
@@ -207,15 +213,18 @@ export function EpisodeSwipeRow({
         {/* A quiet, permanent (never animated on its own) affordance —
             not the one-time hint above, which plays once and is gone;
             this is what tells every visit afterward "this row responds
-            to a swipe" without a tutorial banner. Deliberately just one
+            to a swipe" without a tutorial banner. A double chevron reads
+            unambiguously as "slide me," unlike a single chevron (easily
+            mistaken for "more"/navigation) — and points right, the same
+            direction the row actually swipes. Deliberately just one
             small, muted mark — a colored fill/gradient here would read
             as decoration competing with the reveal layer's own real
             primary-color moment once a drag actually starts (see
             CLAUDE.md, "Content brings the color"). Fades out as a real
             drag takes over. */}
-        <ChevronLeft
+        <ChevronsRight
           aria-hidden="true"
-          className="pointer-events-none absolute top-1/2 right-2 size-3 -translate-y-1/2 text-muted-foreground/50 md:hidden"
+          className="pointer-events-none absolute top-1/2 right-2 size-3.5 -translate-y-1/2 text-muted-foreground/50 md:hidden"
           style={{ opacity: 1 - progress * 2 }}
         />
       </div>

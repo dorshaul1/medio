@@ -89,7 +89,6 @@ export function MediaComment({
         <IconButton
           aria-label={`Add a comment about ${title}`}
           variant="ghost"
-          size="sm"
           onClick={openEditor}
         >
           <NotebookPen />

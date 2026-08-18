@@ -7,24 +7,27 @@ import type { MediaType } from "@/server/media/types";
 // The shared visual shell for Movie Details and Show Details: backdrop
 // bleed (flush to the top of the content area, faded into the page
 // background at the bottom), the poster, and the overlap positioning
-// between them. Each caller supplies its own identity/metadata column as
-// `children` — title, tagline, metadata line, credits, trailer button —
-// since a movie's and a show's information hierarchy genuinely differ
-// (see docs/architecture.md). Not a "MediaDetailsPage" universal
-// abstraction: only the artwork shell is shared, never the content
-// structure. No back button here — primary navigation (the sidebar/
-// bottom nav) is how these pages are left; a genre's "View all" page is
-// the one place a real browser-history back still applies (see
-// `components/shell/back-button.tsx`).
+// between them. Each caller supplies its own identity (`identity` — title
+// + tagline, the only content that shares the poster's own row) and the
+// rest of its metadata/credits/actions (`children` — full-width, below
+// the poster+identity row) since a movie's and a show's information
+// hierarchy genuinely differ (see docs/architecture.md). Not a
+// "MediaDetailsPage" universal abstraction: only the artwork shell is
+// shared, never the content structure. No back button here — primary
+// navigation (the sidebar/bottom nav) is how these pages are left; a
+// genre's "View all" page is the one place a real browser-history back
+// still applies (see `components/shell/back-button.tsx`).
 export function MediaDetailHero({
   backdrop,
   poster,
   mediaType,
+  identity,
   children,
 }: {
   backdrop: string | null;
   poster: string | null;
   mediaType: MediaType;
+  identity: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -58,7 +61,7 @@ export function MediaDetailHero({
           // wherever the negative-margin overlap below reached it —
           // confirmed via a real rendered screenshot, not just source
           // inspection. This establishes this row as the one that wins.
-          "relative z-10 flex flex-col items-center gap-4 sm:flex-row sm:items-end sm:gap-6",
+          "relative z-10 flex flex-row items-start gap-4 sm:items-end sm:gap-6",
           // The overlap trick only applies once there's room for it —
           // stacked and non-overlapping on mobile, overlapping the
           // backdrop's fade on sm+.
@@ -68,7 +71,7 @@ export function MediaDetailHero({
         {/* `rounded-lg` (12px) — the system's ceiling for artwork, "makes
             portraits feel like framed prints" (see docs/design-system.md,
             "Radius"). */}
-        <div className="w-32 shrink-0 overflow-hidden rounded-lg bg-surface-subtle shadow-sm sm:w-44">
+        <div className="w-28 shrink-0 overflow-hidden rounded-lg bg-surface-subtle shadow-sm sm:w-44">
           <div className="relative aspect-2/3">
             {poster ? (
               <Image
@@ -76,7 +79,7 @@ export function MediaDetailHero({
                 alt=""
                 fill
                 priority
-                sizes="(min-width: 640px) 176px, 128px"
+                sizes="(min-width: 640px) 176px, 112px"
                 className="object-cover"
               />
             ) : (
@@ -85,10 +88,10 @@ export function MediaDetailHero({
           </div>
         </div>
 
-        <div className="flex flex-1 flex-col gap-2 text-center sm:pb-1 sm:text-left">
-          {children}
-        </div>
+        <div className="flex min-w-0 flex-1 flex-col gap-1 text-left sm:pb-1">{identity}</div>
       </div>
+
+      <div className="relative z-10 mt-3 flex flex-col gap-2 text-left">{children}</div>
     </div>
   );
 }

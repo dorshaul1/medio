@@ -58,7 +58,7 @@ export function AppShell({
               tight, and Settings' own mobile index page carries the full
               identity row for anyone who lands there directly. */}
           <div
-            className="sticky top-0 z-10 flex items-center justify-between gap-1 border-b border-border bg-background px-4 py-3 md:hidden"
+            className="sticky top-0 z-20 flex items-center justify-between gap-1 border-b border-border bg-background px-4 py-3 md:hidden"
             style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top))" }}
           >
             <Wordmark className="shrink-0 text-xl" />

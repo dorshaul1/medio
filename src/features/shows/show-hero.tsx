@@ -36,16 +36,21 @@ export function ShowHero({
   const scale = buildScaleLine(show);
 
   return (
-    <MediaDetailHero backdrop={backdrop} poster={poster} mediaType="show">
-      <div className="flex flex-col gap-1">
-        <h1 className="font-display text-4xl leading-[0.95] font-medium tracking-tight text-balance sm:text-6xl">
-          {show.title}
-        </h1>
-        {show.tagline ? (
-          <p className="text-sm text-muted-foreground italic">{show.tagline}</p>
-        ) : null}
-      </div>
-
+    <MediaDetailHero
+      backdrop={backdrop}
+      poster={poster}
+      mediaType="show"
+      identity={
+        <>
+          <h1 className="font-display text-2xl leading-[1.05] font-medium tracking-tight text-balance sm:text-6xl sm:leading-[0.95]">
+            {show.title}
+          </h1>
+          {show.tagline ? (
+            <p className="text-sm text-muted-foreground italic">{show.tagline}</p>
+          ) : null}
+        </>
+      }
+    >
       <MetadataLine parts={metadata} />
 
       {scale ? <p className="text-sm text-muted-foreground">{scale}</p> : null}
@@ -62,7 +67,7 @@ export function ShowHero({
         </p>
       ) : null}
 
-      <div className="mt-1 flex justify-center sm:justify-start">{trackingControl}</div>
+      <div className="mt-1 flex">{trackingControl}</div>
     </MediaDetailHero>
   );
 }

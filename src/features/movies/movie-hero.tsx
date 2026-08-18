@@ -41,16 +41,21 @@ export function MovieHero({
   const metadata = buildMetadataLine(movie);
 
   return (
-    <MediaDetailHero backdrop={backdrop} poster={poster} mediaType="movie">
-      <div className="flex flex-col gap-1">
-        <h1 className="font-display text-4xl leading-[0.95] font-medium tracking-tight text-balance sm:text-6xl">
-          {movie.title}
-        </h1>
-        {movie.tagline ? (
-          <p className="text-sm text-muted-foreground italic">{movie.tagline}</p>
-        ) : null}
-      </div>
-
+    <MediaDetailHero
+      backdrop={backdrop}
+      poster={poster}
+      mediaType="movie"
+      identity={
+        <>
+          <h1 className="font-display text-2xl leading-[1.05] font-medium tracking-tight text-balance sm:text-6xl sm:leading-[0.95]">
+            {movie.title}
+          </h1>
+          {movie.tagline ? (
+            <p className="text-sm text-muted-foreground italic">{movie.tagline}</p>
+          ) : null}
+        </>
+      }
+    >
       <MetadataLine parts={metadata} />
 
       {directors.length > 0 ? (
@@ -65,7 +70,7 @@ export function MovieHero({
         </p>
       ) : null}
 
-      <div className="mt-1 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
+      <div className="mt-1 flex flex-wrap items-center gap-2">
         <MovieTrackingControl
           movieProviderId={movie.id}
           summary={watchSummary}
