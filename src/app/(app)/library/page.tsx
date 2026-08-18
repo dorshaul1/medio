@@ -21,11 +21,13 @@ import { LibrarySectionHeading } from "@/features/library/library-section-headin
 import { LibrarySectionNav } from "@/features/library/library-section-nav";
 import { LibrarySelect } from "@/features/library/library-select";
 import { LibraryTypeToggle } from "@/features/library/library-type-toggle";
+import { SwipeHintProvider } from "@/features/library/swipe-hint-context";
 import type { LibraryRawState, LibrarySort } from "@/server/library/candidates";
 import { LIBRARY_PAGE_SIZE } from "@/server/library/constants";
 import { getLibraryPage } from "@/server/library/queries";
 import { groupLibraryItems } from "@/server/library/types";
 import type { MediaType } from "@/server/media/types";
+import { getCurrentUserPreferences } from "@/server/preferences/queries";
 
 export const metadata: Metadata = {
   title: "Library",
@@ -49,6 +51,8 @@ export default async function LibraryPage({ searchParams }: PageProps<"/library"
   const sort = normalizeLibrarySort(params.sort);
   const count = normalizeLibraryCount(params.count);
   const query = normalizeLibraryQuery(params.q);
+
+  const preferences = await getCurrentUserPreferences();
 
   const { items, hasMore, scanWasCapped } = await getLibraryPage({
     mediaType,
@@ -139,27 +143,36 @@ export default async function LibraryPage({ searchParams }: PageProps<"/library"
           )
         ) : (
           <div className="flex flex-col gap-6">
-            {groups ? (
-              groups.map((entry) => (
-                <div key={entry.group} className="flex flex-col gap-2">
-                  <LibrarySectionHeading group={entry.group} />
-                  <ul className="flex flex-col divide-y divide-border">
-                    {entry.items.map((item) => (
-                      <LibraryItemRow
-                        key={`${item.mediaType}:${item.mediaProviderId}`}
-                        item={item}
-                      />
-                    ))}
-                  </ul>
-                </div>
-              ))
-            ) : (
-              <ul className="flex flex-col divide-y divide-border">
-                {items.map((item) => (
-                  <LibraryItemRow key={`${item.mediaType}:${item.mediaProviderId}`} item={item} />
-                ))}
-              </ul>
-            )}
+            <SwipeHintProvider>
+              {groups ? (
+                groups.map((entry) => (
+                  <div key={entry.group} className="flex flex-col gap-2">
+                    <LibrarySectionHeading group={entry.group} />
+                    <ul className="flex flex-col divide-y divide-border">
+                      {entry.items.map((item) => (
+                        <LibraryItemRow
+                          key={`${item.mediaType}:${item.mediaProviderId}`}
+                          item={item}
+                          mobileEpisodeControls={preferences.mobileEpisodeControls}
+                          hasSeenSwipeHint={preferences.hasSeenSwipeHint}
+                        />
+                      ))}
+                    </ul>
+                  </div>
+                ))
+              ) : (
+                <ul className="flex flex-col divide-y divide-border">
+                  {items.map((item) => (
+                    <LibraryItemRow
+                      key={`${item.mediaType}:${item.mediaProviderId}`}
+                      item={item}
+                      mobileEpisodeControls={preferences.mobileEpisodeControls}
+                      hasSeenSwipeHint={preferences.hasSeenSwipeHint}
+                    />
+                  ))}
+                </ul>
+              )}
+            </SwipeHintProvider>
 
             {query && scanWasCapped ? (
               <p className="text-xs text-muted-foreground">

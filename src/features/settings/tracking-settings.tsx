@@ -1,6 +1,7 @@
 import { Separator } from "@/components/ui/separator";
 import type { UserPreferences } from "@/server/preferences/types";
 import { DefaultSaveSetting } from "./default-save-setting";
+import { MobileEpisodeControlsSetting } from "./mobile-episode-controls-setting";
 import { SettingRow } from "./setting-row";
 import { SettingsCategoryHeader } from "./settings-category-header";
 
@@ -23,6 +24,20 @@ export function TrackingSettings({ preferences }: { preferences: UserPreferences
       >
         <DefaultSaveSetting value={preferences.defaultSaveIntent} />
       </SettingRow>
+      {/* Mobile-presentation-only — this has no visible effect on
+          desktop (the checkbox is always shown there), so it has no
+          business showing up there either, see CLAUDE.md, "Settings":
+          "if a setting can't be given a genuine, unambiguous effect,
+          omit it rather than fake one." */}
+      <div className="md:hidden">
+        <Separator />
+        <SettingRow
+          title="Mobile episode controls"
+          comment="How you mark an active show's next episode watched on mobile Library. Swipe reveals a check by swiping the row right; Checkbox keeps a compact tap control always visible; Both shows either."
+        >
+          <MobileEpisodeControlsSetting value={preferences.mobileEpisodeControls} />
+        </SettingRow>
+      </div>
     </div>
   );
 }

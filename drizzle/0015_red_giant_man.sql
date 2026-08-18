@@ -1,0 +1,3 @@
+ALTER TABLE "user_preferences" ADD COLUMN "mobile_episode_controls" text DEFAULT 'swipe' NOT NULL;--> statement-breakpoint
+ALTER TABLE "user_preferences" ADD COLUMN "has_seen_swipe_hint" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+ALTER TABLE "user_preferences" ADD CONSTRAINT "user_preferences_mobile_episode_controls_check" CHECK ("user_preferences"."mobile_episode_controls" in ('swipe', 'checkbox', 'swipe_checkbox'));

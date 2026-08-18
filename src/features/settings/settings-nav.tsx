@@ -47,10 +47,16 @@ export const SETTINGS_CATEGORY_ICON: Record<SettingsCategory, LucideIcon> = {
 // this list on mobile once a category is open, showing a back link
 // instead — see docs/settings.md).
 export function SettingsNav({ active }: { active: SettingsCategory }) {
+  // Mobile's own compact identity row (`/settings`'s own page, above
+  // this list) already opens Account — this list would otherwise
+  // duplicate that exact same destination as its own first row. Desktop
+  // has no equivalent identity row, so its rail keeps Account as usual.
+  const mobileCategories = visibleSettingsCategories().filter((category) => category !== "account");
+
   return (
     <nav aria-label="Settings categories" className="md:w-48 md:shrink-0">
       <ul className="flex flex-col divide-y divide-border md:hidden">
-        {visibleSettingsCategories().map((category) => {
+        {mobileCategories.map((category) => {
           const Icon = SETTINGS_CATEGORY_ICON[category];
           return (
             <li key={category}>

@@ -24,6 +24,8 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
   showFinishSoon: true,
   showUpNext: true,
   showPickForMe: false,
+  mobileEpisodeControls: "swipe",
+  hasSeenSwipeHint: false,
 };
 
 export function toPreferences(row: typeof userPreferences.$inferSelect): UserPreferences {
@@ -41,6 +43,8 @@ export function toPreferences(row: typeof userPreferences.$inferSelect): UserPre
     showFinishSoon: row.showFinishSoon,
     showUpNext: row.showUpNext,
     showPickForMe: row.showPickForMe,
+    mobileEpisodeControls: row.mobileEpisodeControls,
+    hasSeenSwipeHint: row.hasSeenSwipeHint,
   };
 }
 

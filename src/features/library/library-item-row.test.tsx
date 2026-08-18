@@ -14,6 +14,9 @@ vi.mock("@/features/shows/show-tracking-actions", () => ({
 vi.mock("@/features/movies/movie-tracking-actions", () => ({
   markMovieWatchedAction: vi.fn(),
 }));
+vi.mock("@/features/settings/settings-actions", () => ({
+  updatePreferencesAction: vi.fn().mockResolvedValue(undefined),
+}));
 
 const BASE = {
   mediaProviderId: 550,

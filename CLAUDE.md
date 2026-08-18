@@ -1224,6 +1224,43 @@ in the same change.
   performance, and the installed app icon/identity must stay aligned
   with canonical MEDIO branding.
 
+## Mobile
+
+- MEDIO mobile layouts are first-class compositions, not compressed
+  desktop layouts — recompose hierarchy/density/actions per screen
+  rather than mechanically shrinking the desktop version to fit.
+- Important desktop hover actions must always have a touch-accessible
+  mobile equivalent — hover alone must never gate essential
+  functionality (see "UX & Interaction" above).
+- Prefer icon-first mobile actions when they save meaningful space
+  without reducing clarity; a domain concept with no obvious single icon
+  (Backlog, Resume, Caught up) keeps text.
+- Gestures must be intuitive, cancellable, scroll-safe, accessible, and
+  always call the exact same canonical domain mutation a non-gesture
+  control would — never a parallel implementation.
+- Mobile Library Episode tracking supports a configurable presentation
+  (`mobileEpisodeControls`: Swipe / Checkbox / Both), defaulting to
+  Swipe — see docs/library.md, "Mobile episode controls". Presentation
+  only; every option calls `markEpisodeWatchedAction`.
+- Swipe-to-watch tracks the exact canonical Episode identity and is
+  never destructive boolean toggle logic — a rewatch stays its own
+  separate, intentional action.
+- A gesture-only visual presentation must still expose the underlying
+  action accessibly (a real, focusable, `sr-only`-when-hidden control) —
+  never make a domain action reachable only through a pointer gesture.
+- A CSS class meant to hide an element (`sr-only`) must live on a
+  dedicated wrapper, never merged onto an element that already carries
+  its own conflicting sizing utilities — Tailwind doesn't guarantee
+  which one wins in output order.
+- Mobile overlays may use purpose-built bottom sheets when a desktop
+  popover/dropdown would be awkward on a phone — reachability and
+  scanning over mechanically reusing the desktop overlay.
+- Respect safe areas (`env(safe-area-inset-*)`), the virtual keyboard,
+  and reduced motion in every mobile-specific composition.
+- Mobile visual QA (real viewport sizes, light/dark, populated/sparse
+  states) is mandatory for major UI changes — never assumed correct from
+  source alone.
+
 ## Production
 
 - MEDIO's production application is hosted on Vercel; production

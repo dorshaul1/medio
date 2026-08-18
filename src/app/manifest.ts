@@ -20,13 +20,16 @@ export default function manifest(): MetadataRoute.Manifest {
     start_url: "/",
     scope: "/",
     display: "standalone",
-    // The product's real neutral surfaces (see globals.css) — a warm
-    // off-white light background, warm charcoal dark background. Chosen
-    // to match `theme-color` (see `app/layout.tsx`'s `viewport` export)
-    // so the OS/browser chrome around an installed launch reads as one
-    // continuous surface, never a mismatched flash of white/black.
-    background_color: "#faf6f0",
-    theme_color: "#8b5e45",
+    // The manifest spec allows only one static pair (no light/dark
+    // variants the way `<meta name="theme-color" media="...">` in
+    // `app/layout.tsx`'s `viewport` export supports) — set to the dark
+    // canvas/Clay pair since Dark is MEDIO's primary, most faithful
+    // expression of the current visual system (see docs/design-system.md,
+    // "Visual language"). Keep in sync with globals.css's dark
+    // `--background` and `medio-mark.tsx`'s `CLAY` by hand — both are
+    // fixed values for the same reason this is (see medio-mark.tsx).
+    background_color: "#141312",
+    theme_color: "#c1502e",
     icons: [
       { src: "/icons/192", sizes: "192x192", type: "image/png", purpose: "any" },
       { src: "/icons/512", sizes: "512x512", type: "image/png", purpose: "any" },

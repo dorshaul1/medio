@@ -10,6 +10,7 @@ import type {
   DensityPreferenceValue,
   DiscoverDefaultTypeValue,
   HomeLayoutValue,
+  MobileEpisodeControlsValue,
   MotionPreferenceValue,
   SpoilerProtectionValue,
   StatsDefaultRangeValue,
@@ -40,4 +41,10 @@ export type UserPreferences = {
   // Whether Home's header shows the "Pick for me" entry point — defaults
   // to `false`; see docs/recommendations.md.
   showPickForMe: boolean;
+  // Which control mobile Library shows for its next-episode quick
+  // action — see docs/library.md, "Mobile episode controls".
+  mobileEpisodeControls: MobileEpisodeControlsValue;
+  // Whether the one-time swipe-to-watch hint has already played — not a
+  // visible setting, see docs/library.md, "Swipe discoverability".
+  hasSeenSwipeHint: boolean;
 };

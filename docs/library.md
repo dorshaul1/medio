@@ -236,6 +236,81 @@ without a hard reload — see each action's own comment in
 `features/shows/show-tracking-actions.ts` /
 `features/movies/movie-tracking-actions.ts`.
 
+## Mobile episode controls
+
+Mobile Library's version of the "Quick tracking" control above (see
+CLAUDE.md, "Mobile"). `user_preferences.mobileEpisodeControls` (`swipe` |
+`checkbox` | `swipe_checkbox`, default `swipe`) decides how — never
+*whether* — an eligible tracked show's next episode gets marked watched
+on mobile; every option calls the exact same
+`markEpisodeWatchedAction`/`useMarkNextEpisodeWatched`
+(`features/library/use-mark-next-episode-watched.ts`) desktop's
+persistent `LibraryShowQuickAction` button already calls. Desktop is
+unaffected regardless of this preference — it always shows the button.
+
+- **Swipe** (default) — the row itself is the affordance; the checkbox
+  button is visually hidden (`sr-only`, on a dedicated wrapper `<span>` —
+  never merged directly onto the button, which already carries its own
+  conflicting `size-*` utility class) but stays real and focusable for
+  keyboard/screen-reader users (see "Gesture accessibility" below).
+- **Checkbox** — the persistent icon control, same as desktop, swipe
+  gesture disabled entirely.
+- **Both** — both are active at once.
+
+### Swipe to watch
+
+`EpisodeSwipeRow` (`features/library/episode-swipe-row.tsx`) wraps the
+row's translatable identity content (poster/title/detail — never the
+whole `<li>`, so the shell's own flex layout stays intact) and reveals a
+primary-color "mark watched" layer underneath as the user drags right —
+"swipe right to check off" (the same direction Reminders/Things-style
+task apps use for a positive completion action), not the "swipe left to
+reveal more actions" direction Mail-style apps use for secondary/
+destructive actions. Pure gesture math (`swipe-math.ts`) is unit-tested
+independently of any DOM/pointer wiring:
+
+- **Direction lock** (`resolveSwipeIntent`) — nothing moves until real
+  movement clearly resolves horizontal vs. vertical (a dead zone plus a
+  dominance ratio), so an ordinary vertical scroll never drags a row.
+  Once resolved vertical, this component releases its own claim on that
+  pointer permanently for the gesture — the browser's native scroll
+  (never prevented) has it from there.
+- **Rightward-only** (`clampSwipeTravel`) — a leftward drag never moves
+  the row. A real row starts well clear of the true screen edge (page
+  padding, the poster's own margin), so this doesn't compete in practice
+  with the browser's own edge-swipe-back gesture, which only activates
+  from a touch starting within a narrow strip of the actual viewport
+  edge.
+- **Threshold** (`isPastCommitThreshold`, 60% of the reveal layer's own
+  travel) — short of it, both layers animate back to rest and nothing
+  changes; past it, the row holds the full reveal and calls the
+  canonical mutation. A failed mutation restores the row (never a false
+  "watched" state) without touching the list's scroll position.
+- Repeated submission is impossible mid-mutation — the surface stops
+  responding to new gestures while `isPending`.
+
+### Gesture accessibility
+
+Even in Swipe mode, the real accessible control (the same `IconButton`
+`LibraryShowQuickAction` renders on desktop) is always present and
+focusable — a pointer gesture is never the only way to reach a domain
+action. Its visual presentation (visible vs. `sr-only`) is the only thing
+`mobileEpisodeControls` changes.
+
+### Swipe discoverability
+
+A one-time, brief reveal-and-settle (well short of the commit threshold
+— it can never be mistaken for a real action) plays on the first eligible
+row a user's mobile Library ever renders, then never again —
+`user_preferences.hasSeenSwipeHint` persists that it's played.
+`SwipeHintProvider`/`useClaimSwipeHint`
+(`features/library/swipe-hint-context.tsx`) ensures at most one row per
+page load ever claims it, even across multiple swipeable rows or a "Load
+more" page. Separately, every swipeable row also carries a small,
+permanent (never repeating/animating on its own), quiet chevron cue —
+not a tutorial banner, just a constant "this row responds to a swipe"
+signal that fades out as a real drag takes over.
+
 ## Why derived states aren't a pre-filter
 
 Library's URL `state` filter (`LibraryRawState`) only ever exposes states

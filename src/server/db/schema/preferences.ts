@@ -43,6 +43,16 @@ export type CalendarDefaultViewValue = (typeof calendarDefaultViewValues)[number
 export const statsDefaultRangeValues = ["all", "year", "month"] as const;
 export type StatsDefaultRangeValue = (typeof statsDefaultRangeValues)[number];
 
+// Which control mobile Library exposes for its one-tap "mark next episode
+// watched" quick action (see docs/library.md, "Mobile episode controls").
+// Presentation only — every option calls the exact same canonical
+// `markEpisodeWatchedAction`; this never becomes a second tracking
+// semantic. Defaults to `swipe` (a permanently-visible checkbox reads as
+// list-y busywork on a dense mobile Library, see CLAUDE.md, "Episode
+// tracking controls must not resemble a task checklist").
+export const mobileEpisodeControlsValues = ["swipe", "checkbox", "swipe_checkbox"] as const;
+export type MobileEpisodeControlsValue = (typeof mobileEpisodeControlsValues)[number];
+
 export const userPreferences = pgTable(
   "user_preferences",
   {
@@ -97,6 +107,14 @@ export const userPreferences = pgTable(
     // competing for attention on every Home visit; this only hides the
     // entry point, `/pick` itself stays fully reachable directly.
     showPickForMe: boolean("show_pick_for_me").notNull().default(false),
+    mobileEpisodeControls: text("mobile_episode_controls", { enum: mobileEpisodeControlsValues })
+      .notNull()
+      .default("swipe"),
+    // Whether this user has already seen the one-time swipe-to-watch
+    // affordance demo on mobile Library — see docs/library.md, "Swipe
+    // discoverability". Not a visible setting; only ever flipped to
+    // `true` by the hint itself, once, the first time it plays.
+    hasSeenSwipeHint: boolean("has_seen_swipe_hint").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
@@ -137,6 +155,10 @@ export const userPreferences = pgTable(
     check(
       "user_preferences_home_calendar_view_check",
       sql`${table.homeCalendarView} in ('upcoming', 'calendar')`,
+    ),
+    check(
+      "user_preferences_mobile_episode_controls_check",
+      sql`${table.mobileEpisodeControls} in ('swipe', 'checkbox', 'swipe_checkbox')`,
     ),
   ],
 );

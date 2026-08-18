@@ -1,16 +1,17 @@
-// The shared MEDIO app-icon mark — three ascending rounded bars (echoing
-// Stats' own "Viewing rhythm" chart and the product's core promise of
-// exact, sequential episode tracking), never a literal "MEDIO" wordmark
+// The shared MEDIO app-icon mark — a watch-ring with a checkmark inside,
+// the exact same shape `LibraryShowQuickAction`/`episode-watch-control.tsx`
+// already draw every time a user marks something watched (see
+// docs/pwa.md, "App icon design"). Never a literal "MEDIO" wordmark
 // squeezed into a square, a generic play triangle, or a clapperboard
-// cliché — see docs/pwa.md, "App icon design". Deliberately simple
-// geometry: it has to read clearly at a 29px iOS Home Screen size, not
-// just at 512px. Lives here (not under `app/icons/`) because it's used
-// two ways: rendered through `next/og`'s `ImageResponse` for the actual
-// icon routes (`app/icon.tsx`, `app/apple-icon.tsx`, `app/icons/*/
-// route.tsx`), and rendered as normal React for Landing's own "install
-// MEDIO" illustration (`features/landing/illustrations/
-// mobile-install-illustration.tsx`) — the same real mark in both places,
-// never a second approximation.
+// cliché — those read as "a media app," this reads as "the specific
+// thing MEDIO's own UI does." Deliberately simple geometry: it has to
+// read clearly at a 29px iOS Home Screen size, not just at 512px. Lives
+// here (not under `app/icons/`) because it's used two ways: rendered
+// through `next/og`'s `ImageResponse` for the actual icon routes
+// (`app/icon.tsx`, `app/apple-icon.tsx`, `app/icons/*/route.tsx`), and
+// rendered as normal React for Landing's own "install MEDIO" illustration
+// (`features/landing/illustrations/mobile-install-illustration.tsx`) —
+// the same real mark in both places, never a second approximation.
 //
 // Colors are plain hex approximations of the real `--primary` (clay) /
 // `--primary-foreground` tokens (see globals.css), deliberately not the
@@ -34,16 +35,14 @@ const BASE_PADDING = 0.16;
 
 export function MedioMark({ size, inset = 0 }: { size: number; inset?: number }) {
   const margin = size * (BASE_PADDING + inset);
-  const contentWidth = size - margin * 2;
-  const barWidth = contentWidth * 0.18;
-  const gap = contentWidth * 0.16;
-  // The bar group's own height is deliberately less than the full
-  // padded content box — centered top-to-bottom by the outer flex
-  // container below, rather than bottom-anchored flush against the
-  // padding, so the mark reads as one centered composition sitting in
-  // the middle of the tile, not a chart glued to its bottom edge.
-  const barGroupHeight = contentWidth * 0.82;
-  const heights = [0.45, 0.72, 1].map((fraction) => barGroupHeight * fraction);
+  const contentSize = size - margin * 2;
+  // A true ring, not a filled disc — it has to read as "in progress /
+  // trackable," the same open-stroke language the real watch-ring
+  // control uses, not a solid badge. Stroke widths are proportions of
+  // the 100-unit viewBox below, not the tile's own pixel size, so the
+  // mark scales identically at every icon size.
+  const ringStroke = 9;
+  const checkStroke = 11;
 
   return (
     <div
@@ -62,28 +61,23 @@ export function MedioMark({ size, inset = 0 }: { size: number; inset?: number })
         borderRadius: inset > 0 ? 0 : size * 0.22,
       }}
     >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "flex-end",
-          justifyContent: "center",
-          gap,
-          width: contentWidth,
-          height: barGroupHeight,
-        }}
+      <svg
+        aria-hidden="true"
+        width={contentSize}
+        height={contentSize}
+        viewBox="0 0 100 100"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
       >
-        {heights.map((height) => (
-          <div
-            key={height}
-            style={{
-              width: barWidth,
-              height,
-              background: CLAY_FOREGROUND,
-              borderRadius: barWidth * 0.4,
-            }}
-          />
-        ))}
-      </div>
+        <circle cx="50" cy="50" r="38" stroke={CLAY_FOREGROUND} strokeWidth={ringStroke} />
+        <path
+          d="M32 51 L45 64 L70 35"
+          stroke={CLAY_FOREGROUND}
+          strokeWidth={checkStroke}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
     </div>
   );
 }
