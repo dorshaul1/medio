@@ -185,6 +185,29 @@
     Auth's client directly rather than going through
     `server/preferences/`, since none of it is a `UserPreferences` row.
     See `docs/settings.md`.
+  - **`features/search/`** — the ⌘K/Command Center dialog shell and its
+    supporting media-search plumbing: `GlobalSearchProvider`/
+    `global-search-context.tsx` (the one open/close state, mounted once
+    in `AppShell`), `GlobalSearchDialog` (the dialog itself — search
+    input, results list, keyboard handling), `GlobalSearchNavTrigger`/
+    `GlobalSearchIconTrigger` (desktop rail vs mobile header entry
+    points), `search-actions.ts` (the `getSearchSuggestionsAction`
+    Server Action wrapping `searchAll`), and `recent-searches.ts`
+    (`localStorage`-only). See `docs/search.md`, "Command Center".
+  - **`features/command-center/`** — everything command-specific that
+    `GlobalSearchDialog` composes: `types.ts` (`Command`/`CommandGroup`/
+    `CommandRunContext`), `static-commands.ts` (the declarative
+    navigation + Log Watched command catalog), `match.ts`
+    (`matchCommands` — reuses unified Search's own `matchQuality` tiers,
+    never a separate fuzzy scheme), `command-row.tsx` (dual Link/button
+    row rendering), `command-center-actions.ts`/`up-next-command.ts` (the
+    one dynamic command, sourced from Home's own `getPersonalHome()`),
+    and `log-watched-result-row.tsx` (the nested Log Watched step's
+    Movie/Show rows, calling the same canonical tracking mutations Home/
+    Library/Show Details use). Kept separate from `features/search/`
+    because it's a genuinely distinct concern (a declarative command
+    catalog + matcher) that the dialog shell composes, not Search-specific
+    UI. See `docs/search.md`, "Command Center".
 - **`server/db/`** — the database connection (`index.ts`: pool + Drizzle
   instance, plus the shared `Transaction` type for domain code that needs
   to accept either `db` or an in-flight transaction) and schema modules

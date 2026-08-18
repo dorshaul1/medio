@@ -121,24 +121,101 @@ Search/Discover compose personal state for an *arbitrary* public result
 set. Forcing one to serve both would be exactly the kind of shared
 abstraction CLAUDE.md warns against building before there's a real need.
 
-## GlobalSearch (⌘K)
+## Command Center (⌘K)
 
-`features/search/` — a compact, fast overlay reachable from anywhere in
-the authenticated app (`GlobalSearchProvider`, mounted once in
+`features/search/global-search-dialog.tsx` (the dialog/overlay shell,
+still owned by `features/search/` — trigger, provider, recent-searches,
+and the media-search plumbing all predate this phase and stayed put) plus
+`features/command-center/` (everything command-specific: types, the
+static command catalog, matching, and the Quick Action commands) —
+evolved in place from the original Search-only overlay into MEDIO's
+canonical desktop Command Center: one keyboard-first surface for
+searching Movies/Shows/People, navigating anywhere in the app, and
+running the highest-frequency tracking actions. Reachable from anywhere
+in the authenticated app (`GlobalSearchProvider`, mounted once in
 `AppShell`), triggered by `⌘K`/`Ctrl+K` (desktop) or a Search icon in the
 mobile header strip (`GlobalSearchIconTrigger`) / the desktop nav rail
-(`GlobalSearchNavTrigger`). Deliberately scoped to *this one job* — never
-generalized into a command palette.
+(`GlobalSearchNavTrigger`) — the sidebar Search entry point and `⌘K` open
+the exact same dialog, never two implementations.
+
+### Commands
+
+A `Command` (`features/command-center/types.ts`) is either a navigation
+(`href: Route`) or a real action (`run: (context: CommandRunContext) =>
+void | Promise<void>`) — never both. `CommandGroup` is `"quick-actions" |
+"navigate" | "settings"`. The static catalog
+(`features/command-center/static-commands.ts`) covers every primary nav
+destination plus the deeper Settings categories and Stats' Taste tab,
+each with `keywords` for aliases a user might reasonably type that
+aren't in the label ("taste" → Stats → Taste, "preferences" → Settings,
+"user"/"sign out"/"password" → Account, "releases"/"upcoming" →
+Calendar). Two commands are dynamic, composed at render time rather than
+static: **Log watched** (`LOG_WATCHED_COMMAND`, always present — opens a
+nested in-dialog search step scoped to Movies/Shows, see "Log watched"
+below) and **Up Next**'s mark-watched command
+(`up-next-command.ts`'s `buildUpNextCommand`, present only when the
+user actually has an Up Next episode — fetched once per dialog open via
+`getUpNextCommandDataAction`, a thin Server Action wrapper around the
+same `getPersonalHome()` Home itself calls; never a second derivation).
+Every action command reuses the exact canonical mutation Home/Library/
+Show Details already call (`markEpisodeWatchedAction`,
+`markMovieWatchedAction`) — commands are a faster entry point into
+existing domain behavior, never a parallel implementation of it.
+
+### Ranking
+
+`features/command-center/match.ts`'s `matchCommands(commands, query)`
+scores each command by the *same* tiered `matchQuality` unified Search
+uses (`normalizeSearchText` + exact/prefix/wordBoundary/substring),
+taking the best score across the label and every keyword; a command with
+zero textual relevance is excluded, never ranked last. In the combined
+result list, a **strong** command match (score ≥ `0.75` — an exact or
+prefix hit) is treated as almost certainly what the user meant and leads
+the list, ahead of media results; a **weak** match (word-boundary/
+substring) trails the media results instead, so a coincidental partial
+command match can never push down a clear content search like "breaking
+bad". Command and media ranking otherwise stay independent passes —
+commands are never blended into `rankSearchResults`' own scoring.
+
+### Log watched
+
+Typing "watch " or "log " before a query (`stripMediaIntentPrefix`) is
+the one deliberate bit of intent-parsing this domain does — it's
+stripped before the string reaches media search, so "log dune" searches
+"dune". Selecting **Log watched** (or matching that intent strongly
+enough) switches the dialog into a nested `mode: "log-watched"` step:
+the same debounced media search, filtered to Movies/Shows, each result a
+`LogWatchedResultRow` that records a real watch event directly
+(`markMovieWatchedAction`/navigates to the show to pick an episode) —
+never a separate lookup UI. Escape returns to the top-level search first
+(via Radix's `onEscapeKeyDown` on `DialogPrimitive.Content` — the
+documented hook for intercepting Escape before Radix's own
+close-on-Escape fires; a plain child `preventDefault` cannot out-race
+it), and only closes the dialog on a second press.
+
+### Default (idle) state
+
+Before typing anything: **Quick actions** (Log watched, Up Next when
+available) always render; **Navigate** (every primary destination minus
+wherever the user already is, via `isNavItemActive`) is `hidden
+md:block` — desktop-only, since mobile already has its own bottom nav
+for the same destinations and repeating all of them here would read as
+a sitemap dropped into a touch surface, not purpose-built mobile search;
+**Recent searches** (last 5, see below) follow. Never a bare "type
+something to search" empty state.
+
+### Interaction details (predate this phase, still apply)
 
 - **Debounced, never per-keystroke**: typing updates local state
   immediately, but the actual `getSearchSuggestionsAction` Server Action
   call only fires 250ms after the user stops typing. A stale, now-
   superseded response is dropped (guarded by a monotonically increasing
   request id) rather than clobbering a newer one.
-- **Plain search input + a real list of `<Link>`s, not a simulated ARIA
+- **Plain search input + a real list of focusable rows (Links or
+  buttons, both marked `data-search-result`), not a simulated ARIA
   combobox/listbox** — Arrow Up/Down/Enter/Escape all work via real focus
-  movement between independently-tabbable result links (a native
-  `keydown` listener scoped to the results container), not a synthetic
+  movement between independently-tabbable elements (a native `keydown`
+  listener scoped to the results container), not a synthetic
   `aria-activedescendant` relationship.
 - **Focus management**: `GlobalSearchProvider` captures
   `document.activeElement` the moment it opens (its own triggers are
@@ -152,12 +229,18 @@ generalized into a command palette.
   moment a query is actually searched (post-debounce), not only once a
   result is clicked — closing without picking anything still means the
   search happened and is worth remembering.
-- **Before typing anything**: recent searches (if any) plus two quick
-  Discover entry points (Movies/Shows) — never a bare "type something to
-  search" empty state.
 - **"See all results"** always leads to `/discover?q=...` — the exact
   same `searchAll`-backed results system as the full page, never a
   second, parallel search implementation.
+
+### Mobile
+
+Mobile keeps its own icon trigger and gets the same dialog, but never
+the desktop Navigate section (see above) — it's purpose-built touch
+search plus a couple of real quick actions, not a mechanical copy of
+desktop ⌘K's full destination list. There is no mobile-specific command
+palette UI beyond that — one dialog implementation, one section hidden
+per breakpoint, not a forked component.
 
 ## Full results page (`/discover?q=`)
 

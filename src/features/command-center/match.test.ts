@@ -1,3 +1,5 @@
+import type { Route } from "next";
+import { BarChart3 } from "lucide-react";
 import { describe, expect, it } from "vitest";
 import { matchCommands } from "./match";
 import type { Command } from "./types";
@@ -6,23 +8,23 @@ const STATS: Command = {
   id: "stats",
   label: "Stats",
   group: "navigate",
-  icon: () => null,
-  href: "/stats",
+  icon: BarChart3,
+  href: "/stats" as Route,
 };
 const STATS_TASTE: Command = {
   id: "stats-taste",
   label: "Stats → Taste",
   group: "navigate",
-  icon: () => null,
-  href: "/stats?tab=taste",
+  icon: BarChart3,
+  href: "/stats?tab=taste" as Route,
   keywords: ["taste"],
 };
 const ACCOUNT: Command = {
   id: "account",
   label: "Account",
   group: "navigate",
-  icon: () => null,
-  href: "/settings/account",
+  icon: BarChart3,
+  href: "/settings/account" as Route,
   keywords: ["user"],
 };
 

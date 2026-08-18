@@ -463,6 +463,20 @@ in the same change.
   Discover, Search, and Library into identical layouts — a search result
   row, a genre grid tile, and a Library row are deliberately different
   compositions for different contexts.
+- ⌘K is MEDIO's canonical desktop Command Center for unified media
+  search, navigation and high-frequency actions.
+- Command actions reuse canonical MEDIO domains/mutations; business
+  rules must never be reimplemented inside the command system.
+- Search results and commands participate in one relevance-oriented
+  experience rather than rigid Movie/Show/Person sections.
+- Context-aware commands may use the current route and canonical
+  personal state to improve relevance.
+- Keyboard-only operation is a first-class requirement.
+- Keep commands curated; do not turn the palette into an exhaustive CRUD
+  interface.
+- Sidebar Search opens the same canonical Command Center.
+- Mobile remains independently touch-optimized rather than mechanically
+  reproducing desktop ⌘K.
 
 ## TV / Show Details
 
