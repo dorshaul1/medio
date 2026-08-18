@@ -81,10 +81,12 @@ describe("MovieHero", () => {
     );
 
     expect(screen.getByText("Your mind is the scene of the crime.")).toBeInTheDocument();
-    expect(screen.getByText("2010")).toBeInTheDocument();
-    expect(screen.getByText("2h 28m")).toBeInTheDocument();
-    expect(screen.getByText("8.4")).toBeInTheDocument();
-    expect(screen.getByText("Action, Science Fiction")).toBeInTheDocument();
+    // Both a mobile-only and a desktop-only metadata line render in the
+    // DOM at once (CSS decides which one shows) — see media-detail-hero.tsx.
+    expect(screen.getAllByText("2010").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("2h 28m").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("8.4").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Action, Science Fiction").length).toBeGreaterThan(0);
   });
 
   it("renders a director line when directors are known, and omits it otherwise", () => {

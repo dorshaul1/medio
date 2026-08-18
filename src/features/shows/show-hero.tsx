@@ -32,7 +32,9 @@ export function ShowHero({
 }) {
   const backdrop = backdropUrl(show.backdrop, "large");
   const poster = posterUrl(show.poster, "large");
-  const metadata = buildMetadataLine(show);
+  const essentialMetadata = buildEssentialMetadataLine(show);
+  const genres = show.genres.length > 0 ? show.genres.map((genre) => genre.name).join(", ") : null;
+  const desktopMetadata = genres ? [...essentialMetadata, genres] : essentialMetadata;
   const scale = buildScaleLine(show);
 
   return (
@@ -48,10 +50,17 @@ export function ShowHero({
           {show.tagline ? (
             <p className="text-sm text-muted-foreground italic">{show.tagline}</p>
           ) : null}
+          {/* Genres join this same line on desktop (the pre-mobile-audit
+              arrangement) — only mobile splits them out to their own
+              full-width line below the poster (see the genres <p>
+              below). Two breakpoint-specific renders, not a client
+              viewport check — both are inert static text. */}
+          <MetadataLine parts={essentialMetadata} className="sm:hidden" />
+          <MetadataLine parts={desktopMetadata} className="hidden sm:flex" />
         </>
       }
     >
-      <MetadataLine parts={metadata} />
+      {genres ? <p className="text-sm text-muted-foreground sm:hidden">{genres}</p> : null}
 
       {scale ? <p className="text-sm text-muted-foreground">{scale}</p> : null}
 
@@ -76,15 +85,17 @@ export function ShowHero({
 // formatShowYearRange for why the range itself already communicates
 // ongoing vs. concluded (the trailing "–present"), with the raw status
 // word alongside for an unambiguous, explicit answer to "is it still
-// airing?" rather than making the reader infer it from a dash.
-function buildMetadataLine(show: ShowDetails): ReactNode[] {
+// airing?" rather than making the reader infer it from a dash. Sits
+// beside the poster, next to the title; genres and the scale line
+// deliberately aren't folded in here — they read better full-width below
+// the poster+title row (see the caller).
+function buildEssentialMetadataLine(show: ShowDetails): ReactNode[] {
   const parts: ReactNode[] = [];
 
   const yearRange = formatShowYearRange(show.firstAirYear, lastAirYear(show), show.status);
   if (yearRange) parts.push(yearRange);
   if (show.status) parts.push(show.status);
   if (show.providerRating > 0) parts.push(providerRatingPart(show.providerRating));
-  if (show.genres.length > 0) parts.push(show.genres.map((genre) => genre.name).join(", "));
 
   return parts;
 }

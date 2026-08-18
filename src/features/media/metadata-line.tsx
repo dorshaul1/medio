@@ -1,16 +1,26 @@
 import { Star } from "lucide-react";
 import type { ReactNode } from "react";
+import { cn } from "@/lib/utils";
 
 // The "·"-separated identity metadata row shared by Movie and Show
 // Details (year · runtime/scale · rating · genres, in whatever order and
 // combination each caller builds) — each part is independently optional,
 // so callers build an ordered list of nodes rather than a
-// conditionally-joined template string.
-export function MetadataLine({ parts }: { parts: readonly ReactNode[] }) {
+// conditionally-joined template string. `className` exists so a caller
+// can render two breakpoint-specific variants of the same line (see
+// Movie/Show Hero, "genres joins the line on desktop, stays a separate
+// line on mobile") without a client-only viewport check.
+export function MetadataLine({
+  parts,
+  className,
+}: {
+  parts: readonly ReactNode[];
+  className?: string;
+}) {
   if (parts.length === 0) return null;
 
   return (
-    <p className="flex flex-wrap items-center justify-center gap-x-1.5 text-sm text-muted-foreground sm:justify-start">
+    <p className={cn("flex flex-wrap items-center gap-x-1.5 text-sm text-muted-foreground", className)}>
       {parts.map((part, index) => (
         // A static-length metadata line built from the caller's own
         // fields, never reordered — the index key exception applies.

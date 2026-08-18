@@ -43,14 +43,16 @@ describe("ShowHero", () => {
 
   it("renders a closed year range and status for an ended show", () => {
     render(<ShowHero show={SHOW} trackingControl={null} />);
-    expect(screen.getByText("2011–2019")).toBeInTheDocument();
-    expect(screen.getByText("Ended")).toBeInTheDocument();
+    // Both a mobile-only and a desktop-only metadata line render in the
+    // DOM at once (CSS decides which one shows) — see media-detail-hero.tsx.
+    expect(screen.getAllByText("2011–2019").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Ended").length).toBeGreaterThan(0);
   });
 
   it("renders an open-ended year range for a returning show", () => {
     render(<ShowHero show={{ ...SHOW, status: "Returning Series" }} trackingControl={null} />);
-    expect(screen.getByText("2011–present")).toBeInTheDocument();
-    expect(screen.getByText("Returning Series")).toBeInTheDocument();
+    expect(screen.getAllByText("2011–present").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Returning Series").length).toBeGreaterThan(0);
   });
 
   it("renders the show's scale (seasons, episodes, typical runtime)", () => {

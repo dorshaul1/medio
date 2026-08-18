@@ -38,7 +38,9 @@ export function MovieHero({
 }) {
   const backdrop = backdropUrl(movie.backdrop, "large");
   const poster = posterUrl(movie.poster, "large");
-  const metadata = buildMetadataLine(movie);
+  const essentialMetadata = buildEssentialMetadataLine(movie);
+  const genres = movie.genres.length > 0 ? movie.genres.map((genre) => genre.name).join(", ") : null;
+  const desktopMetadata = genres ? [...essentialMetadata, genres] : essentialMetadata;
 
   return (
     <MediaDetailHero
@@ -53,10 +55,17 @@ export function MovieHero({
           {movie.tagline ? (
             <p className="text-sm text-muted-foreground italic">{movie.tagline}</p>
           ) : null}
+          {/* Genres join this same line on desktop (the pre-mobile-audit
+              arrangement) — only mobile splits them out to their own
+              full-width line below the poster (see the genres <p>
+              below). Two breakpoint-specific renders, not a client
+              viewport check — both are inert static text. */}
+          <MetadataLine parts={essentialMetadata} className="sm:hidden" />
+          <MetadataLine parts={desktopMetadata} className="hidden sm:flex" />
         </>
       }
     >
-      <MetadataLine parts={metadata} />
+      {genres ? <p className="text-sm text-muted-foreground sm:hidden">{genres}</p> : null}
 
       {directors.length > 0 ? (
         <p className="text-sm text-muted-foreground">
@@ -112,16 +121,15 @@ export function MovieHero({
   );
 }
 
-// Directors deliberately aren't folded in here — see the caller, they
-// read better as their own sentence-like line than jammed into a terse
-// row.
-function buildMetadataLine(movie: MovieDetails): ReactNode[] {
+// Year/runtime/rating sit beside the poster, next to the title — genres
+// and directors deliberately aren't folded in here; they read better
+// full-width below the poster+title row (see the caller).
+function buildEssentialMetadataLine(movie: MovieDetails): ReactNode[] {
   const parts: ReactNode[] = [];
 
   if (movie.releaseYear) parts.push(movie.releaseYear);
   if (movie.runtimeMinutes) parts.push(formatRuntime(movie.runtimeMinutes));
   if (movie.providerRating > 0) parts.push(providerRatingPart(movie.providerRating));
-  if (movie.genres.length > 0) parts.push(movie.genres.map((genre) => genre.name).join(", "));
 
   return parts;
 }
