@@ -149,16 +149,56 @@ queue, no background sync, no conflict resolution.
 
 A newly installed worker deliberately does **not** call
 `self.skipWaiting()` on install — it stays in the browser's normal
-"waiting" state until the page explicitly asks it to take over. `
-src/components/pwa-manager.tsx` watches for a waiting worker and shows
-a restrained "A new version of MEDIO is ready. [Refresh]" banner;
-clicking it `postMessage`s `"SKIP_WAITING"` to the worker, which then
-activates and triggers `controllerchange`, which the page listens for to
-reload exactly once. This is never automatic — user data safety (an
-in-progress note, form, or Settings change) always wins over activating
-an update immediately. `activate` deletes every previously-versioned
-cache (`CACHE_VERSION` in `sw.js`), so old assets never accumulate
-across deploys.
+"waiting" state until the page explicitly asks it to take over.
+
+One shared registration owns this: `ServiceWorkerProvider`
+(`src/features/pwa/service-worker-context.tsx`, mounted once in the root
+layout) registers `/sw.js` and exposes `status`
+(`"checking" | "available" | "up-to-date" | "error"`), `checkForUpdate()`,
+and `applyUpdate()` via context. `PwaManager`'s floating "A new version
+of MEDIO is ready. [Refresh]" toast and Settings → General's "App
+updates" row (`AppUpdateSetting`) are both thin consumers of this one
+context — neither registers its own worker, and there is exactly one
+place `SKIP_WAITING` is ever posted from (`applyUpdate()`).
+
+Detection happens three ways, all funneling into the same state:
+
+- The browser's own real navigations already trigger a check.
+- `visibilitychange` — an already-open tab re-checks the moment it
+  becomes visible again, so returning to a backgrounded/installed PWA
+  surfaces a same-session deploy without needing a manual reload.
+- A periodic timer (`PERIODIC_CHECK_INTERVAL_MS`, one hour) for a tab
+  left open indefinitely.
+- `checkForUpdate()` — the manual "Check for updates" action, calling
+  `registration.update()` and settling to `available`/`up-to-date`/
+  `error` once the browser's own byte-comparison against `/sw.js`
+  resolves (`UPDATE_SETTLE_DELAY_MS` is the one deliberate timing
+  buffer for a genuinely-newer worker to reach `waiting` after that
+  resolves).
+
+Activating an update is still **never automatic** — user data safety (an
+in-progress note, form, or Settings change) always wins. `applyUpdate()`
+only ever runs from an explicit click (the toast's "Refresh" or
+Settings' "Update now"); it `postMessage`s `"SKIP_WAITING"` to the
+waiting worker, which activates and triggers `controllerchange`, which
+the provider listens for to reload exactly once — new deployments reach
+an installed PWA or an open browser tab through this one lifecycle;
+reinstalling MEDIO is never the expected update mechanism. `activate`
+deletes every previously-versioned cache (`CACHE_VERSION` in `sw.js`),
+so old assets never accumulate across deploys.
+
+Tested at two levels, deliberately not one giant end-to-end deploy
+simulation: `service-worker-context.test.tsx` drives the real browser
+event sequence (`updatefound` → the installing worker reaching
+`installed` with an existing controller → `available` →
+`applyUpdate()` → `controllerchange` → one reload) against controlled
+fakes; `e2e/pwa.spec.ts`'s "update lifecycle" tests confirm the real
+Settings UI resolves to a genuine status against a real registered
+worker in a real browser. A full "deploy A → deploy B → detect → apply"
+simulation isn't reliably driveable through Playwright: a Service
+Worker's own update-check fetch runs through the browser's internal SW
+infrastructure, not the renderer network stack Playwright's `route()`
+hooks into.
 
 ## Install promotion policy
 

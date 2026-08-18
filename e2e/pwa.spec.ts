@@ -44,7 +44,7 @@ test.describe("mobile browser experience", () => {
     await page.goto("/");
     await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
 
-    await page.getByRole("button", { name: "Search Movies, Shows and People" }).click();
+    await page.getByRole("button", { name: "Search" }).click();
     await expect(page.getByRole("dialog")).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(page.getByRole("dialog")).not.toBeVisible();
@@ -187,6 +187,38 @@ test.describe("install promotion policy — Landing", () => {
       await expect(page.getByRole("button", { name: "Add to Home Screen" })).toHaveCount(0);
     });
   });
+});
+
+test.describe("update lifecycle", () => {
+  test("Settings shows a real, resolved update status, and Check for updates works", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
+    await page.goto("/settings/general");
+
+    // A fresh production build with nothing newer deployed settles to
+    // up-to-date — never a stuck "Checking…", never a false "Update
+    // available".
+    await expect(page.getByText("MEDIO is up to date")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Update now" })).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Check for updates" }).click();
+    await expect(page.getByText("MEDIO is up to date")).toBeVisible();
+  });
+
+  // The full "deploy A → deploy B → detect → activate" path isn't
+  // reliably driveable from Playwright: a Service Worker's own update
+  // check is fetched through the browser's internal SW infrastructure,
+  // not the renderer's network stack, so neither `page.route()` nor
+  // `context.route()` intercepts it (a known Playwright/Chromium
+  // limitation, not a MEDIO bug). The real mechanism — `updatefound` →
+  // the installing worker reaching `installed` with an existing
+  // controller → `available` → `applyUpdate()` posting `SKIP_WAITING` →
+  // `controllerchange` reloading exactly once — is directly exercised
+  // with real browser event semantics (via fakes that don't have this
+  // network-layer limitation) in
+  // `src/features/pwa/service-worker-context.test.tsx`.
 });
 
 test.describe("install promotion policy — Settings", () => {

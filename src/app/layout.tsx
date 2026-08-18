@@ -4,6 +4,7 @@ import { PwaManager } from "@/components/pwa-manager";
 import { ThemeProvider } from "@/components/theme-provider";
 import { siteConfig } from "@/config/site";
 import { InstallProvider } from "@/features/install/install-provider";
+import { ServiceWorkerProvider } from "@/features/pwa/service-worker-context";
 import { getCurrentUserPreferences } from "@/server/preferences/queries";
 import "./globals.css";
 
@@ -86,8 +87,10 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
               same `useInstall()` state (see docs/pwa.md, "Install
               promotion policy"). */}
           <InstallProvider>
-            {children}
-            <PwaManager />
+            <ServiceWorkerProvider>
+              {children}
+              <PwaManager />
+            </ServiceWorkerProvider>
           </InstallProvider>
         </ThemeProvider>
       </body>

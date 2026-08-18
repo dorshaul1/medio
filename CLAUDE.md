@@ -1216,6 +1216,13 @@ in the same change.
 - A Service Worker update must never force an unexpected reload while
   the user is mid-edit — a new version only activates when the user
   explicitly clicks the update prompt's own action.
+- Installed MEDIO must receive new deployments through the normal PWA
+  update lifecycle; reinstalling the app is never the expected update
+  mechanism. One shared registration/status (`ServiceWorkerProvider`,
+  `src/features/pwa/`) backs every surface that shows or acts on it —
+  `PwaManager`'s toast and Settings → General's "App updates" row are
+  thin consumers, never a second registration or a second place
+  `SKIP_WAITING` gets posted from.
 - Logout/account switching must never let another account's cached
   content flash or reappear — this holds by construction here (nothing
   private is ever cached), not through extra invalidation logic; keep
