@@ -1,5 +1,40 @@
 # Design system
 
+## Visual language
+
+MEDIO's visual language is adapted from a dark-stage editorial reference
+(a "black-box stage lit by a warm spotlight" — see the Refero style
+this phase's redesign was built from): a near-black canvas, imagery doing
+the work, hairline inset borders instead of drop shadows, one saturated
+signature accent used sparingly for the single most important action, and
+a second, quieter editorial accent for section/category marks. This is a
+deliberate **adaptation of the design language, not a copy of its
+branding** — MEDIO keeps its own Clay identity (pushed to a genuinely
+saturated "spotlight" version) rather than adopting the reference's own
+magenta, and there is no third "conversion accent" tier (the reference's
+own volt/neon layer) — that reads as marketing-site energy MEDIO's
+personal-tracking product doesn't need. Dark is the primary, most
+faithful expression of this language; Light is a deliberate counterpart
+derived from the same relationships (canvas / raised surface / hairline
+border / one accent), never an inverted afterthought — see "Themes"
+below.
+
+## Typography
+
+Two typefaces, both `next/font/google` (never a proprietary font file
+copied from a reference): **Inter** (`--font-sans`, the default) for
+everything UI/body — navigation, buttons, form fields, body copy, card
+titles, page-title tier headings — and **Inter Tight** (`--font-display`,
+applied via the `font-display` utility) reserved for genuinely cinematic
+editorial headlines only: Landing's hero, Movie/Show/Person Details'
+title, and the Taste/Stats editorial headline sentence. Never body copy,
+never a UI label, never a button — mixing the condensed display cut into
+running text or controls is exactly the "wearing a new theme" failure
+mode this phase was built to avoid. Display text pairs a large size with
+tight leading (`leading-[0.9]`–`leading-[0.95]`, not the default) for the
+"dramatic vertical compression" the reference calls for; UI/body text
+keeps its normal, comfortable leading.
+
 ## Principles
 
 - **Content brings the color.** Chrome stays neutral; posters, artwork, and
@@ -84,30 +119,57 @@ carrier of any required state; focus and selection always use `ring` too.
 
 ### Radius
 
-`--radius` (0.375rem / 6px) is the base; `--radius-sm/md/lg/xl` step from it
-(2 / 6 / 10 / 14px) and back Tailwind's `rounded-sm/md/lg/xl` utilities
-directly. Small controls use `sm`, standard controls (buttons, inputs) use
-`md`, cards/surfaces/dialogs use `lg`/`xl`. `rounded-full` (pills) is
-reserved for things that behave like tags, filters, or compact status
-indicators — not general containers or buttons.
+`--radius` (0.5rem / 8px, buttons' own radius) is the base;
+`--radius-sm/md/lg/xl` step from it (4 / 8 / 12 / 12px) and back Tailwind's
+`rounded-sm/md/lg/xl` utilities directly — inputs tighter (`sm`, 4px) than
+buttons/standard controls (`md`, 8px), artwork/cards/dialogs at the
+system's ceiling (`lg`/`xl`, both 12px — never exceeded; "sharp-but-soft,
+not pillowy"). Every poster/backdrop/artwork image in the product uses
+`rounded-lg` (see `MediaPoster`, `MediaDetailHero`) so portraits read as
+"framed prints," not browser-default square thumbnails. `rounded-full`
+(pills) is reserved for things that behave like tags, filters, or compact
+status indicators — not general containers or buttons.
 
 ### Elevation
 
-No custom shadow tokens. Hierarchy comes from spacing, typography, and the
-surface tokens first; overlays that are genuinely floating (menus, popovers,
-dialogs, `surface-elevated`) get a plain Tailwind `shadow-sm` — nothing
-heavier. Dark mode leans on surface contrast rather than shadows, which read
-as muddy on dark backgrounds.
+No drop shadows anywhere — hierarchy comes from spacing, typography, and
+the surface tokens first; a genuinely floating overlay (menus, popovers,
+dialogs, `surface-elevated`) gets a hairline border instead. This is a
+*central* rule, not a per-component one: `--shadow-sm/md/lg/xl` (in
+`globals.css`'s `@theme inline` block) are redefined to a 1–1.5px **inset**
+ring using `--border`/`--border-strong` rather than Tailwind's default
+blur — every existing `shadow-*` utility class in the app already resolves
+to a hairline ring with zero per-file migration. A component that also
+renders a literal `border border-border` alongside `shadow-sm` is
+double-drawing the same edge — drop the `shadow-*` class in that case (see
+`Dialog`/`Popover`/`DropdownMenu`/`Select`) rather than keeping both.
+
+Dark mode's `surface-elevated` deliberately **inverts** the usual "raised
+= lighter" rule for exactly this token: modals/sheets/overlays recede
+toward near-black (darker than the canvas, not lighter) so the overlay's
+own content — often full-bleed artwork — becomes the one lit thing on
+screen, mirroring the reference's Carbon-surface behavior. Ordinary card
+surfaces (`--surface`) still sit a normal step lighter than the canvas.
 
 ### Primary color — Clay
 
-The product's one signature accent: a muted, dusty terracotta (hue 45 in
-OKLCH), deliberately low-chroma so it reads as "warm clay," not bright
-orange, generic coral, or a Tailwind stock green/orange. Its hue sits
-between `destructive` (25, more saturated red) and `warning` (70, golden
-amber) but at much lower chroma, so all three stay clearly distinguishable
-at a glance — a brand-color change here must never make destructive/warning
-ambiguous.
+The product's one signature accent — MEDIO's own warm terracotta identity
+(hue 42 in OKLCH), not the reference's literal magenta (see "Visual
+language" above). Pushed from the previous "muted, dusty terracotta" to a
+genuinely saturated "spotlight" accent (much higher chroma) so a single
+instance of it reads as the one deliberately lit thing on a near-black
+page — the whole point of a one-accent system. Its hue still sits clear of
+`destructive` (25, more red) and `warning` (70, more gold), so a brand
+color change here must never make status colors ambiguous.
+
+**Gold** (`--gold`/`--gold-foreground`/`--gold-subtle`/`--gold-border`) is
+the one secondary editorial accent, adapted from the reference's own
+category-pill/section-highlight color — sparing use only, for taste/genre
+highlights and section eyebrow labels (see Landing's own section labels,
+`/design-system`'s "Gold" section). It is never a second primary: it never
+appears on a button, a focus ring, or anything that reads as an
+action. Primary answers "what can I do here"; Gold answers "what kind of
+thing is this."
 
 `primary-hover` and `primary-active` are hand-tuned palette stops, not
 opacity tricks — interactive states deepen the color *away* from the page
@@ -159,7 +221,11 @@ Theme is a real Settings control now (`ThemeSetting`,
 `src/features/settings/theme-setting.tsx` — System/Light/Dark with a
 miniature visual preview per option), not a standalone nav icon — see
 docs/settings.md, "Theme architecture" for the full precedence model
-(database record vs. next-themes' own per-browser localStorage).
+(database record vs. next-themes' own per-browser localStorage). Dark is
+this system's primary, most faithful expression of the reference visual
+language (see "Visual language" above); Light is a deliberately designed
+counterpart from the same relationships, never left as an inverted
+afterthought — both get reviewed together, every time.
 
 ## Wordmark
 

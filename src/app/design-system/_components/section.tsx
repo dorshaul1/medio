@@ -4,6 +4,7 @@ export const SECTIONS = [
   { id: "typography", label: "Typography" },
   { id: "colors", label: "Colors" },
   { id: "primary", label: "Primary — Clay" },
+  { id: "gold", label: "Gold — editorial accent" },
   { id: "surfaces", label: "Surfaces & radius" },
   { id: "actions", label: "Actions" },
   { id: "identity", label: "Identity" },

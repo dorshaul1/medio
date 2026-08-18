@@ -38,7 +38,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { SegmentedControl } from "@/components/ui/segmented-control";
+import { SegmentedControlDemo } from "@/app/design-system/_components/segmented-control-demo";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
@@ -120,7 +120,7 @@ export default function DesignSystemPage() {
           <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
             {siteConfig.name} — local development only
           </p>
-          <h1 className="text-2xl font-medium tracking-tight">Design System</h1>
+          <h1 className="font-display text-3xl font-medium tracking-tight">Design System</h1>
           <p className="text-sm text-muted-foreground">
             Internal UI reference. Toggle theme from Settings or your OS to inspect dark mode.
           </p>
@@ -133,7 +133,17 @@ export default function DesignSystemPage() {
         >
           <div className="flex flex-col divide-y divide-border">
             <div className="py-3">
-              <p className="text-2xl font-medium tracking-tight sm:text-3xl">Page title</p>
+              <p className="font-display text-6xl leading-[0.9] font-medium tracking-tight sm:text-7xl">
+                Editorial display
+              </p>
+              <span className="text-xs text-muted-foreground">
+                Inter Tight — Landing hero, Movie/Show hero titles only
+              </span>
+            </div>
+            <div className="py-3">
+              <p className="font-display text-3xl font-medium tracking-tight sm:text-4xl">
+                Page title
+              </p>
             </div>
             <div className="py-3">
               <p className="text-lg font-medium">Section title</p>
@@ -202,6 +212,33 @@ export default function DesignSystemPage() {
             around every section, or navigation/dialog/dropdown backgrounds. See
             docs/design-system.md for the full usage rules.
           </p>
+        </Section>
+
+        <Section
+          id="gold"
+          title="Gold — editorial accent"
+          description="The one secondary accent. Sparing use for taste/genre highlights and section marks — never a second primary."
+        >
+          <Row label="Scale">
+            <Swatch label="gold" swatch="bg-gold" />
+            <Swatch label="gold-hover" swatch="bg-gold-hover" />
+            <Swatch label="gold-subtle" swatch="bg-gold-subtle" />
+            <Swatch label="gold-border" swatch="bg-gold-border" />
+            <div className="flex flex-col items-start gap-1.5">
+              <div className="flex size-9 items-center justify-center rounded-md bg-gold text-xs font-medium text-gold-foreground">
+                Aa
+              </div>
+              <span className="text-xs text-muted-foreground">gold-foreground</span>
+            </div>
+          </Row>
+          <Row label="Where it shows up">
+            <Badge className="border border-gold-border bg-gold-subtle text-foreground">
+              Drama
+            </Badge>
+            <span className="rounded-full border border-gold-border px-3 py-1 text-xs font-medium text-gold">
+              Favorite genre
+            </span>
+          </Row>
         </Section>
 
         <Section id="surfaces" title="Surfaces & radius">
@@ -353,16 +390,7 @@ export default function DesignSystemPage() {
             </Tabs>
           </Row>
           <Row label="Segmented control — an inline single-select choice (Pick for Me's Format/Time, Settings' TextChoice)">
-            <SegmentedControl
-              value="movie"
-              ariaLabel="Format"
-              options={[
-                { value: "any", label: "Any" },
-                { value: "movie", label: "Movie" },
-                { value: "show", label: "Show" },
-              ]}
-              onValueChange={() => {}}
-            />
+            <SegmentedControlDemo />
           </Row>
           <Row label="Link tabs — a real-navigation underline nav (Stats, Discover, Library, Diary, Calendar, Filmography)">
             <LinkTabs

@@ -57,7 +57,7 @@ export default async function DiaryPage({ searchParams }: PageProps<"/library/di
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-2">
           <LibrarySectionNav active="diary" />
-          <h1 className="text-2xl font-medium tracking-tight sm:text-3xl">Diary</h1>
+          <h1 className="font-display text-3xl font-medium tracking-tight sm:text-4xl">Diary</h1>
         </div>
 
         {hasAnyHistoryEver ? (

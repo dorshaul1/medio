@@ -40,7 +40,7 @@ export function TasteHero({
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="max-w-2xl text-2xl leading-tight font-medium tracking-tight text-balance sm:text-3xl">
+      <p className="font-display max-w-2xl text-2xl leading-tight font-medium tracking-tight text-balance sm:text-3xl">
         {headlineCopy(headline)}
       </p>
       {headline.kind !== "sparse" ? (

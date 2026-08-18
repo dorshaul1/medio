@@ -81,7 +81,9 @@ export default async function LibraryPage({ searchParams }: PageProps<"/library"
         <div className="flex flex-col gap-2">
           <LibrarySectionNav active="library" />
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <h1 className="text-2xl font-medium tracking-tight sm:text-3xl">Library</h1>
+            <h1 className="font-display text-3xl font-medium tracking-tight sm:text-4xl">
+              Library
+            </h1>
             <LibrarySearch initialQuery={query ?? ""} />
           </div>
         </div>

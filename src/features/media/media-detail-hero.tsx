@@ -65,7 +65,10 @@ export function MediaDetailHero({
           backdrop ? "mt-5 sm:-mt-20" : "mt-1",
         )}
       >
-        <div className="w-32 shrink-0 overflow-hidden rounded-md bg-surface-subtle shadow-sm sm:w-44">
+        {/* `rounded-lg` (12px) — the system's ceiling for artwork, "makes
+            portraits feel like framed prints" (see docs/design-system.md,
+            "Radius"). */}
+        <div className="w-32 shrink-0 overflow-hidden rounded-lg bg-surface-subtle shadow-sm sm:w-44">
           <div className="relative aspect-2/3">
             {poster ? (
               <Image

@@ -57,7 +57,7 @@ export function PersonHeader({ person, age }: { person: Person; age: number | nu
     <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:items-start sm:gap-6 sm:text-left">
       <PersonProfileImage profile={person.profile} />
       <div className="flex flex-1 flex-col gap-1.5 pt-1">
-        <h1 className="text-2xl font-medium tracking-tight text-balance sm:text-3xl">
+        <h1 className="font-display text-4xl leading-[0.95] font-medium tracking-tight text-balance sm:text-6xl">
           {person.name}
         </h1>
         {profession ? <p className="text-sm text-muted-foreground">{profession}</p> : null}

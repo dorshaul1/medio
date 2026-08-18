@@ -1,4 +1,4 @@
-import { GeistSans } from "geist/font/sans";
+import { Inter, Inter_Tight } from "next/font/google";
 import type { Metadata, Viewport } from "next";
 import { PwaManager } from "@/components/pwa-manager";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -6,6 +6,26 @@ import { siteConfig } from "@/config/site";
 import { InstallProvider } from "@/features/install/install-provider";
 import { getCurrentUserPreferences } from "@/server/preferences/queries";
 import "./globals.css";
+
+// MEDIO's two-typeface system — see docs/design-system.md, "Typography".
+// Inter is the UI/body face (navigation, buttons, form fields, body
+// copy); Inter Tight is the condensed cut used only for editorial/
+// cinematic display headlines (Hero, Movie/Show titles, section leads),
+// never for body copy or UI labels. Both are the reference's own
+// recommended, production-safe substitutes — never a proprietary font
+// file copied from the reference itself.
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
+});
+
+const interTight = Inter_Tight({
+  subsets: ["latin"],
+  variable: "--font-inter-tight",
+  weight: ["500", "600", "700"],
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: {
@@ -35,8 +55,8 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#faf6f0" },
-    { media: "(prefers-color-scheme: dark)", color: "#1c1917" },
+    { media: "(prefers-color-scheme: light)", color: "#fbfaf9" },
+    { media: "(prefers-color-scheme: dark)", color: "#141312" },
   ],
 };
 
@@ -53,7 +73,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   const preferences = await getCurrentUserPreferences();
 
   return (
-    <html lang="en" className={GeistSans.variable} suppressHydrationWarning>
+    <html lang="en" className={`${inter.variable} ${interTight.variable}`} suppressHydrationWarning>
       <body>
         <ThemeProvider
           attribute="class"

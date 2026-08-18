@@ -38,7 +38,7 @@ function DialogContent({
         data-slot="dialog-content"
         className={cn(
           "fixed top-1/2 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2",
-          "rounded-lg border border-border bg-surface-elevated p-6 text-foreground shadow-sm outline-none",
+          "rounded-lg border border-border bg-surface-elevated p-6 text-foreground outline-none",
           // Content taller than the viewport scrolls inside the dialog
           // itself (the close button and backdrop stay put) instead of
           // silently overflowing past the screen with no way to reach

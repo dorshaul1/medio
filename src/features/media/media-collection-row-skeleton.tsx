@@ -25,7 +25,7 @@ export function MediaCollectionRowSkeleton({
           // keys are the documented exception, not real data.
           // biome-ignore lint/suspicious/noArrayIndexKey: static placeholder list, never reordered
           <div key={index} className={`shrink-0 ${TILE_WIDTH[size]}`}>
-            <Skeleton className="aspect-2/3 w-full rounded-md" />
+            <Skeleton className="aspect-2/3 w-full rounded-lg" />
             <Skeleton className="mt-2 h-4 w-3/4 rounded-sm" />
             <Skeleton className="mt-1 h-3 w-1/3 rounded-sm" />
           </div>

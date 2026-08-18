@@ -8,6 +8,7 @@ import type { KeyboardEvent, RefObject } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { IconButton } from "@/components/ui/icon-button";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { CommandRow } from "@/features/command-center/command-row";
 import { getUpNextCommandDataAction } from "@/features/command-center/command-center-actions";
 import {
@@ -82,6 +83,12 @@ export function GlobalSearchDialog({
   const [defaultSaveIntent, setDefaultSaveIntent] = useState<PlanningIntent>("watchlist");
   const [recentSearches, setRecentSearches] = useState<readonly string[]>([]);
   const [upNext, setUpNext] = useState<ActiveShowContinuation | null>(null);
+  // Distinct from `upNext === null` (which also means "resolved, no real
+  // Up Next"): reserves the Up Next command's row at a stable height
+  // while its fetch is still in flight, so Quick Actions doesn't visibly
+  // grow/shift "Log watched" down a beat after everything else is
+  // already interactive (see the `useEffect` below).
+  const [upNextLoading, setUpNextLoading] = useState(false);
   const [isPending, startTransition] = useTransition();
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const requestId = useRef(0);
@@ -94,14 +101,21 @@ export function GlobalSearchDialog({
       // Bounded, local-DB-only, and only ever fetched once per open — see
       // command-center-actions.ts. Never blocks the dialog opening: it's
       // fire-and-forget, the Quick Actions section simply gains the Up
-      // Next command a beat after everything else is already interactive.
-      getUpNextCommandDataAction().then(setUpNext);
+      // Next command a beat after everything else is already interactive
+      // — `upNextLoading` reserves its row at a stable height for that
+      // beat so nothing else visibly shifts once it resolves.
+      setUpNextLoading(true);
+      getUpNextCommandDataAction().then((result) => {
+        setUpNext(result);
+        setUpNextLoading(false);
+      });
     } else {
       clearTimeout(timeoutRef.current);
       setValue("");
       setResults(null);
       setMode("search");
       setUpNext(null);
+      setUpNextLoading(false);
     }
   }, [open]);
 
@@ -326,6 +340,7 @@ export function GlobalSearchDialog({
               <CommandCenterIdleState
                 pathname={pathname}
                 upNext={upNext}
+                upNextLoading={upNextLoading}
                 recentSearches={recentSearches}
                 runContext={runContext}
                 onSelectRecent={(query) => {
@@ -438,6 +453,7 @@ function LogWatchedResults({
 function CommandCenterIdleState({
   pathname,
   upNext,
+  upNextLoading,
   recentSearches,
   runContext,
   onSelectRecent,
@@ -445,6 +461,7 @@ function CommandCenterIdleState({
 }: {
   pathname: string;
   upNext: ActiveShowContinuation | null;
+  upNextLoading: boolean;
   recentSearches: readonly string[];
   runContext: { openLogWatched: () => void; close: () => void };
   onSelectRecent: (query: string) => void;
@@ -463,6 +480,12 @@ function CommandCenterIdleState({
   return (
     <div className="flex flex-col gap-4 px-1 py-2">
       <IdleSection title="Quick actions">
+        {/* Reserves Up Next's own row at its real height while its fetch
+            is still in flight — without this, "Log watched" briefly
+            renders alone and then gets pushed down a beat later once Up
+            Next resolves, a visible jump right after opening (see the
+            `upNextLoading` comment in global-search-dialog.tsx). */}
+        {upNextLoading ? <CommandRowSkeleton /> : null}
         {quickActions.map((command) => (
           <CommandRow key={command.id} command={command} runContext={runContext} />
         ))}
@@ -519,6 +542,19 @@ function IdleSection({ title, children }: { title: string; children: React.React
     <div>
       <h2 className="px-1 pb-1 text-xs font-medium text-muted-foreground uppercase">{title}</h2>
       <div className="flex flex-col">{children}</div>
+    </div>
+  );
+}
+
+// Matches `CommandRow`'s own box model exactly (p-2, gap-3, size-4 icon,
+// text-sm label) so the real row lands at the same height once it
+// resolves — the placeholder's job is to occupy the space, not to be
+// noticed.
+function CommandRowSkeleton() {
+  return (
+    <div className="flex w-full items-center gap-3 p-2">
+      <Skeleton className="size-4 shrink-0 rounded-sm" />
+      <Skeleton className="h-4 w-32 rounded-sm" />
     </div>
   );
 }

@@ -19,8 +19,8 @@
 // should stay fixed regardless of the viewer's light/dark theme anyway
 // — the same reasoning a real installed Home Screen icon never changes
 // color with the OS theme.
-const CLAY = "#8b5e45";
-const CLAY_FOREGROUND = "#f5efe9";
+const CLAY = "#c1502e";
+const CLAY_FOREGROUND = "#fbf3ee";
 
 // A generous, deliberate safe margin every icon keeps, standard or not —
 // most platforms already add their own shadow/highlight treatment right

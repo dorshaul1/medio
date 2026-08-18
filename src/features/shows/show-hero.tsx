@@ -38,7 +38,7 @@ export function ShowHero({
   return (
     <MediaDetailHero backdrop={backdrop} poster={poster} mediaType="show">
       <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-medium tracking-tight text-balance sm:text-3xl">
+        <h1 className="font-display text-4xl leading-[0.95] font-medium tracking-tight text-balance sm:text-6xl">
           {show.title}
         </h1>
         {show.tagline ? (

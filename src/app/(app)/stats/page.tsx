@@ -79,7 +79,7 @@ export default async function StatsPage({ searchParams }: PageProps<"/stats">) {
   return (
     <PageContainer>
       <div className="flex flex-col gap-8">
-        <h1 className="text-2xl font-medium tracking-tight sm:text-3xl">Stats</h1>
+        <h1 className="font-display text-3xl font-medium tracking-tight sm:text-4xl">Stats</h1>
 
         {hasAnyHistoryEver ? (
           <div className="flex flex-col gap-6">

@@ -32,7 +32,7 @@ export default async function SettingsPage() {
   return (
     <PageContainer>
       <div className="flex flex-col gap-8">
-        <h1 className="text-2xl font-medium tracking-tight sm:text-3xl">Settings</h1>
+        <h1 className="font-display text-3xl font-medium tracking-tight sm:text-4xl">Settings</h1>
 
         <Link
           href="/settings/account"

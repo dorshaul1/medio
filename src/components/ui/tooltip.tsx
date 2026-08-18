@@ -40,7 +40,7 @@ function TooltipContent({
         data-slot="tooltip-content"
         sideOffset={sideOffset}
         className={cn(
-          "z-50 rounded-md bg-foreground px-2.5 py-1.5 text-xs font-medium text-background shadow-sm",
+          "z-50 rounded-md bg-foreground px-2.5 py-1.5 text-xs font-medium text-background",
           className,
         )}
         {...props}

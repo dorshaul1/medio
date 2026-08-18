@@ -30,7 +30,9 @@ function SelectTrigger({
     <SelectPrimitive.Trigger
       data-slot="select-trigger"
       className={cn(
-        "flex h-9 w-fit items-center justify-between gap-2 rounded-md border border-input bg-transparent px-3 text-sm text-foreground outline-none transition-[border-color,box-shadow]",
+        // `rounded-sm` — matches `Input`'s own radius; a select is a form
+        // control first, not a button wearing a dropdown.
+        "flex h-9 w-fit items-center justify-between gap-2 rounded-sm border border-input bg-transparent px-3 text-sm text-foreground outline-none transition-[border-color,box-shadow]",
         "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
         "disabled:cursor-not-allowed disabled:opacity-50",
         "data-[placeholder]:text-muted-foreground",
@@ -98,7 +100,7 @@ function SelectContent({
         position={position}
         sideOffset={sideOffset}
         className={cn(
-          "z-50 min-w-[--radix-select-trigger-width] overflow-hidden rounded-md border border-border bg-surface-elevated text-foreground shadow-sm",
+          "z-50 min-w-[--radix-select-trigger-width] overflow-hidden rounded-md border border-border bg-surface-elevated text-foreground",
           className,
         )}
         {...props}

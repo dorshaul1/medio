@@ -24,7 +24,7 @@ function DropdownMenuContent({
         data-slot="dropdown-menu-content"
         sideOffset={sideOffset}
         className={cn(
-          "z-50 min-w-40 overflow-hidden rounded-md border border-border bg-surface-elevated p-1 text-foreground shadow-sm",
+          "z-50 min-w-40 overflow-hidden rounded-md border border-border bg-surface-elevated p-1 text-foreground",
           className,
         )}
         {...props}
@@ -179,7 +179,7 @@ function DropdownMenuSubContent({
       <DropdownMenuPrimitive.SubContent
         data-slot="dropdown-menu-sub-content"
         className={cn(
-          "z-50 min-w-40 overflow-hidden rounded-md border border-border bg-surface-elevated p-1 text-foreground shadow-sm",
+          "z-50 min-w-40 overflow-hidden rounded-md border border-border bg-surface-elevated p-1 text-foreground",
           className,
         )}
         {...props}

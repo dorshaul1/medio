@@ -105,49 +105,68 @@
 /*
  * Semantic tokens. Raw color values live here, and only here — components
  * consume the semantic names (bg-background, text-muted-foreground, ...),
- * never the raw values. See docs/design-system.md.
+ * never the raw values. See docs/design-system.md, "Visual language".
  *
- * Palette: warm neutral in light mode (not stark white), near-black warm
- * charcoal in dark mode (not navy/purple). Pastel accent tokens are for
- * sparing use as fills/indicators, always paired with the theme's own
- * `foreground` token for text on top of them — never used as text color
- * themselves.
+ * MEDIO's visual language is adapted from a dark-stage editorial
+ * reference (a "black-box stage lit by a warm spotlight"): a near-black
+ * canvas, imagery doing the work, hairline inset borders instead of drop
+ * shadows (see the `--shadow-*` theme block below — every `shadow-*`
+ * utility in the app already resolves to an inset ring, not blur, with
+ * no per-component change needed), and one saturated signature accent
+ * used sparingly. Dark is the primary, most faithful expression; Light is
+ * a deliberate counterpart derived from the same relationships (canvas /
+ * raised surface / hairline border / one accent), never an inverted
+ * afterthought.
  *
- * Primary is Clay — a muted, dusty terracotta (hue 45), the product's one
- * signature accent. Deliberately low-chroma so it reads as "warm clay,"
- * not bright orange — and its hue sits clear of both `destructive` (25,
- * more saturated red) and `warning` (70, golden amber), so status colors
- * stay unambiguous. Interactive states (hover/active) are distinct
- * hand-tuned stops, not opacity tricks: light mode deepens away from the
- * page on hover/press, dark mode lifts on hover and grounds on press —
- * see docs/design-system.md.
+ * Primary is still Clay — MEDIO's own warm terracotta identity, not the
+ * reference's literal magenta (see CLAUDE.md, "adapts the design
+ * language, not the branding") — but pushed from "muted dusty terracotta"
+ * to a genuinely saturated "spotlight" accent so a single instance of it
+ * reads as the one deliberately lit thing on the page. Its hue (42) stays
+ * clear of `destructive` (25, more red) and `warning` (70, more gold) so
+ * status colors stay unambiguous.
+ *
+ * Gold is the one secondary editorial accent — sparing use only, for
+ * taste/genre highlights and section marks (see docs/design-system.md,
+ * "Gold") — never a third competing "primary."
+ *
+ * Pastel accent tokens are for sparing use as fills/indicators, always
+ * paired with the theme's own `foreground` token for text on top of them
+ * — never used as text color themselves.
  */
 :root {
-  --background: oklch(0.98 0.008 85);
-  --foreground: oklch(0.21 0.008 85);
+  --background: oklch(0.985 0.004 85);
+  --foreground: oklch(0.19 0.008 85);
 
-  --surface: oklch(0.995 0.003 85);
+  --surface: oklch(0.998 0.002 85);
   --surface-subtle: oklch(0.96 0.006 85);
-  --surface-elevated: oklch(0.995 0.003 85);
+  --surface-elevated: oklch(1 0 0);
 
   --muted: oklch(0.945 0.006 85);
-  --muted-foreground: oklch(0.47 0.008 85);
+  --muted-foreground: oklch(0.46 0.008 85);
 
   --border: oklch(0.89 0.007 85);
-  --border-strong: oklch(0.8 0.008 85);
-  --input: oklch(0.89 0.007 85);
+  --border-strong: oklch(0.79 0.008 85);
+  --input: oklch(0.85 0.008 85);
   --ring: var(--primary);
 
-  --primary: oklch(0.46 0.075 45);
-  --primary-hover: oklch(0.42 0.075 45);
-  --primary-active: oklch(0.37 0.07 45);
-  --primary-foreground: oklch(0.98 0.006 45);
-  --primary-subtle: oklch(0.91 0.035 45);
-  --primary-border: oklch(0.72 0.06 45);
+  --primary: oklch(0.5 0.15 42);
+  --primary-hover: oklch(0.44 0.15 42);
+  --primary-active: oklch(0.38 0.14 42);
+  --primary-foreground: oklch(0.99 0.006 42);
+  --primary-subtle: oklch(0.92 0.045 42);
+  --primary-border: oklch(0.68 0.13 42);
+
   --secondary: oklch(0.945 0.006 85);
   --secondary-foreground: oklch(0.21 0.008 85);
   --accent: oklch(0.955 0.006 85);
   --accent-foreground: oklch(0.21 0.008 85);
+
+  --gold: oklch(0.64 0.13 88);
+  --gold-hover: oklch(0.58 0.13 88);
+  --gold-foreground: oklch(0.99 0.01 88);
+  --gold-subtle: oklch(0.93 0.05 88);
+  --gold-border: oklch(0.62 0.1 88);
 
   --destructive: oklch(0.55 0.16 25);
   --destructive-foreground: oklch(0.97 0.01 25);
@@ -160,35 +179,53 @@
   --pastel-peach: oklch(0.9 0.05 55);
   --pastel-rose: oklch(0.9 0.045 10);
 
-  --radius: 0.375rem;
+  --radius: 0.5rem;
 }
 
 .dark {
-  --background: oklch(0.16 0.006 85);
-  --foreground: oklch(0.95 0.006 85);
+  /* Obsidian — the page canvas. Barely-warm near-black, not navy/purple,
+     not a flat #000 (a true black gives imagery nowhere to sit above
+     it). */
+  --background: oklch(0.195 0.004 85);
+  --foreground: oklch(0.96 0.004 85);
 
-  --surface: oklch(0.2 0.006 85);
-  --surface-subtle: oklch(0.185 0.006 85);
-  --surface-elevated: oklch(0.24 0.006 85);
+  /* Charcoal Plate — raised card surfaces sit a step lighter than the
+     canvas, the ordinary dark-mode elevation direction. Slate — a nested
+     surface *within* a card (e.g. a stat row inside a card) sits between
+     the two. Carbon — modals/sheets/the sticky mobile header deliberately
+     recede toward black instead, the one place elevation inverts: an
+     overlay's whole point is to let its own content (often full-bleed
+     artwork) become the only lit thing on screen. See
+     docs/design-system.md, "Elevation". */
+  --surface: oklch(0.25 0.005 85);
+  --surface-subtle: oklch(0.225 0.005 85);
+  --surface-elevated: oklch(0.11 0.004 85);
 
-  --muted: oklch(0.24 0.006 85);
-  --muted-foreground: oklch(0.64 0.008 85);
+  --muted: oklch(0.28 0.006 85);
+  --muted-foreground: oklch(0.64 0.007 85);
 
-  --border: oklch(0.28 0.007 85);
-  --border-strong: oklch(0.36 0.008 85);
-  --input: oklch(0.28 0.007 85);
+  --border: oklch(0.32 0.007 85);
+  --border-strong: oklch(0.42 0.008 85);
+  --input: oklch(0.34 0.007 85);
   --ring: var(--primary);
 
-  --primary: oklch(0.66 0.08 45);
-  --primary-hover: oklch(0.71 0.08 45);
-  --primary-active: oklch(0.6 0.08 45);
-  --primary-foreground: oklch(0.15 0.02 45);
-  --primary-subtle: oklch(0.3 0.04 45);
-  --primary-border: oklch(0.44 0.06 45);
-  --secondary: oklch(0.26 0.007 85);
-  --secondary-foreground: oklch(0.95 0.006 85);
-  --accent: oklch(0.24 0.007 85);
-  --accent-foreground: oklch(0.95 0.006 85);
+  --primary: oklch(0.68 0.15 42);
+  --primary-hover: oklch(0.73 0.15 42);
+  --primary-active: oklch(0.61 0.15 42);
+  --primary-foreground: oklch(0.14 0.02 42);
+  --primary-subtle: oklch(0.3 0.08 42);
+  --primary-border: oklch(0.48 0.13 42);
+
+  --secondary: oklch(0.28 0.007 85);
+  --secondary-foreground: oklch(0.96 0.004 85);
+  --accent: oklch(0.26 0.007 85);
+  --accent-foreground: oklch(0.96 0.004 85);
+
+  --gold: oklch(0.82 0.12 90);
+  --gold-hover: oklch(0.87 0.11 90);
+  --gold-foreground: oklch(0.18 0.02 90);
+  --gold-subtle: oklch(0.3 0.06 90);
+  --gold-border: oklch(0.56 0.09 90);
 
   --destructive: oklch(0.65 0.15 25);
   --destructive-foreground: oklch(0.16 0.01 25);
@@ -203,7 +240,8 @@
 }
 
 @theme inline {
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-inter);
+  --font-display: var(--font-inter-tight);
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -231,6 +269,12 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
 
+  --color-gold: var(--gold);
+  --color-gold-hover: var(--gold-hover);
+  --color-gold-foreground: var(--gold-foreground);
+  --color-gold-subtle: var(--gold-subtle);
+  --color-gold-border: var(--gold-border);
+
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-success: var(--success);
@@ -242,13 +286,28 @@
   --color-pastel-peach: var(--pastel-peach);
   --color-pastel-rose: var(--pastel-rose);
 
-  /* Small controls -> standard controls -> cards/surfaces -> large overlays.
-     Pills (rounded-full) are reserved for tags/filters/status indicators,
-     applied directly rather than through a semantic radius step. */
+  /* Inputs tighter than buttons; cards/images at the system's ceiling —
+     see docs/design-system.md, "Radius": never exceed `--radius-lg` for a
+     card or a poster. Pills (rounded-full) stay reserved for tags/
+     filters/status, applied directly rather than through a semantic step. */
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: var(--radius);
   --radius-lg: calc(var(--radius) + 4px);
-  --radius-xl: calc(var(--radius) + 8px);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  /* No drop shadows anywhere in the system (see docs/design-system.md,
+     "Elevation") — every `shadow-*` utility already used throughout the
+     app resolves to a 1px/2px *inset* hairline ring instead of blur, so
+     elevation reads as a lit edge, not a floating panel. This is a
+     central redefinition, not a per-component migration: nothing that
+     already writes `shadow-sm`/`shadow-md` needs to change. */
+  --shadow-2xs: 0 0 0 1px var(--border) inset;
+  --shadow-xs: 0 0 0 1px var(--border) inset;
+  --shadow-sm: 0 0 0 1px var(--border) inset;
+  --shadow-md: 0 0 0 1px var(--border-strong) inset;
+  --shadow-lg: 0 0 0 1px var(--border-strong) inset;
+  --shadow-xl: 0 0 0 1.5px var(--border-strong) inset;
+  --shadow-2xl: 0 0 0 1.5px var(--border-strong) inset;
 }
 
 @layer base {
@@ -306,6 +365,42 @@
 html {
   scrollbar-width: thin;
   scrollbar-color: var(--border-strong) transparent;
+  /* `scroll`, not `auto`: the scrollbar is permanently present, whether
+     or not the current page's content actually overflows — the one
+     surefire way a scrollbar can never appear/disappear, so nothing
+     ever needs to compensate for its width changing. This intentionally
+     replaces two earlier, more "clever" attempts (`scrollbar-gutter:
+     stable` combined with Radix's own `react-remove-scroll-bar`
+     compensation) that fought each other and produced *more* padding
+     than before, not less — Radix independently measures a scrollbar
+     gap and adds compensating margin/padding to `body[data-scroll-
+     locked]` every time it locks scroll (Select/Dialog/DropdownMenu),
+     with no way to make it aware of a second, CSS-only reservation
+     already covering the same space. Exactly one mechanism owns this
+     now; Radix's own compensation is neutralized directly below. */
+  overflow-y: scroll;
+}
+/* Neutralizes `react-remove-scroll-bar`'s own margin/padding
+   compensation (the `body[data-scroll-locked]` rule every Radix
+   Select/Dialog/DropdownMenu open sets, measured fresh against the real
+   scrollbar width every time one opens) — redundant and actively
+   harmful now that `html`'s own scrollbar never appears/disappears in
+   the first place (see the comment above). `html body[data-scroll-
+   locked]` (one extra type selector) is *deliberately* higher
+   specificity than Radix's own `body[data-scroll-locked]` rule, not
+   just equal — Radix injects its rule into a dynamically-created
+   `<style>` tag that lands later in the document than this stylesheet,
+   so with matched specificity (attribute selector on `body`, both
+   `!important`) the later one wins regardless of ours; only strictly
+   higher specificity guarantees this one always wins instead. Confirmed
+   against a real scrollbar (a headless/automated browser test alone
+   can't catch this — it renders a zero-width overlay scrollbar, so
+   Radix's own rule computes to a coincidental `0px` there either way). */
+html body[data-scroll-locked] {
+  /* biome-ignore lint/complexity/noImportantStyles: overriding a third-party !important rule — see comment above. */
+  margin: 0 !important;
+  /* biome-ignore lint/complexity/noImportantStyles: overriding a third-party !important rule — see comment above. */
+  padding: 0 !important;
 }
 html::-webkit-scrollbar {
   width: 10px;

@@ -40,7 +40,9 @@ export default async function MovieGenrePage({
     <PageContainer>
       <BackButton />
       <div className="mt-2 mb-8 flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-medium tracking-tight sm:text-3xl">{genre.name} Movies</h1>
+        <h1 className="font-display text-3xl font-medium tracking-tight sm:text-4xl">
+          {genre.name} Movies
+        </h1>
         <GenreSortSelect basePath={basePath} sort={sort} />
       </div>
 

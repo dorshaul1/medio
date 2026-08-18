@@ -8,8 +8,8 @@
 // — see CLAUDE.md's own token guidance for when a genuinely fixed value
 // is appropriate. Nothing else in the product should follow this
 // exception.
-const LIGHT = { bg: "#f3f1ee", chrome: "#e2ded9", text: "#3a3733", accent: "#b5693f" };
-const DARK = { bg: "#232120", chrome: "#322f2d", text: "#d9d5d0", accent: "#c98a5e" };
+const LIGHT = { bg: "#fbfaf9", chrome: "#e6e3df", text: "#2e2c2a", accent: "#c1522f" };
+const DARK = { bg: "#141312", chrome: "#232120", text: "#e8e6e3", accent: "#e0703f" };
 
 function Surface({ colors }: { colors: typeof LIGHT }) {
   return (

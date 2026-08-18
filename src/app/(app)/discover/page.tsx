@@ -48,7 +48,7 @@ export default async function DiscoverPage({ searchParams }: PageProps<"/discove
           line of hierarchy is the search field itself, not description
           copy, so it doesn't fit that primitive's title+description shape. */}
       <div className="mb-8 flex flex-col gap-4">
-        <h1 className="text-2xl font-medium tracking-tight sm:text-3xl">Discover</h1>
+        <h1 className="font-display text-3xl font-medium tracking-tight sm:text-4xl">Discover</h1>
         <DiscoverSearchInput initialQuery={rawQuery} />
       </div>
 

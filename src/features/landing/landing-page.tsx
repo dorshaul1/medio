@@ -33,7 +33,7 @@ export function LandingPage() {
         {/* Hero */}
         <section className="mx-auto flex max-w-6xl flex-col items-center gap-12 px-6 pt-10 pb-24 sm:px-10 lg:flex-row lg:items-center lg:gap-20 lg:pt-20 lg:pb-32">
           <div className="flex max-w-xl flex-col items-center gap-6 text-center lg:items-start lg:text-left">
-            <h1 className="text-4xl leading-[1.05] font-medium tracking-tight text-balance sm:text-6xl lg:text-7xl">
+            <h1 className="font-display text-5xl leading-[0.92] font-medium tracking-tight text-balance sm:text-7xl lg:text-8xl">
               Everything you watch.
               <br />
               Never lose your place.
@@ -61,8 +61,8 @@ export function LandingPage() {
         <section className="bg-surface-subtle px-6 py-20 sm:px-10 sm:py-28">
           <div className="mx-auto flex max-w-5xl flex-col items-center gap-12 lg:flex-row lg:gap-20">
             <div className="flex max-w-md flex-col gap-4 text-center lg:flex-1 lg:text-left">
-              <p className="text-xs font-medium tracking-wide text-primary uppercase">Tracking</p>
-              <h2 className="text-3xl font-medium tracking-tight text-balance sm:text-4xl">
+              <p className="text-xs font-medium tracking-wide text-gold uppercase">Tracking</p>
+              <h2 className="font-display text-3xl font-medium tracking-tight text-balance sm:text-4xl">
                 Never lose your place
               </h2>
               <p className="text-muted-foreground text-balance">
@@ -80,8 +80,8 @@ export function LandingPage() {
         <section className="px-6 py-20 sm:px-10 sm:py-28">
           <div className="mx-auto flex max-w-5xl flex-col items-center gap-12 lg:flex-row-reverse lg:items-center lg:gap-24">
             <div className="flex max-w-sm flex-col gap-4 text-center lg:flex-1 lg:text-left">
-              <p className="text-xs font-medium tracking-wide text-primary uppercase">Library</p>
-              <h2 className="text-3xl font-medium tracking-tight text-balance sm:text-4xl">
+              <p className="text-xs font-medium tracking-wide text-gold uppercase">Library</p>
+              <h2 className="font-display text-3xl font-medium tracking-tight text-balance sm:text-4xl">
                 A library that actually helps
               </h2>
               <p className="text-muted-foreground text-balance">
@@ -98,8 +98,8 @@ export function LandingPage() {
         {/* Pick for Me — the flagship moment, breaking out to full width. */}
         <section className="border-y border-border bg-surface-subtle px-6 py-24 sm:px-10 sm:py-32">
           <div className="mx-auto flex max-w-6xl flex-col items-center gap-6 text-center">
-            <p className="text-xs font-medium tracking-wide text-primary uppercase">Pick for me</p>
-            <h2 className="max-w-2xl text-4xl font-medium tracking-tight text-balance sm:text-5xl">
+            <p className="text-xs font-medium tracking-wide text-gold uppercase">Pick for me</p>
+            <h2 className="font-display max-w-2xl text-5xl leading-[0.95] font-medium tracking-tight text-balance sm:text-6xl">
               Stop wondering what to watch
             </h2>
             <p className="max-w-lg text-muted-foreground text-balance">
@@ -134,10 +134,8 @@ export function LandingPage() {
         <section className="bg-surface-subtle px-6 py-20 sm:px-10 sm:py-28">
           <div className="mx-auto flex max-w-5xl flex-col items-center gap-12 lg:flex-row lg:gap-20">
             <div className="flex max-w-md flex-col gap-4 text-center lg:flex-1 lg:text-left">
-              <p className="text-xs font-medium tracking-wide text-primary uppercase">
-                Your history
-              </p>
-              <h2 className="text-3xl font-medium tracking-tight text-balance sm:text-4xl">
+              <p className="text-xs font-medium tracking-wide text-gold uppercase">Your history</p>
+              <h2 className="font-display text-3xl font-medium tracking-tight text-balance sm:text-4xl">
                 It becomes more yours the more you watch
               </h2>
               <p className="text-muted-foreground text-balance">
@@ -161,9 +159,7 @@ export function LandingPage() {
         <section className="px-6 py-16 sm:px-10 sm:py-20">
           <div className="mx-auto flex max-w-4xl flex-col items-center gap-10 sm:flex-row-reverse sm:gap-16">
             <div className="max-w-xs text-center sm:flex-1 sm:text-left">
-              <p className="text-xs font-medium tracking-wide text-primary uppercase">
-                On your phone
-              </p>
+              <p className="text-xs font-medium tracking-wide text-gold uppercase">On your phone</p>
               <h2 className="mt-2 text-2xl font-medium tracking-tight text-balance">
                 MEDIO, one tap away.
               </h2>
@@ -183,7 +179,7 @@ export function LandingPage() {
 
         {/* Final CTA */}
         <section className="mx-auto flex max-w-2xl flex-col items-center gap-6 px-6 py-24 text-center sm:px-10 sm:py-32">
-          <h2 className="text-3xl font-medium tracking-tight text-balance sm:text-4xl">
+          <h2 className="font-display text-3xl font-medium tracking-tight text-balance sm:text-4xl">
             Your next watch starts here.
           </h2>
           <Button asChild size="lg">

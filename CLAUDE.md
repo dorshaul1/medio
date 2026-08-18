@@ -117,15 +117,44 @@ in the same change.
 - Preserve "Content brings the color": UI chrome stays neutral; pastel
   accent tokens are for sparing fills/indicators, never large backgrounds
   or text color.
-- Clay (`primary`/`primary-*`) is the product's one signature brand accent —
-  a muted terracotta, deliberately distinct from `destructive` (red) and
-  `warning` (amber). Use it for primary actions, intentional selection, and
-  focus; never for body text, page titles, every icon/badge, or navigation
-  chrome beyond one restrained detail. Always use the semantic tokens
-  (`bg-primary`, `bg-primary-hover`, ...), never a raw palette value. Don't
-  confuse it with `positive` status (`pastel-sage`, a separate token).
-- Dark mode is neutral charcoal, not navy/purple-tinted, and authored
-  independently — never just an inverted light theme.
+- MEDIO's current primary visual reference is a dark-stage editorial style
+  (a Refero style built from MasterClass's own design system — see
+  docs/design-system.md, "Visual language"). MEDIO **adapts the design
+  language** (dark near-black canvas, hairline borders instead of drop
+  shadows, one saturated spotlight accent, condensed editorial display
+  type) — it never copies the reference's own branding, colors, or
+  product concepts (no MasterClass magenta, no "conversion"/neon accent
+  tier, no MasterClass product structure).
+- Clay (`primary`/`primary-*`) is the product's one signature brand
+  accent — a saturated warm terracotta "spotlight," deliberately distinct
+  from `destructive` (red) and `warning` (amber). Use it for primary
+  actions, intentional selection, and focus; never for body text, page
+  titles, every icon/badge, or navigation chrome beyond one restrained
+  detail. Gold (`gold`/`gold-*`) is the one secondary editorial accent —
+  taste/genre highlights, section eyebrow labels only, never an action or
+  a second primary. Always use the semantic tokens (`bg-primary`,
+  `bg-gold`, ...), never a raw palette value. Don't confuse either with
+  `positive` status (`pastel-sage`, a separate token).
+- No drop shadows anywhere — elevation reads as a hairline inset border
+  (see `--shadow-*` in `globals.css`, redefined centrally so every
+  existing `shadow-*` utility already resolves this way). A component
+  with both a literal border and a `shadow-*` class is double-drawing the
+  same edge; drop the `shadow-*` class.
+- Content and media dominate product chrome: posters/backdrops/artwork
+  are the primary source of color and visual interest, always at the
+  system's radius ceiling (`rounded-lg`, 12px — see `MediaPoster`,
+  `MediaDetailHero`). Chrome (nav, cards, dialogs) stays quiet and
+  hairline-bordered so imagery reads as the lit thing on the page.
+- Dark mode is near-black (obsidian), not navy/purple-tinted, and is this
+  system's primary, most faithful expression of the reference — Light is
+  a deliberately designed counterpart from the same relationships, never
+  a compromise or an afterthought.
+- Accessibility and real usability always win over literal reference
+  imitation — contrast, focus-visible, keyboard/touch behavior, and
+  semantic HTML are never sacrificed to match a visual reference exactly.
+- The old and new visual systems never coexist once a surface is
+  migrated — no lingering pre-redesign tokens, component variants, or
+  hardcoded values living alongside their replacement "just in case."
 - Composition before containers: reach for typography, whitespace, and
   grouping before a card/border/shadow. A card is not the default content
   wrapper. Earn every border, radius, shadow, icon, and badge.

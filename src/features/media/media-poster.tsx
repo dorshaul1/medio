@@ -78,9 +78,9 @@ export function MediaPoster({
       // ring blends into the artwork's own edge pixels). An offset into
       // the page background turns it into a crisp outline distinct from
       // the artwork, instead of trying to out-contrast the image itself.
-      className="group block rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      className="group block rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
-      <div className="relative aspect-2/3 overflow-hidden rounded-md bg-surface-subtle">
+      <div className="relative aspect-2/3 overflow-hidden rounded-lg bg-surface-subtle">
         {poster ? (
           <Image
             src={poster}

@@ -44,7 +44,7 @@ export function StatsHero({
 
   return (
     <div className="flex flex-col gap-5">
-      <p className="max-w-2xl text-2xl leading-tight font-medium tracking-tight text-balance sm:text-3xl">
+      <p className="font-display max-w-2xl text-2xl leading-tight font-medium tracking-tight text-balance sm:text-3xl">
         {range.kind === "all" ? "Your viewing history." : `What you watched in ${rangeLabel}.`}
       </p>
       <div className="flex flex-wrap gap-x-8 gap-y-4">
