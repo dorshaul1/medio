@@ -1,14 +1,11 @@
 import type { Route } from "next";
-import Link from "next/link";
-import { cn } from "@/lib/utils";
+import { LinkTabs } from "@/components/ui/link-tabs";
 import type { CalendarFilter, CalendarView } from "@/server/calendar/types";
 
 // Calendar's one structural choice — Upcoming (the default chronological
 // agenda) or Calendar (the compact month grid) — never Day/Week/Month/
 // Year/Agenda like a generic calendar app (see docs/calendar.md,
-// "Information architecture"). Same plain-navigation underline pattern
-// `LibraryTypeToggle`/`DiaryFilterToggle` already use, not a client-side
-// panel switch.
+// "Information architecture").
 const OPTIONS: readonly { value: CalendarView; label: string }[] = [
   { value: "upcoming", label: "Upcoming" },
   { value: "calendar", label: "Calendar" },
@@ -22,27 +19,15 @@ export function CalendarViewToggle({
   filter: CalendarFilter;
 }) {
   return (
-    <nav aria-label="Calendar layout" className="flex items-center gap-5 border-b border-border">
-      {OPTIONS.map((option) => {
-        const isActive = option.value === active;
-        const href = buildCalendarHref(option.value, filter);
-
-        return (
-          <Link
-            key={option.value}
-            href={href}
-            aria-current={isActive ? "page" : undefined}
-            className={cn(
-              "-mb-px border-b-2 border-transparent pb-2.5 text-sm font-medium text-muted-foreground outline-none transition-colors",
-              "hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50",
-              isActive && "border-primary text-foreground",
-            )}
-          >
-            {option.label}
-          </Link>
-        );
-      })}
-    </nav>
+    <LinkTabs
+      ariaLabel="Calendar layout"
+      active={active}
+      items={OPTIONS.map((option) => ({
+        value: option.value,
+        label: option.label,
+        href: buildCalendarHref(option.value, filter),
+      }))}
+    />
   );
 }
 

@@ -188,12 +188,12 @@ Primitives with no complex behavior (Badge, Spinner, Skeleton, Input,
 Textarea) are plain Tailwind, no Radix dependency.
 
 Current primitives: `Button`, `IconButton`, `Input`, `Textarea`, `Checkbox`,
-`RadioGroup`, `Switch`, `Tabs`, `Badge`, `Progress`, `Spinner`, `Skeleton`,
-`Separator`, `Tooltip`, `DropdownMenu`, `Popover`, `Dialog`. Every one of
-them has a live example at [`/design-system`](/design-system) (local
-development only — see below) — that page is the visual inventory of the
-`ui/` layer; check it before adding a new primitive or duplicating an
-existing one.
+`RadioGroup`, `SegmentedControl`, `Switch`, `Tabs`, `LinkTabs`, `Badge`,
+`Progress`, `Spinner`, `Skeleton`, `Separator`, `Tooltip`, `DropdownMenu`,
+`Popover`, `Dialog`. Every one of them has a live example at
+[`/design-system`](/design-system) (local development only — see below) —
+that page is the visual inventory of the `ui/` layer; check it before
+adding a new primitive or duplicating an existing one.
 
 Notes on a few:
 
@@ -207,7 +207,32 @@ Notes on a few:
   after a dynamic UI swap, e.g. Up Next's Mark Watched → Undo transition
   (`features/home/up-next-mark-watched-button.tsx`).
 - **Tabs** uses a typography-led underline indicator, not the boxed gray
-  segmented-control look most component libraries default to.
+  segmented-control look most component libraries default to. It has no
+  current production consumer — every real "tabs" need in the app so far
+  has actually been a real navigation (see **LinkTabs**), which is the
+  deliberate reason it's kept small and generic rather than grown further;
+  it stays as real, correct infrastructure for a genuine same-page panel
+  switch if one is ever needed, not dead weight to delete.
+- **LinkTabs** is `Tabs`' real-navigation sibling — the shared underline
+  visual, but a `<nav>` of `<Link>`s with `aria-current`, for a "tab" that
+  is actually a new URL (`?tab=`, `?type=`, `?view=`, ...). Every current
+  tab-like control in the product (Stats Overview/Taste, Discover Movies/
+  Shows, Library media type, Diary type, Calendar view, Filmography role)
+  uses this — it used to be six independent copies of the same classes
+  before being consolidated here.
+- **SegmentedControl** is a compact bordered single-select strip (Pick for
+  Me's Format/Time, Settings' `TextChoice`) — real `RadioGroup` semantics
+  underneath, a different shape from `RadioGroup`'s own vertical dot-list
+  (a handful of short options picked inline vs. a longer list in a form).
+  `RadioGroup`/`RadioGroupItem` likewise have no current production
+  consumer for the same reason `Tabs` doesn't — kept as correct, available
+  infrastructure for a real dot-list use case, not because a real one
+  exists today.
+- **Checkbox** also has no current production consumer — Episode tracking
+  deliberately never renders one (see CLAUDE.md, "Episode tracking
+  controls must not resemble a task checklist"), which is the one place a
+  naive implementation might otherwise reach for it. Kept for a genuine
+  future multi-select need, same reasoning as `RadioGroup`.
 - **Dialog**'s overlay is plain `bg-black/50` regardless of theme — a scrim
   dims what's behind it in both themes, which is a lighting effect, not a
   semantic color, so it's a deliberate exception to "tokens only."

@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { IconButton } from "@/components/ui/icon-button";
 import { Input } from "@/components/ui/input";
+import { LinkTabs } from "@/components/ui/link-tabs";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Progress } from "@/components/ui/progress";
@@ -37,6 +38,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
@@ -349,6 +351,28 @@ export default function DesignSystemPage() {
                 Details content.
               </TabsContent>
             </Tabs>
+          </Row>
+          <Row label="Segmented control — an inline single-select choice (Pick for Me's Format/Time, Settings' TextChoice)">
+            <SegmentedControl
+              value="movie"
+              ariaLabel="Format"
+              options={[
+                { value: "any", label: "Any" },
+                { value: "movie", label: "Movie" },
+                { value: "show", label: "Show" },
+              ]}
+              onValueChange={() => {}}
+            />
+          </Row>
+          <Row label="Link tabs — a real-navigation underline nav (Stats, Discover, Library, Diary, Calendar, Filmography)">
+            <LinkTabs
+              ariaLabel="Example"
+              active="overview"
+              items={[
+                { value: "overview", label: "Overview", href: "/design-system" },
+                { value: "taste", label: "Taste", href: "/design-system" },
+              ]}
+            />
           </Row>
         </Section>
 

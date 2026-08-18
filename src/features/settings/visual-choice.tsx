@@ -2,8 +2,8 @@
 
 import { RadioGroup as RadioGroupPrimitive } from "radix-ui";
 import type { ReactNode } from "react";
-import { useRef, useState, useTransition } from "react";
 import { cn } from "@/lib/utils";
+import { useOptimisticChoice } from "./use-optimistic-choice";
 
 // The one reusable visual-preference primitive every appearance-ish
 // setting builds on (Theme/Density/Motion/Spoiler protection/Home
@@ -24,22 +24,7 @@ export function VisualChoice<T extends string>({
   ariaLabel: string;
   onChange: (value: T) => Promise<void>;
 }) {
-  const [current, setCurrent] = useState(value);
-  const [, startTransition] = useTransition();
-  const requestId = useRef(0);
-
-  function select(next: T) {
-    const id = ++requestId.current;
-    const previous = current;
-    setCurrent(next);
-    startTransition(async () => {
-      try {
-        await onChange(next);
-      } catch {
-        if (requestId.current === id) setCurrent(previous);
-      }
-    });
-  }
+  const { current, select } = useOptimisticChoice(value, onChange);
 
   return (
     <RadioGroupPrimitive.Root

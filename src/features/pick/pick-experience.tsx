@@ -2,8 +2,8 @@
 
 import type { Route } from "next";
 import { usePathname, useRouter } from "next/navigation";
-import { RadioGroup as RadioGroupPrimitive } from "radix-ui";
 import { useState, useTransition } from "react";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { refreshPickAction } from "@/features/pick/pick-actions";
 import { AlternativePickCard, PrimaryPickCard } from "@/features/pick/pick-card";
 import { decisionContextToSearch } from "@/features/pick/pick-params";
@@ -44,14 +44,6 @@ const TIME_OPTIONS: readonly {
 // list itself to stay correct.
 function timeKey(value: DecisionContext["timeBudgetMinutes"]): string {
   return TIME_OPTIONS.find((option) => option.value === value)?.key ?? "any";
-}
-
-function chipClass(active: boolean): string {
-  return cn(
-    "rounded-sm px-3 py-1.5 text-sm font-medium outline-none transition-colors select-none",
-    "focus-visible:ring-3 focus-visible:ring-ring/50",
-    active ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground",
-  );
 }
 
 // Pick's one client boundary — everything above it (the initial result,
@@ -105,52 +97,26 @@ export function PickExperience({
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-wrap items-center gap-3">
-        <RadioGroupPrimitive.Root
+        <SegmentedControl
           value={context.mediaType}
-          onValueChange={(value) =>
-            refresh(
-              { ...context, mediaType: value as DecisionContext["mediaType"] },
-              excludedIds,
-              true,
-            )
-          }
-          aria-label="Format"
-          className="inline-flex rounded-md border border-border p-0.5"
-        >
-          {FORMAT_OPTIONS.map((option) => (
-            <RadioGroupPrimitive.Item
-              key={option.value}
-              value={option.value}
-              className={chipClass(context.mediaType === option.value)}
-            >
-              {option.label}
-            </RadioGroupPrimitive.Item>
-          ))}
-        </RadioGroupPrimitive.Root>
+          options={FORMAT_OPTIONS}
+          ariaLabel="Format"
+          onValueChange={(value) => refresh({ ...context, mediaType: value }, excludedIds, true)}
+        />
 
-        <RadioGroupPrimitive.Root
+        <SegmentedControl
           value={timeKey(context.timeBudgetMinutes)}
-          onValueChange={(value) => {
-            const selected = TIME_OPTIONS.find((option) => option.key === value);
+          options={TIME_OPTIONS.map((option) => ({ value: option.key, label: option.label }))}
+          ariaLabel="Time available"
+          onValueChange={(key) => {
+            const selected = TIME_OPTIONS.find((option) => option.key === key);
             refresh(
               { ...context, timeBudgetMinutes: selected ? selected.value : null },
               excludedIds,
               true,
             );
           }}
-          aria-label="Time available"
-          className="inline-flex rounded-md border border-border p-0.5"
-        >
-          {TIME_OPTIONS.map((option) => (
-            <RadioGroupPrimitive.Item
-              key={option.key}
-              value={option.key}
-              className={chipClass(timeKey(context.timeBudgetMinutes) === option.key)}
-            >
-              {option.label}
-            </RadioGroupPrimitive.Item>
-          ))}
-        </RadioGroupPrimitive.Root>
+        />
       </div>
 
       {result.relaxedTimeConstraint ? (

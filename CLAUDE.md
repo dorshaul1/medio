@@ -143,6 +143,23 @@ in the same change.
 - New component variants require a real product need — don't grow a
   primitive's API speculatively. Product-specific UI should fit its actual
   context rather than become a universal prop-heavy abstraction.
+- Design System primitives (`src/components/ui/`) are the canonical
+  implementation for reusable MEDIO UI — a feature must not recreate one
+  locally (a second underline-tab nav, a second segmented control, a
+  second anything already in `ui/`), even by importing Radix directly and
+  restyling it from scratch.
+- Repeated UI patterns should be promoted into a focused reusable
+  component once a second real use case actually appears — not before,
+  and not force-generalized beyond what those real use cases need.
+- Product-specific compositions may stay local and should not be forced
+  into a universal, prop-heavy abstraction just to avoid a second file.
+- Reusable visual tokens (color, spacing, radii, typography, focus,
+  motion) belong centrally in `globals.css`/the primitive that owns them
+  — never duplicated as raw values throughout feature code.
+- `/design-system` must accurately reflect production: every primitive
+  shown there either has a real consumer or says plainly that it
+  currently doesn't, and nothing shown disagrees with what's actually
+  shipped.
 - Preserve accessible focus states (the `focus-visible:ring` treatment) and
   complete interaction states (hover/focus/disabled/etc., whichever apply)
   on any new interactive element. Icon-only controls need a real accessible
