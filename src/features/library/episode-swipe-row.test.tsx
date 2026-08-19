@@ -84,6 +84,22 @@ describe("EpisodeSwipeRow", () => {
     await waitFor(() => expect(onCommit).toHaveBeenCalledTimes(1));
   });
 
+  it("settles back after a successful commit too — the row usually isn't unmounted (the show just advances to its next episode)", async () => {
+    const onCommit = vi.fn().mockResolvedValue(true);
+    render(
+      <EpisodeSwipeRow onCommit={onCommit}>
+        <span>Row content</span>
+      </EpisodeSwipeRow>,
+    );
+    const row = screen.getByText("Row content").closest("div[style]") as HTMLElement;
+
+    const travel = SWIPE_MAX_TRAVEL_PX * 0.8;
+    drag(row, travel);
+    fireEvent.pointerUp(row, { clientX: travel, clientY: 0, pointerId: 1 });
+
+    await waitFor(() => expect(row.style.transform).toBe("translateX(0px)"));
+  });
+
   it("restores the row when the committed mutation fails — never leaves a false watched state", async () => {
     const onCommit = vi.fn().mockResolvedValue(false);
     render(

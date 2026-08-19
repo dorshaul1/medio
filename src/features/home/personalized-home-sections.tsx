@@ -31,7 +31,12 @@ import { getPersonalHome } from "@/server/home/queries";
 // combination of preferences (see docs/home.md, "No empty personal
 // dashboard") — never an empty card or "start watching something"
 // prompt. A private-data fetch failure degrades the same way: personalized
-// Home just doesn't render, the rest of Home is unaffected.
+// Home just doesn't render, the rest of Home is unaffected. Its own
+// Suspense fallback (`PersonalizedHomeSectionsSkeleton`, see home-page.tsx)
+// mirrors this same "nothing to show" possibility — a user with no
+// active shows will briefly see the skeleton collapse to nothing once
+// this resolves, which is the accepted tradeoff for never showing a
+// blank gap for the much more common case where real content is coming.
 export async function PersonalizedHomeSections({
   showUpNext,
   showFinishSoon,

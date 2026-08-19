@@ -18,10 +18,10 @@ export function PwaManager() {
   return (
     <div
       role="status"
-      className="fixed inset-x-0 bottom-16 z-50 flex justify-center px-4 md:bottom-4"
+      className="pointer-events-none fixed inset-x-0 bottom-16 z-50 flex justify-center px-4 md:bottom-4"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
-      <div className="flex items-center gap-3 rounded-md border border-border bg-surface-elevated px-4 py-3 shadow-sm">
+      <div className="pointer-events-auto flex items-center gap-3 rounded-md border border-border bg-surface-elevated px-4 py-3 shadow-sm">
         <p className="text-sm text-foreground">A new version of MEDIO is ready.</p>
         <Button size="sm" onClick={applyUpdate}>
           Refresh

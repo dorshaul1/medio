@@ -170,17 +170,18 @@ export function EpisodeSwipeRow({
 
   async function commit() {
     setPhase("committing");
-    const succeeded = await onCommit();
-    if (!succeeded) {
-      // Restore the row — never leave a false "watched" state on
-      // screen, and never touch the list's own scroll position (nothing
-      // here scrolls anything).
-      setPhase("settling");
-      setTravel(0);
-    }
-    // On success the parent re-renders without this episode eligible
-    // anymore (the row's own key changes upstream), so there's nothing
-    // further to animate here.
+    await onCommit();
+    // Always settle back, success or failure. A failed mutation must
+    // never leave a false "watched" state pinned on screen; a *successful*
+    // one usually doesn't unmount this row either — the show still has a
+    // next episode, so `TrackedShowLibraryRow` keeps rendering the exact
+    // same `EpisodeSwipeRow` instance with new `children` underneath (only
+    // its inner detail text remounts, keyed by episode — see
+    // tracked-show-library-row.tsx). Without this, `travel`/`phase` would
+    // stay pinned at full reveal forever, permanently hiding the row's
+    // real content behind the "watched" layer.
+    setPhase("settling");
+    setTravel(0);
   }
 
   const progress = swipeProgress(travel);

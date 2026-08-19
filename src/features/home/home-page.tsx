@@ -2,12 +2,15 @@ import { Suspense } from "react";
 import { PageContainer } from "@/components/shell/page-container";
 import { PageHeader } from "@/components/shell/page-header";
 import { BacklogRowSection } from "@/features/home/backlog-row-section";
+import { BacklogRowSkeleton } from "@/features/home/backlog-row-skeleton";
 import {
   CalendarEntryPoint,
   CalendarEntryPointFallback,
 } from "@/features/home/calendar-entry-point";
 import { HomeCalendarAgenda } from "@/features/home/home-calendar-agenda";
+import { HomeCalendarAgendaSkeleton } from "@/features/home/home-calendar-agenda-skeleton";
 import { HomeCalendarMonth } from "@/features/home/home-calendar-month";
+import { HomeCalendarMonthSkeleton } from "@/features/home/home-calendar-month-skeleton";
 import {
   InTheatersCollection,
   PopularMoviesCollection,
@@ -16,6 +19,7 @@ import {
   TrendingShowsCollection,
 } from "@/features/home/home-collections";
 import { PersonalizedHomeSections } from "@/features/home/personalized-home-sections";
+import { PersonalizedHomeSectionsSkeleton } from "@/features/home/personalized-home-sections-skeleton";
 import { PickEntryPoint } from "@/features/home/pick-entry-point";
 import { MediaCollectionRowSkeleton } from "@/features/media/media-collection-row-skeleton";
 import type { PublicHomeSection } from "@/server/home/layout";
@@ -70,9 +74,11 @@ const PUBLIC_SECTIONS: Record<PublicHomeSection, React.ReactNode> = {
 // continuation rows and a Backlog row with discovery cut further;
 // Calendar replaces everything below Up Next with its own body and
 // nothing else — never just a reordering of the same fixed rows. Each
-// piece is its own Suspense boundary with no fallback (see
-// PersonalizedHomeSections' own comment on why a skeleton here would be
-// misleading), so none of them block each other.
+// piece is its own Suspense boundary, and each gets its own
+// component-shaped skeleton fallback (see docs/home.md, "Loading state")
+// — never a blank gap and never one generic full-page spinner — so none
+// of them block each other and the page never looks broken while its
+// data streams in.
 export async function HomePage() {
   const preferences = await getCurrentUserPreferences();
   const layout = resolveHomeLayout(preferences.homeLayout);
@@ -88,6 +94,17 @@ export async function HomePage() {
       )
     ) : layout.calendarAgendaSize === "preview" ? (
       <HomeCalendarAgenda size="preview" />
+    ) : null;
+
+  const calendarBodySkeleton =
+    layout.calendarAgendaSize === "full" ? (
+      preferences.homeCalendarView === "calendar" ? (
+        <HomeCalendarMonthSkeleton />
+      ) : (
+        <HomeCalendarAgendaSkeleton size="full" />
+      )
+    ) : layout.calendarAgendaSize === "preview" ? (
+      <HomeCalendarAgendaSkeleton size="preview" />
     ) : null;
 
   return (
@@ -108,7 +125,15 @@ export async function HomePage() {
         }
       />
       <div className="flex flex-col gap-10">
-        <Suspense fallback={null}>
+        <Suspense
+          fallback={
+            <PersonalizedHomeSectionsSkeleton
+              showUpNext={preferences.showUpNext}
+              showFinishSoon={preferences.showFinishSoon}
+              showContinuationRows={layout.showContinuationRows}
+            />
+          }
+        >
           <PersonalizedHomeSections
             showUpNext={preferences.showUpNext}
             showFinishSoon={preferences.showFinishSoon}
@@ -116,11 +141,11 @@ export async function HomePage() {
           />
         </Suspense>
         {layout.showBacklogRow ? (
-          <Suspense fallback={null}>
+          <Suspense fallback={<BacklogRowSkeleton />}>
             <BacklogRowSection />
           </Suspense>
         ) : null}
-        {calendarBody ? <Suspense fallback={null}>{calendarBody}</Suspense> : null}
+        {calendarBody ? <Suspense fallback={calendarBodySkeleton}>{calendarBody}</Suspense> : null}
         {publicSections}
       </div>
     </PageContainer>

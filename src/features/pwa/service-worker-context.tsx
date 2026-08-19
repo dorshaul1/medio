@@ -48,6 +48,34 @@ const UPDATE_SETTLE_DELAY_MS = 1500;
 // installed PWA left open for a workday still finds a same-day deploy.
 const PERIODIC_CHECK_INTERVAL_MS = 60 * 60 * 1000;
 
+// A client-side navigation (Next's router fetching a route's own JS
+// chunk/RSC payload by hashed filename) fails outright once a newer
+// deploy has replaced those files — the request 404s, and either the
+// browser throws "Loading chunk ... failed" or it tries to parse the
+// 404 HTML response as JS, throwing "Unexpected token '<'" (a
+// `SyntaxError`, exactly what a stuck-on-a-stale-build Home nav click
+// throws — see docs/pwa.md, "Stale-chunk recovery"). This is a genuinely
+// broken page, not a "there's an optional update" prompt (see
+// `PwaManager`) — the normal "never auto-reload while the user might be
+// mid-edit" rule doesn't apply, because the page has already crashed.
+// `sessionStorage` guards against a real broken deploy looping forever
+// (a timestamp, not a one-shot flag, so a tab that reloads once, browses
+// successfully for a while, then hits a *later* deploy's stale chunk
+// still gets to recover again — only a tight repeat within the same
+// failure gets suppressed).
+const STALE_CHUNK_RELOAD_KEY = "medio-stale-chunk-reload-at";
+const STALE_CHUNK_RELOAD_COOLDOWN_MS = 15_000;
+const STALE_CHUNK_PATTERN =
+  /Loading chunk [\w.-]+ failed|Failed to fetch dynamically imported module|Importing a module script failed|Unexpected token ['"]?<|is not valid JSON/i;
+
+function isStaleChunkError(message: string): boolean {
+  return STALE_CHUNK_PATTERN.test(message);
+}
+
+function errorMessage(reason: unknown): string {
+  return reason instanceof Error ? reason.message : String(reason);
+}
+
 export function ServiceWorkerProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<ServiceWorkerUpdateStatus>("checking");
   const registrationRef = useRef<ServiceWorkerRegistration | null>(null);
@@ -79,10 +107,33 @@ export function ServiceWorkerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    function recoverFromStaleChunk() {
+      try {
+        const lastReloadAt = Number(window.sessionStorage.getItem(STALE_CHUNK_RELOAD_KEY));
+        if (lastReloadAt && Date.now() - lastReloadAt < STALE_CHUNK_RELOAD_COOLDOWN_MS) return;
+        window.sessionStorage.setItem(STALE_CHUNK_RELOAD_KEY, String(Date.now()));
+      } catch {
+        // Storage blocked (private browsing, quota) — still worth one
+        // reload attempt, just without the loop guard.
+      }
+      window.location.reload();
+    }
+    function handleGlobalError(event: ErrorEvent) {
+      if (isStaleChunkError(event.message)) recoverFromStaleChunk();
+    }
+    function handleGlobalRejection(event: PromiseRejectionEvent) {
+      if (isStaleChunkError(errorMessage(event.reason))) recoverFromStaleChunk();
+    }
+    window.addEventListener("error", handleGlobalError);
+    window.addEventListener("unhandledrejection", handleGlobalRejection);
+
     if (process.env.NODE_ENV !== "production" || !("serviceWorker" in navigator)) {
       supportedRef.current = false;
       setStatus("error");
-      return;
+      return () => {
+        window.removeEventListener("error", handleGlobalError);
+        window.removeEventListener("unhandledrejection", handleGlobalRejection);
+      };
     }
 
     let cancelled = false;
@@ -136,6 +187,8 @@ export function ServiceWorkerProvider({ children }: { children: ReactNode }) {
 
     return () => {
       cancelled = true;
+      window.removeEventListener("error", handleGlobalError);
+      window.removeEventListener("unhandledrejection", handleGlobalRejection);
       navigator.serviceWorker.removeEventListener("controllerchange", handleControllerChange);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.clearInterval(intervalId);
