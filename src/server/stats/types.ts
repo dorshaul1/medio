@@ -206,10 +206,15 @@ export type WeekdayRhythm = {
 // watch events; a show's typical episode runtime × its episode watch
 // events — see docs/stats.md, "Viewing time"). Only ever produced when
 // `coverageRatio` clears MIN_RUNTIME_COVERAGE_RATIO; the UI never sees a
-// low-confidence estimate to accidentally render.
+// low-confidence estimate to accidentally render. `movieMinutes`/
+// `showMinutes` are the same breakdown gated independently against their
+// own lifetime event count — either can be `null` (withheld, not zero)
+// while `minutes` (the combined total) is still present.
 export type ViewingTimeEstimate = {
   minutes: number;
   coverageRatio: number;
+  movieMinutes: number | null;
+  showMinutes: number | null;
 };
 
 // --- Headline --------------------------------------------------------------

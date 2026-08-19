@@ -303,7 +303,8 @@ async function buildStatsProfile(input: {
   }
   const estimatedViewingTime = estimateViewingTime(
     titles,
-    viewingVolume.movieWatchEventCount + viewingVolume.episodeWatchEventCount,
+    viewingVolume.movieWatchEventCount,
+    viewingVolume.episodeWatchEventCount,
   );
 
   return {
