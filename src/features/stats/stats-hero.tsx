@@ -5,9 +5,19 @@ import type { StatsRange } from "@/server/stats/range";
 // Stats' opening area — viewing volume for the selected range (see
 // docs/stats.md). Deliberately not a taste headline: personal taste
 // insight lives on the Taste tab; Overview is temporal viewing activity.
-function formatHours(minutes: number): string {
-  const hours = Math.max(1, Math.round(minutes / 60));
-  return `~${hours} ${hours === 1 ? "hour" : "hours"}`;
+// The leading "~" stays even at minute granularity — this is still an
+// *estimate* (a show's one typical episode runtime applied to every
+// episode event, never a true per-episode figure — see docs/stats.md,
+// "Viewing time"), and the tilde is what honestly signals that; showing
+// more granularity than whole hours doesn't mean showing false
+// precision, as long as it's still visibly marked approximate.
+function formatDuration(minutes: number): string {
+  const totalMinutes = Math.round(minutes);
+  const hours = Math.floor(totalMinutes / 60);
+  const mins = totalMinutes % 60;
+  if (hours === 0) return `~${mins}m`;
+  if (mins === 0) return `~${hours}h`;
+  return `~${hours}h ${mins}m`;
 }
 
 function StatNumber({ value, label }: { value: number; label: string }) {
@@ -62,12 +72,12 @@ function TimeWatchedSection({ estimate }: { estimate: ViewingTimeEstimate | null
       </p>
       <div className="flex flex-wrap gap-x-8 gap-y-3">
         {estimate.movieMinutes !== null ? (
-          <TimeStat value={formatHours(estimate.movieMinutes)} label="Movies" />
+          <TimeStat value={formatDuration(estimate.movieMinutes)} label="Movies" />
         ) : null}
         {estimate.showMinutes !== null ? (
-          <TimeStat value={formatHours(estimate.showMinutes)} label="Shows" />
+          <TimeStat value={formatDuration(estimate.showMinutes)} label="Shows" />
         ) : null}
-        <TimeStat value={formatHours(estimate.minutes)} label="Total" />
+        <TimeStat value={formatDuration(estimate.minutes)} label="Total" />
       </div>
     </div>
   );

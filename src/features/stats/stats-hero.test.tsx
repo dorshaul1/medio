@@ -65,7 +65,7 @@ describe("StatsHero", () => {
     expect(screen.queryByText("Time watched")).not.toBeInTheDocument();
   });
 
-  it("renders a rounded Total once confident enough, with no raw minutes shown", () => {
+  it("renders an hours+minutes Total once confident enough, with no raw minutes shown", () => {
     render(
       <StatsHero
         range={{ kind: "all" }}
@@ -79,12 +79,13 @@ describe("StatsHero", () => {
       />,
     );
     expect(screen.getByText("Time watched")).toBeInTheDocument();
-    expect(screen.getByText("~641 hours")).toBeInTheDocument();
+    // 38472 minutes = 641h 12m.
+    expect(screen.getByText("~641h 12m")).toBeInTheDocument();
     expect(screen.getByText("Total")).toBeInTheDocument();
     expect(screen.queryByText(/38,472/)).not.toBeInTheDocument();
     // Movies/Shows weren't individually confident enough — only one
     // Time-watched figure (Total) shows, never an invented per-type one.
-    expect(screen.getAllByText(/^~\d+ hours?$/)).toHaveLength(1);
+    expect(screen.getAllByText(/^~/)).toHaveLength(1);
   });
 
   it("shows the Movies/Shows breakdown once each independently clears the confidence bar", () => {
@@ -95,13 +96,30 @@ describe("StatsHero", () => {
         estimatedViewingTime={{
           minutes: 900,
           coverageRatio: 0.9,
-          movieMinutes: 600,
-          showMinutes: 300,
+          movieMinutes: 630,
+          showMinutes: 270,
         }}
       />,
     );
-    expect(screen.getByText("~10 hours")).toBeInTheDocument();
-    expect(screen.getByText("~5 hours")).toBeInTheDocument();
-    expect(screen.getByText("~15 hours")).toBeInTheDocument();
+    // 630min = 10h 30m, 270min = 4h 30m, 900min = 15h.
+    expect(screen.getByText("~10h 30m")).toBeInTheDocument();
+    expect(screen.getByText("~4h 30m")).toBeInTheDocument();
+    expect(screen.getByText("~15h")).toBeInTheDocument();
+  });
+
+  it("shows plain minutes, no hour segment, for a duration under an hour", () => {
+    render(
+      <StatsHero
+        range={{ kind: "all" }}
+        overview={OVERVIEW}
+        estimatedViewingTime={{
+          minutes: 45,
+          coverageRatio: 0.9,
+          movieMinutes: null,
+          showMinutes: null,
+        }}
+      />,
+    );
+    expect(screen.getByText("~45m")).toBeInTheDocument();
   });
 });
